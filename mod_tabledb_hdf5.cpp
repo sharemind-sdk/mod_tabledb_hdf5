@@ -74,6 +74,8 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_open,
                           args, num_args, refs, crefs,
                           returnValue, c)
 {
+    (void) args;
+
     if (!SyscallArgs<0u, false, 0u, 1u>::check(num_args, refs, crefs, returnValue)) {
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
     }
@@ -105,6 +107,8 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_close,
                           args, num_args, refs, crefs,
                           returnValue, c)
 {
+    (void) args;
+
     if (!SyscallArgs<0u, false, 0u, 1u>::check(num_args, refs, crefs, returnValue)) {
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
     }
@@ -164,6 +168,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_create,
         if (!conn)
             return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
+        (void) num;
         // TODO ...
 
         return SHAREMIND_MODULE_API_0x1_OK;
@@ -178,6 +183,8 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_insert_row,
                           args, num_args, refs, crefs,
                           returnValue, c)
 {
+    (void) args;
+
     if (!SyscallArgs<0u, true, 0u, 1u>::check(num_args, refs, crefs, returnValue)) {
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
     }
@@ -194,6 +201,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_insert_row,
 
         sharemind::TdbHdf5Module * m = static_cast<sharemind::TdbHdf5Module *>(c->moduleHandle);
 
+        (void) m;
         // TODO ...
 
         return SHAREMIND_MODULE_API_0x1_OK;

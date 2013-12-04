@@ -75,6 +75,7 @@ TdbHdf5Connection::~TdbHdf5Connection() {
 }
 
 bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<TdbString *> & names, const std::vector<TdbType *> & types) {
+    (void) tbl; (void) names; (void) types;
     /*
     if (!validateTableName(tbl))
         return false;
@@ -441,6 +442,7 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Tdb
 }
 
 bool TdbHdf5Connection::tblDelete(const std::string & tbl) {
+    (void) tbl;
     return false;
 }
 
@@ -554,6 +556,7 @@ bool TdbHdf5Connection::readColumn(const std::string & tbl, const size_type colI
 }
 
 bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::pair<uint64_t, uint64_t> & rowId, std::vector<TdbValue *> & vals) {
+    (void) rowId; (void) vals;
     if (!validateTableName(tbl))
         return false;
 
