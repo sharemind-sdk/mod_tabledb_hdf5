@@ -59,7 +59,7 @@ TARGET_LINK_LIBRARIES(sharemind_mod_tabledb_hdf5
 ################################################################################
 
     ${HDF5_LIBRARIES}
-    ${Boost_FILESYSTEM_LIBRARY}
+    ${Boost_LIBRARIES}
 )
 
 # Install the library and headers
