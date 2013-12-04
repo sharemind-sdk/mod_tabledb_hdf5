@@ -544,10 +544,12 @@ bool TdbHdf5Connection::tblSize(const std::string & tbl, size_type & rows, size_
 }
 
 bool TdbHdf5Connection::readColumn(const std::string & tbl, const std::string & colId, std::vector<TdbValue *> & vals) {
+    (void)tbl; (void)colId; (void)vals;
     return false;
 }
 
-bool TdbHdf5Connection::readColumn(const std::string & tbl, const size_t & colId, std::vector<TdbValue *> & vals) {
+bool TdbHdf5Connection::readColumn(const std::string & tbl, const size_type colId, std::vector<TdbValue *> & vals) {
+    (void)tbl; (void)colId; (void)vals;
     return false;
 }
 
@@ -563,7 +565,7 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::pair<uint6
     }
 
     // Get the size of the table
-    size_t rowCount = 0, colCount = 0;
+    size_type rowCount = 0, colCount = 0;
     if (!tblSize(tbl, rowCount, colCount))
         return false;
 

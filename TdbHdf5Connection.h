@@ -53,7 +53,7 @@ public: /* Methods: */
      */
 
     bool readColumn(const std::string & tbl, const std::string & colId, std::vector<TdbValue *> & vals);
-    bool readColumn(const std::string & tbl, const size_type & colId, std::vector<TdbValue *> & vals);
+    bool readColumn(const std::string & tbl, const size_type colId, std::vector<TdbValue *> & vals);
     //bool insertRow(const std::string & tbl, const std::string & rowId, std::vector<TdbValue *> & vals);
     bool insertRow(const std::string & tbl, const std::pair<uint64_t, uint64_t> & rowId, std::vector<TdbValue *> & vals);
 
