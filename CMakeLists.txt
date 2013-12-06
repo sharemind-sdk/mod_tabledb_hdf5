@@ -9,7 +9,14 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 PROJECT(SHAREMIND_MOD_TABLEDB_HDF5)
 
-# Find packages:
+ADD_COMPILE_OPTIONS(
+  "-Wall" "-Wextra" "-O2"
+  "$<$<NOT:$<STREQUAL:$<CONFIGURATION>,Release>>:-ggdb>"
+  "$<$<NOT:$<STREQUAL:$<CONFIGURATION>,Release>>:-fno-omit-frame-pointer>"
+  "$<$<STREQUAL:$<CONFIGURATION>,Release>:-DNDEBUG>"
+  "$<$<STREQUAL:$<CONFIGURATION>,Release>:-fomit-frame-pointer>"
+)
+
 SET(Boost_USE_STATIC_RUNTIME OFF)
 FIND_PACKAGE(Boost COMPONENTS filesystem system thread REQUIRED)
 FIND_PACKAGE(HDF5 REQUIRED)
@@ -44,24 +51,10 @@ SET(TABLEDB_HDF5_HEADERS
     TdbHdf5Module.h
 )
 
-# compile the library
 ADD_LIBRARY(sharemind_mod_tabledb_hdf5 MODULE ${TABLEDB_HDF5_SOURCES} ${TABLEDB_HDF5_HEADERS})
-SET_TARGET_PROPERTIES(sharemind_mod_tabledb_hdf5 PROPERTIES
-                      COMPILE_FLAGS "-O2 -ggdb")
-
-# Use these libraries during linking
 TARGET_LINK_LIBRARIES(sharemind_mod_tabledb_hdf5
-
-################################################################################
-##  THE FOLLOWING LIBRARIES ARE CURRENTLY PROVIDED HERE ONLY BECAUSE OUR      ##
-##  INTERFACES ARE EPICALLY BROKEN. THIS LINK-LEVEL DEPENDENCY HACK MUST BE   ##
-##  REMOVED, BECAUSE IT MAY CAUSE RUNTIME DYNAMIC LINKER ERRORS.              ##
-################################################################################
-
     ${HDF5_LIBRARIES}
     ${Boost_LIBRARIES}
 )
 
-# Install the library and headers
-INSTALL(TARGETS sharemind_mod_tabledb_hdf5
-        LIBRARY DESTINATION "lib")
+INSTALL(TARGETS sharemind_mod_tabledb_hdf5 LIBRARY DESTINATION "lib")
