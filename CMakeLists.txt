@@ -10,7 +10,7 @@ CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 PROJECT(SHAREMIND_MOD_TABLEDB_HDF5)
 
 ADD_COMPILE_OPTIONS(
-  "-Wall" "-Wextra" "-O2"
+  "-Wall" "-Wextra" "-O2" "-fPIC"
   "$<$<NOT:$<STREQUAL:$<CONFIGURATION>,Release>>:-ggdb>"
   "$<$<NOT:$<STREQUAL:$<CONFIGURATION>,Release>>:-fno-omit-frame-pointer>"
   "$<$<STREQUAL:$<CONFIGURATION>,Release>:-DNDEBUG>"
