@@ -33,7 +33,7 @@ void destroy(void * ptr) throw() { delete static_cast<T *>(ptr); }
 
 namespace sharemind {
 
-TdbHdf5Module::TdbHdf5Module(ILogger & logger, DataStoreManager & dataStoreManager, DataSourceManager & dataSourceManager, TdbVectorMapUtil & mapUtil)
+TdbHdf5Module::TdbHdf5Module(ILogger & logger, SharemindDataStoreManager & dataStoreManager, SharemindDataSourceManager & dataSourceManager, SharemindTdbVectorMapUtil & mapUtil)
     : m_logger(logger)
     , m_dataStoreManager(dataStoreManager)
     , m_dataSourceManager(dataSourceManager)
@@ -52,7 +52,7 @@ bool TdbHdf5Module::openConnection(const void * process, const std::string & dsN
         // Get configuration from file or load a cached configuration
         ConfMap::iterator it = m_dsConf.find(dsName);
         if (it == m_dsConf.end()) {
-            DataSource * src = m_dataSourceManager.get_source(&m_dataSourceManager, dsName.c_str());
+            SharemindDataSource * src = m_dataSourceManager.get_source(&m_dataSourceManager, dsName.c_str());
             if (!src) {
                 LogError(m_logger) << "Failed to get configuration for data source \"" << dsName << "\".";
                 return false;
@@ -73,7 +73,7 @@ bool TdbHdf5Module::openConnection(const void * process, const std::string & dsN
     }
 
     // Get connection store
-    DataStore * connections = m_dataStoreManager.get_datastore(&m_dataStoreManager,
+    SharemindDataStore * connections = m_dataStoreManager.get_datastore(&m_dataStoreManager,
                                                                process,
                                                                "mod_tabledb_hdf5/connections");
     if (!connections) {
@@ -94,7 +94,7 @@ bool TdbHdf5Module::openConnection(const void * process, const std::string & dsN
 
 bool TdbHdf5Module::closeConnection(const void * process, const std::string & dsName) {
     // Get connection store
-    DataStore * connections = m_dataStoreManager.get_datastore(&m_dataStoreManager,
+    SharemindDataStore * connections = m_dataStoreManager.get_datastore(&m_dataStoreManager,
                                                                process,
                                                                "mod_tabledb_hdf5/connections");
     if (!connections) {
@@ -110,7 +110,7 @@ bool TdbHdf5Module::closeConnection(const void * process, const std::string & ds
 
 TdbHdf5Connection * TdbHdf5Module::getConnection(const void * process, const std::string & dsName) const {
     // Get connection store
-    DataStore * connections = m_dataStoreManager.get_datastore(&m_dataStoreManager,
+    SharemindDataStore * connections = m_dataStoreManager.get_datastore(&m_dataStoreManager,
                                                                process,
                                                                "mod_tabledb_hdf5/connections");
     if (!connections) {
@@ -129,9 +129,9 @@ TdbHdf5Connection * TdbHdf5Module::getConnection(const void * process, const std
     return conn->get();
 }
 
-TdbVectorMap * TdbHdf5Module::newVectorMap(const void * process) {
+SharemindTdbVectorMap * TdbHdf5Module::newVectorMap(const void * process) {
     // Get vector map store
-    DataStore * maps = m_dataStoreManager.get_datastore(&m_dataStoreManager,
+    SharemindDataStore * maps = m_dataStoreManager.get_datastore(&m_dataStoreManager,
                                                         process,
                                                         "mod_tabledb/vector_maps");
     if (!maps) {
@@ -140,7 +140,7 @@ TdbVectorMap * TdbHdf5Module::newVectorMap(const void * process) {
     }
 
     // Add new map to the store
-    TdbVectorMap * map = m_mapUtil.new_map(&m_mapUtil, maps);
+    SharemindTdbVectorMap * map = m_mapUtil.new_map(&m_mapUtil, maps);
     if (!map) {
         LogError(m_logger) << "Failed to create new map object.";
         return NULL;
@@ -151,7 +151,7 @@ TdbVectorMap * TdbHdf5Module::newVectorMap(const void * process) {
 
 bool TdbHdf5Module::deleteVectorMap(const void * process, const uint64_t vmapId) {
     // Get vector map store
-    DataStore * maps = m_dataStoreManager.get_datastore(&m_dataStoreManager,
+    SharemindDataStore * maps = m_dataStoreManager.get_datastore(&m_dataStoreManager,
                                                         process,
                                                         "mod_tabledb/vector_maps");
     if (!maps) {
@@ -163,9 +163,9 @@ bool TdbHdf5Module::deleteVectorMap(const void * process, const uint64_t vmapId)
     return m_mapUtil.delete_map(&m_mapUtil, maps, vmapId);
 }
 
-TdbVectorMap * TdbHdf5Module::getVectorMap(const void * process, const uint64_t vmapId) const {
+SharemindTdbVectorMap * TdbHdf5Module::getVectorMap(const void * process, const uint64_t vmapId) const {
     // Get vector map store
-    DataStore * maps = m_dataStoreManager.get_datastore(&m_dataStoreManager,
+    SharemindDataStore * maps = m_dataStoreManager.get_datastore(&m_dataStoreManager,
                                                         process,
                                                         "mod_tabledb/vector_maps");
     if (!maps) {
@@ -174,7 +174,7 @@ TdbVectorMap * TdbHdf5Module::getVectorMap(const void * process, const uint64_t 
     }
 
     // Return an existing map object
-    TdbVectorMap * map = m_mapUtil.get_map(&m_mapUtil, maps, vmapId);
+    SharemindTdbVectorMap * map = m_mapUtil.get_map(&m_mapUtil, maps, vmapId);
     if (!map) {
         LogError(m_logger) << "No map object with given identifier exists.";
         return NULL;

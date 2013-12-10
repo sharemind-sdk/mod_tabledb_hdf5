@@ -23,8 +23,8 @@
 namespace fs = boost::filesystem;
 
 namespace std {
-    template<> struct less<TdbType *> {
-        bool operator() (TdbType * const lhs, TdbType * const rhs) {
+    template<> struct less<SharemindTdbType *> {
+        bool operator() (SharemindTdbType * const lhs, SharemindTdbType * const rhs) {
             const int cmp = strcmp(lhs->domain, rhs->domain);
             std::cout << strcmp(lhs->domain, rhs->domain) << " (" << lhs->domain << ", " << rhs->domain << ") " << strcmp(lhs->name, rhs->name) << " (" << lhs->name << ", " << rhs->name << ")" << std::endl;
             return cmp == 0 ? strcmp(lhs->name, rhs->name) : cmp;
@@ -72,7 +72,7 @@ TdbHdf5Connection::~TdbHdf5Connection() {
     m_tableFiles.clear();
 }
 
-bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<TdbString *> & names, const std::vector<TdbType *> & types) {
+bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<SharemindTdbString *> & names, const std::vector<SharemindTdbType *> & types) {
     (void) tbl; (void) names; (void) types;
     /*
     if (!validateTableName(tbl))
@@ -116,12 +116,12 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Tdb
 
     // Check the provided types
     std::vector<std::pair<std::string, size_type> > colIdxMap;
-    std::map<TdbType *, size_t> typeMap;
+    std::map<SharemindTdbType *, size_t> typeMap;
 
     {
-        std::vector<TdbType *>::const_iterator it;
+        std::vector<SharemindTdbType *>::const_iterator it;
         for (it = types.begin(); it != types.end(); ++it) {
-            std::pair<std::map<TdbType *, size_t>::iterator, bool> rv = typeMap.insert(std::make_pair(*it, 1));
+            std::pair<std::map<SharemindTdbType *, size_t>::iterator, bool> rv = typeMap.insert(std::make_pair(*it, 1));
             if (!rv.second) {
                 if (rv.first->first->size != (*it)->size) {
                     m_logger.error() << "Inconsistent type data given for type \"" << (*it)->domain << "::" << (*it)->name << "\".";
@@ -152,7 +152,7 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Tdb
     } BOOST_SCOPE_EXIT_END
 
     {
-        std::map<TdbType, size_t>::const_iterator it;
+        std::map<SharemindTdbType, size_t>::const_iterator it;
         for (it = typeMap.begin(); it != typeMap.end(); ++it) {
             hid_t tId = H5Tcreate(H5T_OPAQUE, it->first.size);
             if (tId < 0)
@@ -356,8 +356,8 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Tdb
             // Serialize the column index data
             ColumnIndex colIdx[size];
 
-            std::vector<TdbString *>::const_iterator nameIt = names.begin();
-            std::vector<TdbType *>::const_iterator typeIt = types.begin();
+            std::vector<SharemindTdbString *>::const_iterator nameIt = names.begin();
+            std::vector<SharemindTdbType *>::const_iterator typeIt = types.begin();
 
             for (size_t i = 0; i < size; ++i, ++nameIt, ++typeIt) {
                 const size_t nameSize = strlen(nameIt->str);
@@ -551,17 +551,17 @@ bool TdbHdf5Connection::tblSize(const std::string & tbl, size_type & rows, size_
     return true;
 }
 
-bool TdbHdf5Connection::readColumn(const std::string & tbl, const std::string & colId, std::vector<TdbValue *> & vals) {
+bool TdbHdf5Connection::readColumn(const std::string & tbl, const std::string & colId, std::vector<SharemindTdbValue *> & vals) {
     (void)tbl; (void)colId; (void)vals;
     return false;
 }
 
-bool TdbHdf5Connection::readColumn(const std::string & tbl, const size_type colId, std::vector<TdbValue *> & vals) {
+bool TdbHdf5Connection::readColumn(const std::string & tbl, const size_type colId, std::vector<SharemindTdbValue *> & vals) {
     (void)tbl; (void)colId; (void)vals;
     return false;
 }
 
-bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::pair<uint64_t, uint64_t> & rowId, std::vector<TdbValue *> & vals) {
+bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::pair<uint64_t, uint64_t> & rowId, std::vector<SharemindTdbValue *> & vals) {
     (void) rowId; (void) vals;
     if (!validateTableName(tbl))
         return false;

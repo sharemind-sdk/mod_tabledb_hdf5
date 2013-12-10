@@ -33,32 +33,32 @@ private: /* Types: */
 
 public: /* Methods: */
 
-    TdbHdf5Module(ILogger & logger, DataStoreManager & dataStoreManager, DataSourceManager & dsManager, TdbVectorMapUtil & mapUtil);
+    TdbHdf5Module(ILogger & logger, SharemindDataStoreManager & dataStoreManager, SharemindDataSourceManager & dsManager, SharemindTdbVectorMapUtil & mapUtil);
 
     bool openConnection(const void * process, const std::string & dsName);
     bool closeConnection(const void * process, const std::string & dsName);
     TdbHdf5Connection * getConnection(const void * process, const std::string & dsName) const;
 
-    TdbVectorMap * newVectorMap(const void * process);
+    SharemindTdbVectorMap * newVectorMap(const void * process);
     bool deleteVectorMap(const void * process, const uint64_t vmapId);
-    TdbVectorMap * getVectorMap(const void * process, const uint64_t vmapId) const;
+    SharemindTdbVectorMap * getVectorMap(const void * process, const uint64_t vmapId) const;
 
     inline ILogger & logger() { return m_logger; }
     inline const ILogger & logger() const { return m_logger; }
 
-    inline DataStoreManager & dataStoreManager() { return m_dataStoreManager; }
-    inline const DataStoreManager & dataStoreManager() const { return m_dataStoreManager; }
+    inline SharemindDataStoreManager & dataStoreManager() { return m_dataStoreManager; }
+    inline const SharemindDataStoreManager & dataStoreManager() const { return m_dataStoreManager; }
 
-    inline TdbVectorMapUtil & vectorMapUtil() { return m_mapUtil; }
-    inline const TdbVectorMapUtil & vectorMapUtil() const { return m_mapUtil; }
+    inline SharemindTdbVectorMapUtil & vectorMapUtil() { return m_mapUtil; }
+    inline const SharemindTdbVectorMapUtil & vectorMapUtil() const { return m_mapUtil; }
 
 private: /* Fields: */
 
     /* Cached references: */
     ILogger & m_logger;
-    DataStoreManager & m_dataStoreManager;
-    DataSourceManager & m_dataSourceManager;
-    TdbVectorMapUtil & m_mapUtil;
+    SharemindDataStoreManager & m_dataStoreManager;
+    SharemindDataSourceManager & m_dataSourceManager;
+    SharemindTdbVectorMapUtil & m_mapUtil;
 
     boost::shared_ptr<TdbHdf5Manager> m_dbManager;
 

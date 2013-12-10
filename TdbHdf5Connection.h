@@ -42,7 +42,7 @@ public: /* Methods: */
      * General database table functions
      */
 
-    bool tblCreate(const std::string & tbl, const std::vector<TdbString *> & names, const std::vector<TdbType *> & types);
+    bool tblCreate(const std::string & tbl, const std::vector<SharemindTdbString *> & names, const std::vector<SharemindTdbType *> & types);
     bool tblDelete(const std::string & tbl);
     bool tblExists(const std::string & tbl, bool & status);
 
@@ -52,10 +52,10 @@ public: /* Methods: */
      * Table data manipulation functions
      */
 
-    bool readColumn(const std::string & tbl, const std::string & colId, std::vector<TdbValue *> & vals);
-    bool readColumn(const std::string & tbl, const size_type colId, std::vector<TdbValue *> & vals);
-    //bool insertRow(const std::string & tbl, const std::string & rowId, std::vector<TdbValue *> & vals);
-    bool insertRow(const std::string & tbl, const std::pair<uint64_t, uint64_t> & rowId, std::vector<TdbValue *> & vals);
+    bool readColumn(const std::string & tbl, const std::string & colId, std::vector<SharemindTdbValue *> & vals);
+    bool readColumn(const std::string & tbl, const size_type colId, std::vector<SharemindTdbValue *> & vals);
+    //bool insertRow(const std::string & tbl, const std::string & rowId, std::vector<SharemindTdbValue *> & vals);
+    bool insertRow(const std::string & tbl, const std::pair<uint64_t, uint64_t> & rowId, std::vector<SharemindTdbValue *> & vals);
 
 private: /* Methods: */
 

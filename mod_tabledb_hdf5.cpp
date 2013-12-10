@@ -242,7 +242,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_stmt_exec,
         sharemind::TdbHdf5Module * m = static_cast<sharemind::TdbHdf5Module *>(c->moduleHandle);
 
         // Get the parameter map
-        TdbVectorMap * pmap = m->getVectorMap(c->process_internal, vmapId);
+        SharemindTdbVectorMap * pmap = m->getVectorMap(c->process_internal, vmapId);
         if (!pmap)
             return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
@@ -252,24 +252,24 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_stmt_exec,
             size_t size = 0;
 
             // Parse the "names" parameter
-            TdbString ** names;
+            SharemindTdbString ** names;
             if (pmap->get_string_vector(pmap, "names", &names, &size) != TDB_VECTOR_MAP_OK) {
                 LogError(m->logger()) << "Failed to execute \"" << stmtType
                     << "\" statement: Failed to get \"names\" string vector parameter.";
                 return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
             }
 
-            std::vector<TdbString *> namesVec(names, names + size);
+            std::vector<SharemindTdbString *> namesVec(names, names + size);
 
             // Parse the "types" parameter
-            TdbType ** types;
+            SharemindTdbType ** types;
             if (pmap->get_type_vector(pmap, "types", &types, &size) != TDB_VECTOR_MAP_OK) {
                 LogError(m->logger()) << "Failed to execute \"" << stmtType <<
                     "\" statement: Failed to get \"types\" type vector parameter.";
                 return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
             }
 
-            std::vector<TdbType *> typesVec(types, types + size);
+            std::vector<SharemindTdbType *> typesVec(types, types + size);
 
             // TODO use the consensus service
 
@@ -326,9 +326,9 @@ SHAREMIND_MODULE_API_0x1_INITIALIZER(c) {
         return SHAREMIND_MODULE_API_0x1_MISSING_FACILITY;
 
     sharemind::ILogger * logger = static_cast<sharemind::ILogger *>(flog->facility);
-    DataStoreManager * dataStoreManager = static_cast<DataStoreManager *>(fstorem->facility);
-    DataSourceManager * dataSourceManager = static_cast<DataSourceManager *>(fsourcem->facility);
-    TdbVectorMapUtil * mapUtil = static_cast<TdbVectorMapUtil *>(fvmaputil->facility);
+    SharemindDataStoreManager * dataStoreManager = static_cast<SharemindDataStoreManager *>(fstorem->facility);
+    SharemindDataSourceManager * dataSourceManager = static_cast<SharemindDataSourceManager *>(fsourcem->facility);
+    SharemindTdbVectorMapUtil * mapUtil = static_cast<SharemindTdbVectorMapUtil *>(fvmaputil->facility);
 
     /*
      * Initialize the module handle
