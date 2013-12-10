@@ -6,7 +6,7 @@
 # without the written consent of the copyright owner. The usage of this
 # code is subject to the appropriate license agreement.
 #
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12)
 PROJECT(SHAREMIND_MOD_TABLEDB_HDF5)
 
 ADD_COMPILE_OPTIONS(
