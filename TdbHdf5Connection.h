@@ -16,13 +16,13 @@
 #include <boost/filesystem/path.hpp>
 #include <boost/thread/mutex.hpp>
 #include <H5Ipublic.h>
+#include <sharemind/common/Logger/Debug.h>
+#include <sharemind/common/Logger/ILogger.h>
 #include <sharemind/mod_tabledb/tdbtypes.h>
 #include "TdbHdf5ConnectionConf.h"
 
 
 namespace sharemind {
-
-class ILogger;
 
 class __attribute__ ((visibility("internal"))) TdbHdf5Connection {
 public: /* Types: */
@@ -67,7 +67,7 @@ private: /* Methods: */
 
 private: /* Fields: */
 
-    ILogger & m_logger;
+    mutable ILogger::Wrapped m_logger;
 
     boost::filesystem::path m_path;
 
