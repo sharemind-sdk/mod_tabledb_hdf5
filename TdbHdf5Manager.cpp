@@ -12,18 +12,16 @@
 #include <boost/filesystem.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/system/error_code.hpp>
-#include <sharemind/common/Logger/Debug.h>
 #include "TdbHdf5Connection.h"
 
 
 namespace fs = boost::filesystem;
 
-namespace { SHAREMIND_DEFINE_PREFIXED_LOGS("[TdbHdf5Module] "); }
-
 namespace sharemind {
 
 TdbHdf5Manager::TdbHdf5Manager(ILogger & logger)
-    : m_logger(logger)
+    : m_logger(logger.wrap("[TdbHdf5Manager] "))
+    , m_loggerRef(logger)
 {
     // Intentionally empty
 }
@@ -42,17 +40,17 @@ boost::shared_ptr<TdbHdf5Connection> TdbHdf5Manager::openConnection(const TdbHdf
 
             // Check if the given path is a directory
             if (!fs::is_directory(canonicalPath)) {
-                LogError(m_logger) << "Database path " << dbPath
+                m_logger.error() << "Database path " << dbPath
                     << " exists, but is not a directory.";
                 return boost::shared_ptr<TdbHdf5Connection>();
             }
         } else {
             // Create the path to the data source
-            LogDebug(m_logger) << "Database path does not exist. Creating path "
+            m_logger.fullDebug() << "Database path does not exist. Creating path "
                 << dbPath << ".";
 
             if (!create_directories(dbPath)) {
-                LogError(m_logger) << "Failed to create path " << dbPath << ".";
+                m_logger.error() << "Failed to create path " << dbPath << ".";
                 return boost::shared_ptr<TdbHdf5Connection>();
             }
 
@@ -60,7 +58,7 @@ boost::shared_ptr<TdbHdf5Connection> TdbHdf5Manager::openConnection(const TdbHdf
             canonicalPath = fs::canonical(fs::path(config.getPath()));
         }
     } catch (const fs::filesystem_error & e) {
-        LogError(m_logger) << "Error while while performing file system"
+        m_logger.error() << "Error while while performing file system"
             << " operations: " << e.what();
         return boost::shared_ptr<TdbHdf5Connection>();
     }
@@ -70,7 +68,7 @@ boost::shared_ptr<TdbHdf5Connection> TdbHdf5Manager::openConnection(const TdbHdf
 }
 
 TdbHdf5Connection * TdbHdf5Manager::alloc(const boost::filesystem::path & key) const {
-    return new TdbHdf5Connection(m_logger, key);
+    return new TdbHdf5Connection(m_loggerRef, key);
 }
 
 } /* namespace sharemind { */

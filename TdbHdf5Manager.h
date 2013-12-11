@@ -16,11 +16,12 @@
 #include <boost/filesystem/path.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <sharemind/common/KeyValueCache.h>
+#include <sharemind/common/Logger/Debug.h>
+#include <sharemind/common/Logger/ILogger.h>
 
 
 namespace sharemind {
 
-class ILogger;
 class TdbHdf5Connection;
 class TdbHdf5ConnectionConf;
 
@@ -38,7 +39,9 @@ private: /* Methods: */
 
 private: /* Fields: */
 
-    ILogger & m_logger;
+    mutable ILogger::Wrapped m_logger;
+
+    ILogger & m_loggerRef;
 
 }; /* class TdbHdf5Manager { */
 

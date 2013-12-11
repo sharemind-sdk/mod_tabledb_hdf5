@@ -15,6 +15,8 @@
 #include <H5Ppublic.h>
 #include <H5Spublic.h>
 #include <H5Tpublic.h>
+#include <sharemind/common/Logger/Debug.h>
+#include <sharemind/common/Logger/ILogger.h>
 
 #define COL_INDEX_DATASET "/meta/column_index"
 #define ROW_INDEX_DATASET "/meta/row_index"
@@ -26,8 +28,7 @@ namespace std {
     template<> struct less<SharemindTdbType *> {
         bool operator() (SharemindTdbType * const lhs, SharemindTdbType * const rhs) {
             const int cmp = strcmp(lhs->domain, rhs->domain);
-            std::cout << strcmp(lhs->domain, rhs->domain) << " (" << lhs->domain << ", " << rhs->domain << ") " << strcmp(lhs->name, rhs->name) << " (" << lhs->name << ", " << rhs->name << ")" << std::endl;
-            return cmp == 0 ? strcmp(lhs->name, rhs->name) : cmp;
+            return cmp == 0 ? strcmp(lhs->name, rhs->name) < 0 : cmp < 0;
         }
     };
 } /* namespace std { */
@@ -39,8 +40,6 @@ static const size_t COL_ID_STR_SIZE     = 32;
 static const size_t ROW_ID_STR_SIZE     = 16;
 static const char * HDF5_EXT            = "h5";
 } /* namespace { */
-
-namespace { SHAREMIND_DEFINE_PREFIXED_LOGS("[TdbHdf5Module] "); }
 
 namespace sharemind {
 

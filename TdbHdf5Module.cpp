@@ -16,13 +16,9 @@
 #else
 #include <boost/thread/locks.hpp>
 #endif
-#include <sharemind/common/Logger/ILogger.h>
-#include <sharemind/common/Logger/Debug.h>
 #include "TdbHdf5ConnectionConf.h"
 #include "TdbHdf5Manager.h"
 
-
-namespace { SHAREMIND_DEFINE_PREFIXED_LOGS("[TdbHdf5Module] "); }
 
 namespace {
 
@@ -34,7 +30,7 @@ void destroy(void * ptr) throw() { delete static_cast<T *>(ptr); }
 namespace sharemind {
 
 TdbHdf5Module::TdbHdf5Module(ILogger & logger, SharemindDataStoreManager & dataStoreManager, SharemindDataSourceManager & dataSourceManager, SharemindTdbVectorMapUtil & mapUtil)
-    : m_logger(logger)
+    : m_logger(logger.wrap("[TdbHdf5Module] "))
     , m_dataStoreManager(dataStoreManager)
     , m_dataSourceManager(dataSourceManager)
     , m_mapUtil(mapUtil)
@@ -54,13 +50,13 @@ bool TdbHdf5Module::openConnection(const void * process, const std::string & dsN
         if (it == m_dsConf.end()) {
             SharemindDataSource * src = m_dataSourceManager.get_source(&m_dataSourceManager, dsName.c_str());
             if (!src) {
-                LogError(m_logger) << "Failed to get configuration for data source \"" << dsName << "\".";
+                m_logger.error() << "Failed to get configuration for data source \"" << dsName << "\".";
                 return false;
             }
 
             cfg = new TdbHdf5ConnectionConf;
             if (!cfg->load(src->conf(src))) {
-                LogError(m_logger) << "Failed to parse configuration for data source \"" << dsName << "\": "
+                m_logger.error() << "Failed to parse configuration for data source \"" << dsName << "\": "
                     << cfg->getLastErrorMessage();
                 delete cfg;
                 return false;
@@ -77,7 +73,7 @@ bool TdbHdf5Module::openConnection(const void * process, const std::string & dsN
                                                                process,
                                                                "mod_tabledb_hdf5/connections");
     if (!connections) {
-        LogError(m_logger) << "Failed to get process data store.";
+        m_logger.error() << "Failed to get process data store.";
         return false;
     }
 
@@ -98,7 +94,7 @@ bool TdbHdf5Module::closeConnection(const void * process, const std::string & ds
                                                                process,
                                                                "mod_tabledb_hdf5/connections");
     if (!connections) {
-        LogError(m_logger) << "Failed to get process data store.";
+        m_logger.error() << "Failed to get process data store.";
         return false;
     }
 
@@ -114,7 +110,7 @@ TdbHdf5Connection * TdbHdf5Module::getConnection(const void * process, const std
                                                                process,
                                                                "mod_tabledb_hdf5/connections");
     if (!connections) {
-        LogError(m_logger) << "Failed to get process data store.";
+        m_logger.error() << "Failed to get process data store.";
         return NULL;
     }
 
@@ -122,7 +118,7 @@ TdbHdf5Connection * TdbHdf5Module::getConnection(const void * process, const std
     boost::shared_ptr<TdbHdf5Connection> * conn =
         static_cast<boost::shared_ptr<TdbHdf5Connection> *>(connections->get(connections, dsName.c_str()));
     if (!conn) {
-        LogError(m_logger) << "No open connection for data source \"" << dsName << "\".";
+        m_logger.error() << "No open connection for data source \"" << dsName << "\".";
         return NULL;
     }
 
@@ -135,14 +131,14 @@ SharemindTdbVectorMap * TdbHdf5Module::newVectorMap(const void * process) {
                                                         process,
                                                         "mod_tabledb/vector_maps");
     if (!maps) {
-        LogError(m_logger) << "Failed to get process data store.";
+        m_logger.error() << "Failed to get process data store.";
         return NULL;
     }
 
     // Add new map to the store
     SharemindTdbVectorMap * map = m_mapUtil.new_map(&m_mapUtil, maps);
     if (!map) {
-        LogError(m_logger) << "Failed to create new map object.";
+        m_logger.error() << "Failed to create new map object.";
         return NULL;
     }
 
@@ -155,7 +151,7 @@ bool TdbHdf5Module::deleteVectorMap(const void * process, const uint64_t vmapId)
                                                         process,
                                                         "mod_tabledb/vector_maps");
     if (!maps) {
-        LogError(m_logger) << "Failed to get process data store.";
+        m_logger.error() << "Failed to get process data store.";
         return false;
     }
 
@@ -169,14 +165,14 @@ SharemindTdbVectorMap * TdbHdf5Module::getVectorMap(const void * process, const 
                                                         process,
                                                         "mod_tabledb/vector_maps");
     if (!maps) {
-        LogError(m_logger) << "Failed to get process data store.";
+        m_logger.error() << "Failed to get process data store.";
         return NULL;
     }
 
     // Return an existing map object
     SharemindTdbVectorMap * map = m_mapUtil.get_map(&m_mapUtil, maps, vmapId);
     if (!map) {
-        LogError(m_logger) << "No map object with given identifier exists.";
+        m_logger.error() << "No map object with given identifier exists.";
         return NULL;
     }
 

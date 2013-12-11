@@ -19,8 +19,6 @@
 #include "TdbHdf5Module.h"
 
 
-namespace { SHAREMIND_DEFINE_PREFIXED_LOGS("[TdbHdf5Module] "); }
-
 namespace {
 
 using namespace sharemind;
@@ -254,7 +252,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_stmt_exec,
             // Parse the "names" parameter
             SharemindTdbString ** names;
             if (pmap->get_string_vector(pmap, "names", &names, &size) != TDB_VECTOR_MAP_OK) {
-                LogError(m->logger()) << "Failed to execute \"" << stmtType
+                m->logger().error() << "Failed to execute \"" << stmtType
                     << "\" statement: Failed to get \"names\" string vector parameter.";
                 return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
             }
@@ -264,7 +262,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_stmt_exec,
             // Parse the "types" parameter
             SharemindTdbType ** types;
             if (pmap->get_type_vector(pmap, "types", &types, &size) != TDB_VECTOR_MAP_OK) {
-                LogError(m->logger()) << "Failed to execute \"" << stmtType <<
+                m->logger().error() << "Failed to execute \"" << stmtType <<
                     "\" statement: Failed to get \"types\" type vector parameter.";
                 return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
             }
@@ -281,7 +279,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_stmt_exec,
             if (!conn->tblCreate(tblName, namesVec, typesVec))
                 return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
         } else {
-            LogError(m->logger()) << "Failed to execute \"" << stmtType
+            m->logger().error() << "Failed to execute \"" << stmtType
                 << "\": Unknown statement type.";
             return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
         }
@@ -352,7 +350,11 @@ SHAREMIND_MODULE_API_0x1_DEINITIALIZER(c) {
     try {
         delete static_cast<sharemind::TdbHdf5Module *>(c->moduleHandle);
     } catch (...) {
-        /// \todo Log exception
+        const SharemindModuleApi0x1Facility * flog = c->getModuleFacility(c, "Logger");
+        if (flog && flog->facility) {
+            sharemind::ILogger * logger = static_cast<sharemind::ILogger *>(flog->facility);
+            logger->warning() << "Exception was caught during \"mod_tabledb_hdf5\" module deinitialization";
+        }
     }
 
     c->moduleHandle = 0;

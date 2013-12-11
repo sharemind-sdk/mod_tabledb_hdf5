@@ -14,6 +14,8 @@
 #include <boost/ptr_container/ptr_map.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/thread/mutex.hpp>
+#include <sharemind/common/Logger/ILogger.h>
+#include <sharemind/common/Logger/Debug.h>
 #include <sharemind/dbcommon/datasourceapi.h>
 #include <sharemind/miner/Facilities/datastoreapi.h>
 #include <sharemind/mod_tabledb/tdbvectormapapi.h>
@@ -21,7 +23,6 @@
 
 namespace sharemind  {
 
-class ILogger;
 class TdbHdf5Connection;
 class TdbHdf5ConnectionConf;
 class TdbHdf5Manager;
@@ -43,8 +44,8 @@ public: /* Methods: */
     bool deleteVectorMap(const void * process, const uint64_t vmapId);
     SharemindTdbVectorMap * getVectorMap(const void * process, const uint64_t vmapId) const;
 
-    inline ILogger & logger() { return m_logger; }
-    inline const ILogger & logger() const { return m_logger; }
+    inline ILogger::Wrapped & logger() { return m_logger; }
+    inline const ILogger::Wrapped & logger() const { return m_logger; }
 
     inline SharemindDataStoreManager & dataStoreManager() { return m_dataStoreManager; }
     inline const SharemindDataStoreManager & dataStoreManager() const { return m_dataStoreManager; }
@@ -54,8 +55,9 @@ public: /* Methods: */
 
 private: /* Fields: */
 
+    mutable ILogger::Wrapped m_logger;
+
     /* Cached references: */
-    ILogger & m_logger;
     SharemindDataStoreManager & m_dataStoreManager;
     SharemindDataSourceManager & m_dataSourceManager;
     SharemindTdbVectorMapUtil & m_mapUtil;
