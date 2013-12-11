@@ -42,17 +42,17 @@ boost::shared_ptr<TdbHdf5Connection> TdbHdf5Manager::openConnection(const TdbHdf
 
             // Check if the given path is a directory
             if (!fs::is_directory(canonicalPath)) {
-                LogError(m_logger) << "Database path \"" << dbPath
-                    << "\" exists, but is not a directory.";
+                LogError(m_logger) << "Database path " << dbPath
+                    << " exists, but is not a directory.";
                 return boost::shared_ptr<TdbHdf5Connection>();
             }
         } else {
             // Create the path to the data source
-            LogDebug(m_logger) << "Database path does not exist. Creating path \""
-                << dbPath << "\".";
+            LogDebug(m_logger) << "Database path does not exist. Creating path "
+                << dbPath << ".";
 
             if (!create_directories(dbPath)) {
-                LogError(m_logger) << "Failed to create path \"" << dbPath << "\".";
+                LogError(m_logger) << "Failed to create path " << dbPath << ".";
                 return boost::shared_ptr<TdbHdf5Connection>();
             }
 
