@@ -12,11 +12,10 @@
 #include <boost/filesystem.hpp>
 #include <boost/scope_exit.hpp>
 #include <H5Fpublic.h>
+#include <H5Epublic.h>
 #include <H5Ppublic.h>
 #include <H5Spublic.h>
 #include <H5Tpublic.h>
-#include <sharemind/common/Logger/Debug.h>
-#include <sharemind/common/Logger/ILogger.h>
 
 #define COL_INDEX_DATASET "/meta/column_index"
 #define ROW_INDEX_DATASET "/meta/row_index"
@@ -39,6 +38,39 @@ static const size_t CHUNK_SIZE          = 4096;
 static const size_t COL_ID_STR_SIZE     = 32;
 static const size_t ROW_ID_STR_SIZE     = 16;
 static const char * HDF5_EXT            = "h5";
+static const size_t ERR_MSG_MAX    = 64;
+} /* namespace { */
+
+namespace {
+
+herr_t err_walk_cb(unsigned n, const H5E_error_t * err_desc, void * client_data) {
+    assert(err_desc);
+    assert(client_data);
+
+    sharemind::ILogger::Wrapped * logger = static_cast<sharemind::ILogger::Wrapped *>(client_data);
+
+    char maj_msg[ERR_MSG_MAX];
+    if (H5Eget_msg(err_desc->maj_num, NULL, maj_msg, ERR_MSG_MAX) < 0)
+        return -1;
+
+    char min_msg[ERR_MSG_MAX];
+    if (H5Eget_msg(err_desc->min_num, NULL, min_msg, ERR_MSG_MAX) < 0)
+        return -1;
+
+    logger->fullDebug() << "#" << n << ":" << err_desc->func_name << " - " << maj_msg << ": " << min_msg;
+
+    return 0;
+}
+
+herr_t err_handler(hid_t, void * client_data) {
+    // Have to make a copy of the stack here. Otherwise HDF5 resets the stack at
+    // some point.
+    const hid_t estack = H5Eget_current_stack();
+    if (estack < 0)
+        return -1;
+    return H5Ewalk(estack, H5E_WALK_DOWNWARD, err_walk_cb, client_data);
+}
+
 } /* namespace { */
 
 namespace sharemind {
@@ -57,7 +89,19 @@ TdbHdf5Connection::TdbHdf5Connection(ILogger & logger, const fs::path & path)
 {
     // TODO Check the given path.
     // TODO Register some observers for the path?
-    // TODO Register custom log handler.
+
+    // Register a custom log handler
+#if defined SHAREMIND_LOGLEVEL_FULLDEBUG
+    if (H5Eset_auto(H5E_DEFAULT, err_handler, &m_logger) < 0) {
+        m_logger.error() << "Failed to set HDF5 logging handler.";
+        // TODO throw exception
+    }
+#else
+    if (H5Eset_auto(H5E_DEFAULT, NULL, NULL) < 0) {
+        m_logger.error() << "Failed to disable HDF5 logging handler.";
+        // TODO throw exception
+    }
+#endif
 }
 
 TdbHdf5Connection::~TdbHdf5Connection() {
