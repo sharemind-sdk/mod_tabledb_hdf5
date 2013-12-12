@@ -31,6 +31,12 @@ public: /* Types: */
 
 private: /* Types: */
 
+    struct ColumnIndex {
+        const char * name;
+        const char * dataset_name;
+        size_type dataset_column;
+    };
+
     typedef std::map<std::string, hid_t> TableFileMap;
 
 public: /* Methods: */
@@ -54,15 +60,21 @@ public: /* Methods: */
 
     bool readColumn(const std::string & tbl, const std::string & colId, std::vector<SharemindTdbValue *> & vals);
     bool readColumn(const std::string & tbl, const size_type colId, std::vector<SharemindTdbValue *> & vals);
-    //bool insertRow(const std::string & tbl, const std::string & rowId, std::vector<SharemindTdbValue *> & vals);
-    bool insertRow(const std::string & tbl, const std::pair<uint64_t, uint64_t> & rowId, std::vector<SharemindTdbValue *> & vals);
+    bool insertRow(const std::string & tbl, const std::vector<SharemindTdbValue *> & vals);
 
 private: /* Methods: */
 
+    static bool isStringType(SharemindTdbType * const type);
+
+    boost::filesystem::path nameToPath(const std::string & tbl);
+    bool pathRemove(const boost::filesystem::path & path);
+    bool pathExists(const boost::filesystem::path & path, bool & status) const;
+    bool pathIsHdf5(const boost::filesystem::path & path) const;
+
+    bool validateColumnNames(const std::vector<SharemindTdbString *> & names) const;
     bool validateTableName(const std::string & tbl) const;
 
-    boost::filesystem::path nameToPath(const std::string & tbl) const;
-
+    bool closeTableFile(const std::string & tbl);
     hid_t openTableFile(const std::string & tbl);
 
 private: /* Fields: */

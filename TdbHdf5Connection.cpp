@@ -9,16 +9,15 @@
 
 #include "TdbHdf5Connection.h"
 
+#include <sstream>
 #include <boost/filesystem.hpp>
 #include <boost/scope_exit.hpp>
-#include <H5Fpublic.h>
 #include <H5Epublic.h>
+#include <H5Fpublic.h>
+#include <H5Gpublic.h>
 #include <H5Ppublic.h>
 #include <H5Spublic.h>
 #include <H5Tpublic.h>
-
-#define COL_INDEX_DATASET "/meta/column_index"
-#define ROW_INDEX_DATASET "/meta/row_index"
 
 
 namespace fs = boost::filesystem;
@@ -33,12 +32,12 @@ namespace std {
 } /* namespace std { */
 
 namespace {
-static const size_t TYPE_NAME_STR_SIZE  = 64;
-static const size_t CHUNK_SIZE          = 4096;
-static const size_t COL_ID_STR_SIZE     = 32;
-static const size_t ROW_ID_STR_SIZE     = 16;
-static const char * HDF5_EXT            = "h5";
-static const size_t ERR_MSG_MAX    = 64;
+const char * const  COL_INDEX_DATASET  = "/meta/column_index";
+const size_t        CHUNK_SIZE         = 4096;
+const size_t        ERR_MSG_MAX        = 64;
+const char * const  FILE_EXT           = "h5";
+const char * const  META_GROUP         = "/meta";
+const size_t        VL_STR_REF_SIZE    = 16;
 } /* namespace { */
 
 namespace {
@@ -57,7 +56,7 @@ herr_t err_walk_cb(unsigned n, const H5E_error_t * err_desc, void * client_data)
     if (H5Eget_msg(err_desc->min_num, NULL, min_msg, ERR_MSG_MAX) < 0)
         return -1;
 
-    logger->fullDebug() << "#" << n << ":" << err_desc->func_name << " - " << maj_msg << ": " << min_msg;
+    logger->fullDebug() << "HDF5 Error[" << n << "]:" << err_desc->func_name << " - " << maj_msg << ": " << min_msg;
 
     return 0;
 }
@@ -77,12 +76,6 @@ namespace sharemind {
 
 BOOST_STATIC_ASSERT(sizeof(TdbHdf5Connection::size_type) >= sizeof(hsize_t));
 
-struct ColumnIndex {
-    char name[COL_ID_STR_SIZE];
-    char dataset_name[TYPE_NAME_STR_SIZE];
-    hsize_t dataset_column;
-};
-
 TdbHdf5Connection::TdbHdf5Connection(ILogger & logger, const fs::path & path)
     : m_logger(logger.wrap("[TdbHdf5Connection] "))
     , m_path(path)
@@ -98,7 +91,7 @@ TdbHdf5Connection::TdbHdf5Connection(ILogger & logger, const fs::path & path)
     }
 #else
     if (H5Eset_auto(H5E_DEFAULT, NULL, NULL) < 0) {
-        m_logger.error() << "Failed to disable HDF5 logging handler.";
+        m_logger.error() << "Failed to disable HDF5 logging.";
         // TODO throw exception
     }
 #endif
@@ -116,149 +109,189 @@ TdbHdf5Connection::~TdbHdf5Connection() {
 }
 
 bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<SharemindTdbString *> & names, const std::vector<SharemindTdbType *> & types) {
-    (void) tbl; (void) names; (void) types;
-    /*
     if (!validateTableName(tbl))
         return false;
 
-    // Check the table name for some special symbols e.g. '/'
-    // TODO check if table name is valid with some static regular expressions?
-
     // Check column names
-    // TODO
+    if (!validateColumnNames(names))
+        return false;
 
     // Set the cleanup flag
     bool success = false;
 
     fs::path tblPath = nameToPath(tbl);
 
+    // Check if table file exists
+    bool exists = false;
+    if (!pathExists(tblPath, exists))
+        return false;
+
+    if (exists) {
+        m_logger.error() << "Table \"" << tbl << "\" already exists.";
+        return false;
+    }
+
     // Create a new file handle
     // H5F_ACC_EXCL - Fail if file already exists.
     hid_t fileId = H5Fcreate(tblPath.c_str(), H5F_ACC_EXCL, H5P_DEFAULT, H5P_DEFAULT);
     if (fileId < 0) {
-        m_logger.error() << "Failed to create table \"" << tbl << "\" file with path \"" << tblPath << "\".";
+        m_logger.error() << "Failed to create table \"" << tbl << "\" file with path " << tblPath << ".";
         return false;
     }
 
     // Set cleanup handler for the file
     BOOST_SCOPE_EXIT((&success)(&m_logger)(&tbl)(&tblPath)(&fileId)) {
-        // TODO remove logging here?
         if (!success) {
             // Close the file
             if (H5Fclose(fileId) < 0)
-                m_logger.warning() << "Error while closing table \"" << tbl << "\" file.";
+                m_logger.fullDebug() << "Error while closing table \"" << tbl << "\" file.";
 
             // Delete the file
             try {
                 fs::remove(tblPath);
             } catch (const fs::filesystem_error & e) {
-                m_logger.warning() << "Error while removing table \"" << tbl << "\" file: " << e.what();
+                m_logger.fullDebug() << "Error while removing table \"" << tbl << "\" file: " << e.what();
             }
         }
     } BOOST_SCOPE_EXIT_END
 
     // Check the provided types
-    std::vector<std::pair<std::string, size_type> > colIdxMap;
-    std::map<SharemindTdbType *, size_t> typeMap;
+    typedef std::vector<std::pair<std::string, size_type> > ColInfoVector;
+    ColInfoVector colInfoVector;
+    typedef std::map<SharemindTdbType *, size_t> TypeMap;
+    TypeMap typeMap;
 
     {
         std::vector<SharemindTdbType *>::const_iterator it;
         for (it = types.begin(); it != types.end(); ++it) {
-            std::pair<std::map<SharemindTdbType *, size_t>::iterator, bool> rv = typeMap.insert(std::make_pair(*it, 1));
+            SharemindTdbType * const type = *it;
+
+            std::pair<TypeMap::iterator, bool> rv = typeMap.insert(TypeMap::value_type(type, 1));
             if (!rv.second) {
-                if (rv.first->first->size != (*it)->size) {
-                    m_logger.error() << "Inconsistent type data given for type \"" << (*it)->domain << "::" << (*it)->name << "\".";
+                // The length of public string type can vary
+                if (!isStringType(type) && rv.first->first->size != type->size) {
+                    m_logger.error() << "Inconsistent type data given for type \"" << type->domain << "::" << type->name << "\".";
                     return false;
                 }
                 ++rv.first->second;
             }
+
+            std::ostringstream oss; // TODO figure out something better than this
+            oss << type->domain << "::" << type->name;
+            colInfoVector.push_back(ColInfoVector::value_type(oss.str(), rv.first->second - 1));
         }
     }
 
     const size_t ntypes = typeMap.size();
 
-    // TODO handle string type
-    // TODO set type domain
-
     // Create the corresponding HDF5 types
-    std::vector<hid_t> memTypes;
+    std::vector<std::pair<SharemindTdbType *, hid_t> > memTypes;
     memTypes.reserve(ntypes);
 
     std::vector<size_t> colSizes;
     colSizes.reserve(ntypes);
 
-    BOOST_SCOPE_EXIT((&memTypes)) {
-        std::vector<hid_t>::const_iterator it;
+    // Set cleanup handler for the opened HDF5 types
+    BOOST_SCOPE_EXIT((&m_logger)(&tbl)(&memTypes)) {
+        std::vector<std::pair<SharemindTdbType *, hid_t> >::const_iterator it;
         for (it = memTypes.begin(); it != memTypes.end(); ++it)
-            H5Tclose(*it); // TODO log warning on failure?
+            if (H5Tclose(it->second) < 0)
+                m_logger.fullDebug() << "Error while cleaning up type data for table \"" << tbl << "\".";
         memTypes.clear();
     } BOOST_SCOPE_EXIT_END
 
     {
-        std::map<SharemindTdbType, size_t>::const_iterator it;
+        std::map<SharemindTdbType *, size_t>::const_iterator it;
         for (it = typeMap.begin(); it != typeMap.end(); ++it) {
-            hid_t tId = H5Tcreate(H5T_OPAQUE, it->first.size);
-            if (tId < 0)
-                return false;
-            if (H5Tset_tag(tId, it->first.name) < 0) {
-                if (H5Tclose(tId) < 0)
-                    m_logger.warning() << ""; // TODO
-                return false;
+            SharemindTdbType * const type = it->first;
+
+            hid_t tId = -1;
+
+            if (isStringType(type)) {
+                // Create a variable length string type
+                tId = H5Tcopy(H5T_C_S1);
+                if (tId < 0) {
+                    m_logger.error() << "Error while setting up type data for table \"" << tbl << "\".";
+                    return false;
+                }
+
+                if (H5Tset_size(tId, H5T_VARIABLE) < 0) {
+                    m_logger.error() << "Error while setting up type data for table \"" << tbl << "\".";
+
+                    if (H5Tclose(tId) < 0)
+                        m_logger.fullDebug() << "Error while cleaning up type data for table \"" << tbl << "\".";
+                    return false;
+                }
+            } else {
+                // Create a fixed length opaque type
+                tId = H5Tcreate(H5T_OPAQUE, type->size);
+                if (tId < 0) {
+                    m_logger.error() << "Error while setting up type data for table \"" << tbl << "\".";
+                    return false;
+                }
+
+                // Set a type tag
+                std::ostringstream oss; // TODO figure out something better than this
+                oss << type->domain << "::" << type->name;
+                const std::string tag(oss.str());
+
+                if (H5Tset_tag(tId, tag.c_str()) < 0) {
+                    m_logger.error() << "Error while setting up type data for table \"" << tbl << "\".";
+
+                    if (H5Tclose(tId) < 0)
+                        m_logger.fullDebug() << "Error while cleaning up type data for table \"" << tbl << "\".";
+                    return false;
+                }
             }
-            memTypes.push_back(tId);
+
+            assert(tId >= 0);
+            memTypes.push_back(std::make_pair(it->first, tId));
             colSizes.push_back(it->second);
         }
     }
 
-    // Create a dataset for each of the HDF5 types
+    // Create a dataset for each unique column type
     {
         // Set dataset creation properties
         hid_t plistId = H5Pcreate(H5P_DATASET_CREATE);
 
-        BOOST_SCOPE_EXIT((&plistId)) {
-            H5Pclose(plistId); // TODO log warning on failure?
+        BOOST_SCOPE_EXIT((&m_logger)(&tbl)(&plistId)) {
+            if (H5Pclose(plistId) < 0)
+                m_logger.fullDebug() << "Error while cleaning up dataset creation property list for table \"" << tbl << "\".";
         } BOOST_SCOPE_EXIT_END
 
         assert(memTypes.size() == ntypes);
         assert(colSizes.size() == ntypes);
 
-        std::vector<hid_t>::const_iterator typeIt = memTypes.begin();
+        std::vector<std::pair<SharemindTdbType *, hid_t> >::const_iterator typeIt = memTypes.begin();
         std::vector<size_t>::const_iterator sizeIt = colSizes.begin();
 
         for (size_t i = 0; i < ntypes; ++i, ++typeIt, ++sizeIt) {
-            const hid_t & tId = *typeIt;
+            SharemindTdbType * const type = typeIt->first;
+            const hid_t & tId = typeIt->second;
 
-            // TODO we actually already have this information
-            const char * name = H5Tget_tag(tId);
-            const size_t size = H5Tget_size(tId);
+            const size_t size = isStringType(type) ? VL_STR_REF_SIZE : type->size;
 
+            std::ostringstream oss; // TODO figure out something better than this
+            oss << type->domain << "::" << type->name;
+            const std::string tag(oss.str());
+
+            // TODO take CHUNK_SIZE from configuration?
+            // TODO what about the chunk shape?
             // Set chunk size
-            // TODO take chunk size from configuration?
+            // HDF5 API doesn't give us the size of the variable length string
+            // references. However, through simple experimentation we know that
+            // the string references currently take up 16 bytes.
             const hsize_t chunkSize = CHUNK_SIZE / size;
             hsize_t dimsChunk[2];
             dimsChunk[0] = chunkSize; dimsChunk[1] = 1; // TODO are vertical chunks OK?
             if (H5Pset_chunk(plistId, 2, dimsChunk) < 0)
                 return false;
 
-            // TODO set compression?
+            // TODO set compression? Probably only useful for some public types
+            // (variable length strings cannot be compressed as far as I know).
 
-            // Set fill data
-            char * fillData = static_cast<char *>(calloc(1, size)); // is this ok?
-
-            if (!fillData) {
-                m_logger.error() << "Failed to allocate memory for table fill data for type \"" << name << "\".";
-                free(fillData);
-                return false;
-            }
-            if (H5Pset_fill_value(plistId, tId, fillData) < 0) {
-                m_logger.error() << "Failed to set table fill data for type \"" << name << "\".";
-                free(fillData);
-                return false;
-            }
-
-            free(fillData);
-
-            // Create a simple data space
+            // Create a simple two dimensional data space
             hsize_t dims[2];
             dims[0] = 0; dims[1] = *sizeIt;
 
@@ -266,34 +299,35 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
 
             hid_t sId = H5Screate_simple(2, dims, maxdims);
             if (sId < 0) {
-                m_logger.error() << "Failed to create a data space for type \"" << name << "\".";
+                m_logger.error() << "Failed to create a data space for table \"" << tbl << "\" type \"" << tag << "\".";
                 return false;
             }
 
             // Create the dataset
-            hid_t dId = H5Dcreate2(fileId, name, tId, sId, H5P_DEFAULT, plistId, H5P_DEFAULT);
+            hid_t dId = H5Dcreate2(fileId, tag.c_str(), tId, sId, H5P_DEFAULT, plistId, H5P_DEFAULT);
             if (dId < 0) {
-                m_logger.error() << "Failed to create dataset for type \"" << name << "\"";
+                m_logger.error() << "Failed to create dataset for table \"" << tbl << "\" type \"" << tag << "\".";
+
                 if (H5Sclose(sId) < 0)
-                    m_logger.warning() << ""; // TODO
+                    m_logger.fullDebug() << "Error while cleaning up data space for table \"" << tbl << "\" type \"" << tag << "\".";
                 return false;
             }
 
             // Close the data space and the dataset
             if (H5Sclose(sId) < 0)
-                m_logger.warning() << ""; // TODO
+                m_logger.fullDebug() << "Error while cleaning up data space for table \"" << tbl << "\" type \"" << tag << "\".";
 
             if (H5Dclose(dId) < 0)
-                m_logger.warning() << ""; // TODO
+                m_logger.fullDebug() << "Error while cleaning up dataset for table \"" << tbl << "\" type \"" << tag << "\".";
         }
     }
 
-    // Create the column meta data
+    // Create a dataset for the column index meta info
     {
         // Create the column index data type
         // struct ColumnIndex {
-        //     char name[COL_ID_STR_SIZE];
-        //     char dataset_name[TYPE_NAME_STR_SIZE];
+        //     const char * name;
+        //     const char * dataset_name;
         //     hsize_t dataset_column;
         // };
 
@@ -302,95 +336,107 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
 
         hid_t tId = H5Tcreate(H5T_COMPOUND, sizeof(ColumnIndex));
         if (tId < 0) {
-            m_logger.error() << "Failed to create the HDF5 data type for column meta info.";
+            m_logger.error() << "Failed to create column meta info data type for table \"" << tbl << "\".";
             return false;
         }
 
-        BOOST_SCOPE_EXIT((&tId)) {
-            H5Tclose(tId); // TODO log warning on failure?
+        BOOST_SCOPE_EXIT((&m_logger)(&tbl)(&tId)) {
+            if (H5Tclose(tId) < 0)
+                m_logger.fullDebug() << "Error while cleaning up column meta info type for table \"" << tbl << "\".";
         } BOOST_SCOPE_EXIT_END
 
-        // char name[COL_ID_STR_SIZE];
+        // const char * name
         hid_t nameTId = H5Tcopy(H5T_C_S1);
-        if (nameTId < 0 || H5Tset_size(nameTId, COL_ID_STR_SIZE) < 0) {
-            m_logger.error() << "Failed to create the HDF5 data type for column meta info.";
+        if (nameTId < 0 || H5Tset_size(nameTId, H5T_VARIABLE) < 0) {
+            m_logger.error() << "Failed to create column meta info data type for table \"" << tbl << "\".";
+
             if (nameTId >= 0 && H5Tclose(nameTId) < 0)
-                m_logger.warning() << ""; // TODO
+                m_logger.fullDebug() << "Error while cleaning up column meta info type for table \"" << tbl << "\".";
             return false;
         }
 
-        BOOST_SCOPE_EXIT((&nameTId)) {
-            H5Tclose(nameTId); // TODO log warning on failure?
+        BOOST_SCOPE_EXIT((&m_logger)(&tbl)(&nameTId)) {
+            if (H5Tclose(nameTId) < 0)
+                m_logger.fullDebug() << "Error while cleaning up column meta info type for table \"" << tbl << "\".";
         } BOOST_SCOPE_EXIT_END
 
         if (H5Tinsert(tId, "name", HOFFSET(ColumnIndex, name), nameTId) < 0) {
-            m_logger.error() << "Failed to create the HDF5 data type for column meta info.";
+            m_logger.error() << "Failed to create column meta info data type for table \"" << tbl << "\".";
             return false;
         }
 
-        // char dataset_name[TYPE_NAME_STR_SIZE];
+        // const char * dataset_name
         hid_t dsNameTId = H5Tcopy(H5T_C_S1);
-        if (dsNameTId < 0 || H5Tset_size(dsNameTId, TYPE_NAME_STR_SIZE) < 0) {
-            m_logger.error() << "Failed to create the HDF5 data type for column meta info.";
+        if (dsNameTId < 0 || H5Tset_size(dsNameTId, H5T_VARIABLE) < 0) {
+            m_logger.error() << "Failed to create column meta info data type for table \"" << tbl << "\".";
+
             if (dsNameTId >= 0 && H5Tclose(dsNameTId) < 0)
-                m_logger.warning() << ""; // TODO
+                m_logger.fullDebug() << "Error while cleaning up column meta info type for table \"" << tbl << "\".";
             return false;
         }
 
-        BOOST_SCOPE_EXIT((&dsNameTId)) {
-            H5Tclose(dsNameTId); // TODO log warning on failure?
+        BOOST_SCOPE_EXIT((&m_logger)(&tbl)(&dsNameTId)) {
+            if (H5Tclose(dsNameTId) < 0)
+                m_logger.fullDebug() << "Error while cleaning up column meta info type for table \"" << tbl << "\".";
         } BOOST_SCOPE_EXIT_END
 
         if (H5Tinsert(tId, "dataset_name", HOFFSET(ColumnIndex, dataset_name), dsNameTId) < 0) {
-            m_logger.error() << "Failed to create the HDF5 data type for column meta info.";
+            m_logger.error() << "Failed to create column meta info data type for table \"" << tbl << "\".";
             return false;
         }
 
         // size_t dataset_column;
         if (H5Tinsert(tId, "dataset_column", HOFFSET(ColumnIndex, dataset_column), H5T_NATIVE_HSIZE) < 0) {
-            m_logger.error() << "Failed to create the HDF5 data type for column meta info.";
+            m_logger.error() << "Failed to create column meta info data type for table \"" << tbl << "\".";
             return false;
         }
 
-        // Create the data space
+        // Create the 1 dimensional data space
         const hsize_t dims = size;
         const hsize_t maxdims = H5S_UNLIMITED;
         hid_t sId = H5Screate_simple(1, &dims, &maxdims);
         if (sId < 0) {
-            m_logger.error() << "Failed to create data space creation property list for column meta info.";
+            m_logger.error() << "Failed to create column meta info data space creation property list for table \"" << tbl << "\".";
             return false;
         }
 
-        BOOST_SCOPE_EXIT((&sId)) {
-            H5Sclose(sId); // TODO log warning on failure?
+        BOOST_SCOPE_EXIT((&m_logger)(&tbl)(&sId)) {
+            if (H5Sclose(sId) < 0)
+                m_logger.fullDebug() << "Error while cleaning up column meta info data space for table \"" << tbl << "\".";
         } BOOST_SCOPE_EXIT_END
+
+        // Create a meta data group
+        hid_t gId = H5Gcreate(fileId, META_GROUP, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+        if (gId < 0) {
+            m_logger.error() << "Failed to create meta info group for table \"" << tbl << "\".";
+            return false;
+        }
+
+        if (H5Gclose(gId) < 0)
+            m_logger.fullDebug() << "Error while cleaning up meta info group for table \"" << tbl << "\".";
 
         // Create the dataset creation property list
         hid_t plistId = H5Pcreate(H5P_DATASET_CREATE);
         if (plistId < 0) {
-            m_logger.error() << "Failed to create dataset creation property list for column meta info.";
+            m_logger.error() << "Failed to create column meta info dataset creation property list for table \"" << tbl << "\".";
             return false;
         }
 
-        BOOST_SCOPE_EXIT((&plistId)) {
-            H5Pclose(plistId); // TODO log warning on failure?
+        BOOST_SCOPE_EXIT((&m_logger)(&tbl)(&plistId)) {
+            if (H5Pclose(plistId) < 0)
+                m_logger.fullDebug() << "Error while cleaning up column meta info dataset creation property list for table \"" << tbl << "\".";
         } BOOST_SCOPE_EXIT_END
 
-        const hsize_t dimsChunk = CHUNK_SIZE / sizeof(ColumnIndex);
+        const hsize_t dimsChunk = CHUNK_SIZE / (sizeof(size_type) + VL_STR_REF_SIZE + VL_STR_REF_SIZE);
         if (H5Pset_chunk(plistId, 1, &dimsChunk) < 0) {
-            m_logger.error() << "Failed to set dataset creation property list for column meta info.";
-            return false;
-        }
-
-        if (H5Pset_create_intermediate_group(plistId, 1) < 0) {
-            m_logger.error() << "Failed to set dataset creation property list for column meta info.";
+            m_logger.error() << "Failed to set column meta info dataset creation property list info for table \"" << tbl << "\".";
             return false;
         }
 
         // Create the dataset
         hid_t dId = H5Dcreate2(fileId, COL_INDEX_DATASET, tId, sId, H5P_DEFAULT, plistId, H5P_DEFAULT);
         if (dId < 0) {
-            m_logger.error() << "Failed to create dataset for column meta info.";
+            m_logger.error() << "Failed to create column meta info dataset for table \"" << tbl << "\".";
             return false;
         }
 
@@ -400,114 +446,73 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
             ColumnIndex colIdx[size];
 
             std::vector<SharemindTdbString *>::const_iterator nameIt = names.begin();
-            std::vector<SharemindTdbType *>::const_iterator typeIt = types.begin();
+            ColInfoVector::const_iterator mIt = colInfoVector.begin();
 
-            for (size_t i = 0; i < size; ++i, ++nameIt, ++typeIt) {
-                const size_t nameSize = strlen(nameIt->str);
-                const size_t tNameSize = strlen(typeIt->name);
-                assert(nameSize < COL_ID_STR_SIZE);
-                memcpy(colIdx[i].name, nameIt->str, nameSize + 1);
-                memcpy(colIdx[i].dataset_name, typeIt->name, tNameSize + 1);
-                colIdx[i].dataset_column = i;
+            for (size_t i = 0; i < size; ++i, ++nameIt, ++mIt) {
+                colIdx[i].name = (*nameIt)->str;
+                colIdx[i].dataset_name = mIt->first.c_str();
+                colIdx[i].dataset_column = mIt->second;
             }
 
             // Write the column index data
             if (H5Dwrite(dId, tId, H5S_ALL, H5S_ALL, H5P_DEFAULT, colIdx) < 0) {
-                m_logger.error() << "Failed to write dataset for column meta info.";
+                m_logger.error() << "Failed to write column meta info dataset for table \"" << tbl << "\".";
                 return false;
             }
         }
 
         if (H5Dclose(dId) < 0)
-            m_logger.warning() << ""; // TODO
+            m_logger.fullDebug() << "Error while cleaning up column meta info dataset for table \"" << tbl << "\".";
     }
 
-    // Create the row meta data
-    {
-        // Create the row index data type
-        // TODO Actually we would like a 128 bit unsigned integer here
-        hid_t tId = H5Tcopy(H5T_C_S1);
-        if (tId < 0 || H5Tset_size(tId, ROW_ID_STR_SIZE) < 0) { // TODO Should we use variable length strings instead?
-            m_logger.error() << "Failed to create the HDF5 data type for row meta info.";
-            if (tId >= 0 && H5Tclose(tId) < 0)
-                m_logger.warning() << ""; // TODO
-            return false;
-        }
+    // TODO add column type info as a separate dataset?
 
-        BOOST_SCOPE_EXIT((&tId)) {
-            H5Tclose(tId); // TODO log warning on failure?
-        } BOOST_SCOPE_EXIT_END
-
-        // Create the data space
-        const hsize_t dims = 0;
-        const hsize_t maxdims = H5S_UNLIMITED;
-        hid_t sId = H5Screate_simple(1, &dims, &maxdims);
-        if (sId < 0) {
-            m_logger.error() << "Failed to create data space creation property list for row meta info.";
-            return false;
-        }
-
-        BOOST_SCOPE_EXIT((&sId)) {
-            H5Sclose(sId); // TODO log warning on failure?
-        } BOOST_SCOPE_EXIT_END
-
-        // Create the dataset creation property list
-        hid_t plistId = H5Pcreate(H5P_DATASET_CREATE);
-        if (plistId < 0) {
-            m_logger.error() << "Failed to create dataset creation property list for row meta info.";
-            return false;
-        }
-
-        BOOST_SCOPE_EXIT((&plistId)) {
-            H5Pclose(plistId); // TODO log warning on failure?
-        } BOOST_SCOPE_EXIT_END
-
-        const hsize_t dimsChunk = CHUNK_SIZE / ROW_ID_STR_SIZE;
-        if (H5Pset_chunk(plistId, 1, &dimsChunk) < 0) {
-            m_logger.error() << "Failed to set dataset creation property list for column meta info.";
-            return false;
-        }
-
-        if (H5Pset_create_intermediate_group(plistId, 1) < 0) {
-            m_logger.error() << "Failed to set dataset creation property list for row meta info.";
-            return false;
-        }
-
-        // Create the dataset
-        hid_t dId = H5Dcreate2(fileId, ROW_INDEX_DATASET, tId, sId, H5P_DEFAULT, plistId, H5P_DEFAULT);
-        if (dId < 0) {
-            m_logger.error() << "Failed to create dataset for row meta info.";
-            return false;
-        }
-
-        if (H5Dclose(dId) < 0)
-            m_logger.warning() << ""; // TODO
-    }
+    // Flush the buffers to reduce the chance of file corruption
+    if (H5Fflush(fileId, H5F_SCOPE_LOCAL) < 0)
+        m_logger.fullDebug() << "Error while flushing buffers for table \"" << tbl << "\".";
 
     success = true;
-    */
 
     return true;
 }
 
 bool TdbHdf5Connection::tblDelete(const std::string & tbl) {
-    (void) tbl;
-    return false;
+    if (!validateTableName(tbl))
+        return false;
+
+    // Get table path
+    const fs::path tblPath = nameToPath(tbl);
+
+    // Delete the table file
+    try {
+        if (!remove(tblPath)) {
+            m_logger.error() << "Table \"" << tbl << "\" does not exist.";
+            return false;
+        }
+    } catch (const fs::filesystem_error & e) {
+        m_logger.error() << "Error while deleting table \"" << tbl << "\" file " << tblPath << ".";
+        return false;
+    }
+
+    return true;
 }
 
 bool TdbHdf5Connection::tblExists(const std::string & tbl, bool & status) {
     if (!validateTableName(tbl))
         return false;
 
-    // Check if the file exists and has the right format
-    const fs::path dbPath = nameToPath(tbl);
-    htri_t isHdf5 = H5Fis_hdf5(dbPath.c_str());
-    if (isHdf5 < 0) {
-        m_logger.error() << "Error while checking if table \"" << tbl << "\" exists.";
+    // Get table path
+    const fs::path tblPath = nameToPath(tbl);
+
+    // Check if the file exists
+    if (!pathExists(tblPath, status))
+        return false;
+
+    // Check if the file has the right format
+    if (status && !pathIsHdf5(tblPath)) {
+        m_logger.error() << "Table \"" << tbl << "\" file " << tblPath << " is not a valid table file.";
         return false;
     }
-
-    status = isHdf5 > 0;
 
     return true;
 }
@@ -523,73 +528,46 @@ bool TdbHdf5Connection::tblSize(const std::string & tbl, size_type & rows, size_
         return false;
     }
 
-    // Read the column index data
+    // Read the column meta info
     {
         // Get dataset
-        hid_t dId = H5Dopen2(fileId, COL_INDEX_DATASET, H5P_DEFAULT);
+        hid_t dId = H5Dopen(fileId, COL_INDEX_DATASET, H5P_DEFAULT);
         if (dId < 0) {
-            m_logger.error() << "Failed to open dataset for column meta info.";
+            m_logger.error() << "Failed to open column meta info dataset for table \"" << tbl << "\".";
             return false;
         }
 
-        BOOST_SCOPE_EXIT((&dId)) {
-            H5Dclose(dId); // TODO log warning on failure?
+        BOOST_SCOPE_EXIT((&m_logger)(&tbl)(&dId)) {
+            if (H5Dclose(dId) < 0)
+                m_logger.fullDebug() << "Error while cleaning up type data for table \"" << tbl << "\".";
         } BOOST_SCOPE_EXIT_END
 
         // Get data space
         hid_t sId = H5Dget_space(dId);
         if (sId < 0) {
-            m_logger.error() << "Failed to open data space for column meta info.";
+            m_logger.error() << "Failed to open column meta info data space for table \"" << tbl << "\".";
             return false;
         }
 
-        BOOST_SCOPE_EXIT((&sId)) {
-            H5Sclose(sId); // TODO log warning on failure?
+        BOOST_SCOPE_EXIT((&m_logger)(&tbl)(&sId)) {
+            if (H5Sclose(sId) < 0)
+                m_logger.fullDebug() << "Error while cleaning up data space for table \"" << tbl << "\".";
         } BOOST_SCOPE_EXIT_END
+
+        // TODO check rank before getting dims?
 
         // Get size of data space
         hsize_t dims;
         if (H5Sget_simple_extent_dims(sId, &dims, NULL) < 0) {
-            m_logger.error() << "Failed to get column count from column meta info.";
+            m_logger.error() << "Failed to column count from column meta info for table \"" << tbl << "\".";
             return false;
         }
 
         cols = dims;
     }
 
-    // Read the row index data
-    {
-        // Get dataset
-        hid_t dId = H5Dopen2(fileId, ROW_INDEX_DATASET, H5P_DEFAULT);
-        if (dId < 0) {
-            m_logger.error() << "Failed to open dataset for row meta info.";
-            return false;
-        }
-
-        BOOST_SCOPE_EXIT((&dId)) {
-            H5Dclose(dId); // TODO log warning on failure?
-        } BOOST_SCOPE_EXIT_END
-
-        // Get data space
-        hid_t sId = H5Dget_space(dId);
-        if (sId < 0) {
-            m_logger.error() << "Failed to open data space for row meta info.";
-            return false;
-        }
-
-        BOOST_SCOPE_EXIT((&sId)) {
-            H5Sclose(sId); // TODO log warning on failure?
-        } BOOST_SCOPE_EXIT_END
-
-        // Get size of data space
-        hsize_t dims;
-        if (H5Sget_simple_extent_dims(sId, &dims, NULL) < 0) {
-            m_logger.error() << "Failed to get row count from row meta info.";
-            return false;
-        }
-
-        rows = dims;
-    }
+    // TODO Add an attribute with the current row count?
+    (void) rows;
 
     return true;
 }
@@ -604,8 +582,8 @@ bool TdbHdf5Connection::readColumn(const std::string & tbl, const size_type colI
     return false;
 }
 
-bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::pair<uint64_t, uint64_t> & rowId, std::vector<SharemindTdbValue *> & vals) {
-    (void) rowId; (void) vals;
+bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<SharemindTdbValue *> & vals) {
+    (void) vals;
     if (!validateTableName(tbl))
         return false;
 
@@ -624,8 +602,52 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::pair<uint6
     // Get column types
 
     // Check if the given data matches the table schema
+    // TODO We could ask to have all given values as scalars. However, this
+    // would not be optimal in the cases where we have only a few different
+    // column types.
 
     // Write row data
+
+    return true;
+}
+
+bool TdbHdf5Connection::isStringType(SharemindTdbType * const type) {
+    return strcmp(type->domain, "public") == 0 && strcmp(type->name, "string") == 0;
+}
+
+bool TdbHdf5Connection::pathExists(const fs::path & path, bool & status) const {
+    try {
+        status = exists(path);
+    } catch (const fs::filesystem_error & e) {
+        m_logger.error() << "Error while checking if file " << path << " exists: " << e.what();
+        return false;
+    }
+
+    return true;
+}
+
+bool TdbHdf5Connection::pathIsHdf5(const fs::path & path) const {
+    // Check if the file has the right format
+    htri_t isHdf5 = H5Fis_hdf5(path.c_str());
+    if (isHdf5 < 0) {
+        m_logger.error() << "Error while checking file " << path << " format.";
+        return false;
+    }
+
+    return isHdf5 > 0;
+}
+
+bool TdbHdf5Connection::validateColumnNames(const std::vector<SharemindTdbString *> & names) const {
+    std::vector<SharemindTdbString *>::const_iterator it;
+    for (it = names.begin(); it != names.end(); ++it) {
+        SharemindTdbString * const str = *it;
+        assert(str);
+
+        if (strlen(str->str) == 0) {
+            m_logger.error() << "Column name must be a non-empty string.";
+            return false;
+        }
+    }
 
     return true;
 }
@@ -636,18 +658,35 @@ bool TdbHdf5Connection::validateTableName(const std::string & tbl) const {
         return false;
     }
 
+    // Check the table name for some special symbols e.g. '/'
+    // TODO check if table name is valid with some static regular expressions?
+
     return true;
 }
 
-boost::filesystem::path TdbHdf5Connection::nameToPath(const std::string & tbl) const {
+boost::filesystem::path TdbHdf5Connection::nameToPath(const std::string & tbl) {
     assert(!tbl.empty());
 
     // TODO Should we try to eliminate the copying?
     fs::path p(m_path);
     p /= tbl;
-    p.replace_extension(HDF5_EXT);
+    p.replace_extension(FILE_EXT);
 
     return p;
+}
+
+bool TdbHdf5Connection::closeTableFile(const std::string & tbl) {
+    assert(tbl.empty());
+
+    TableFileMap::iterator it = m_tableFiles.find(tbl);
+    if (it == m_tableFiles.end())
+        return false;
+
+    if (H5Fclose(it->second) < 0)
+        m_logger.fullDebug() << "Error while closing table \"" << tbl << "\" file.";
+
+    m_tableFiles.erase(it);
+    return true;
 }
 
 hid_t TdbHdf5Connection::openTableFile(const std::string & tbl) {
