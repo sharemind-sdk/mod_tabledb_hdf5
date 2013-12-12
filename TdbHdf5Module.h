@@ -17,6 +17,7 @@
 #include <sharemind/common/Logger/ILogger.h>
 #include <sharemind/common/Logger/Debug.h>
 #include <sharemind/dbcommon/datasourceapi.h>
+#include <sharemind/libmodapi/api_0x1.h>
 #include <sharemind/miner/Facilities/datastoreapi.h>
 #include <sharemind/mod_tabledb/tdbvectormapapi.h>
 
@@ -36,13 +37,18 @@ public: /* Methods: */
 
     TdbHdf5Module(ILogger & logger, SharemindDataStoreManager & dataStoreManager, SharemindDataSourceManager & dsManager, SharemindTdbVectorMapUtil & mapUtil);
 
-    bool openConnection(const void * process, const std::string & dsName);
-    bool closeConnection(const void * process, const std::string & dsName);
-    TdbHdf5Connection * getConnection(const void * process, const std::string & dsName) const;
+    bool openConnection(const SharemindModuleApi0x1SyscallContext * ctx,
+                        const std::string & dsName);
+    bool closeConnection(const SharemindModuleApi0x1SyscallContext * ctx,
+                         const std::string & dsName);
+    TdbHdf5Connection * getConnection(const SharemindModuleApi0x1SyscallContext * ctx,
+                                      const std::string & dsName) const;
 
-    SharemindTdbVectorMap * newVectorMap(const void * process);
-    bool deleteVectorMap(const void * process, const uint64_t vmapId);
-    SharemindTdbVectorMap * getVectorMap(const void * process, const uint64_t vmapId) const;
+    SharemindTdbVectorMap * newVectorMap(const SharemindModuleApi0x1SyscallContext * ctx);
+    bool deleteVectorMap(const SharemindModuleApi0x1SyscallContext * ctx,
+                         const uint64_t vmapId);
+    SharemindTdbVectorMap * getVectorMap(const SharemindModuleApi0x1SyscallContext * ctx,
+                                         const uint64_t vmapId) const;
 
     inline ILogger::Wrapped & logger() { return m_logger; }
     inline const ILogger::Wrapped & logger() const { return m_logger; }

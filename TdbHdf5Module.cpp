@@ -39,7 +39,9 @@ TdbHdf5Module::TdbHdf5Module(ILogger & logger, SharemindDataStoreManager & dataS
     // Intentionally empty
 }
 
-bool TdbHdf5Module::openConnection(const void * process, const std::string & dsName) {
+bool TdbHdf5Module::openConnection(const SharemindModuleApi0x1SyscallContext * ctx,
+                                   const std::string & dsName)
+{
     TdbHdf5ConnectionConf * cfg = NULL;
 
     {
@@ -69,9 +71,10 @@ bool TdbHdf5Module::openConnection(const void * process, const std::string & dsN
     }
 
     // Get connection store
-    SharemindDataStore * connections = m_dataStoreManager.get_datastore(&m_dataStoreManager,
-                                                               process,
-                                                               "mod_tabledb_hdf5/connections");
+    SharemindDataStore * const connections = m_dataStoreManager.get_datastore(
+                                                 &m_dataStoreManager,
+                                                 ctx,
+                                                 "mod_tabledb_hdf5/connections");
     if (!connections) {
         m_logger.error() << "Failed to get process data store.";
         return false;
@@ -88,11 +91,14 @@ bool TdbHdf5Module::openConnection(const void * process, const std::string & dsN
                             &destroy<boost::shared_ptr<TdbHdf5Connection> >);
 }
 
-bool TdbHdf5Module::closeConnection(const void * process, const std::string & dsName) {
+bool TdbHdf5Module::closeConnection(const SharemindModuleApi0x1SyscallContext * ctx,
+                                    const std::string & dsName)
+{
     // Get connection store
-    SharemindDataStore * connections = m_dataStoreManager.get_datastore(&m_dataStoreManager,
-                                                               process,
-                                                               "mod_tabledb_hdf5/connections");
+    SharemindDataStore * const connections = m_dataStoreManager.get_datastore(
+                                                 &m_dataStoreManager,
+                                                 ctx,
+                                                 "mod_tabledb_hdf5/connections");
     if (!connections) {
         m_logger.error() << "Failed to get process data store.";
         return false;
@@ -104,11 +110,14 @@ bool TdbHdf5Module::closeConnection(const void * process, const std::string & ds
     return true;
 }
 
-TdbHdf5Connection * TdbHdf5Module::getConnection(const void * process, const std::string & dsName) const {
+TdbHdf5Connection * TdbHdf5Module::getConnection(const SharemindModuleApi0x1SyscallContext * ctx,
+                                                 const std::string & dsName) const
+{
     // Get connection store
-    SharemindDataStore * connections = m_dataStoreManager.get_datastore(&m_dataStoreManager,
-                                                               process,
-                                                               "mod_tabledb_hdf5/connections");
+    SharemindDataStore * const connections = m_dataStoreManager.get_datastore(
+                                                 &m_dataStoreManager,
+                                                 ctx,
+                                                 "mod_tabledb_hdf5/connections");
     if (!connections) {
         m_logger.error() << "Failed to get process data store.";
         return NULL;
@@ -125,11 +134,12 @@ TdbHdf5Connection * TdbHdf5Module::getConnection(const void * process, const std
     return conn->get();
 }
 
-SharemindTdbVectorMap * TdbHdf5Module::newVectorMap(const void * process) {
+SharemindTdbVectorMap * TdbHdf5Module::newVectorMap(const SharemindModuleApi0x1SyscallContext * ctx) {
     // Get vector map store
-    SharemindDataStore * maps = m_dataStoreManager.get_datastore(&m_dataStoreManager,
-                                                        process,
-                                                        "mod_tabledb/vector_maps");
+    SharemindDataStore * const maps = m_dataStoreManager.get_datastore(
+                                          &m_dataStoreManager,
+                                          ctx,
+                                          "mod_tabledb/vector_maps");
     if (!maps) {
         m_logger.error() << "Failed to get process data store.";
         return NULL;
@@ -145,11 +155,14 @@ SharemindTdbVectorMap * TdbHdf5Module::newVectorMap(const void * process) {
     return map;
 }
 
-bool TdbHdf5Module::deleteVectorMap(const void * process, const uint64_t vmapId) {
+bool TdbHdf5Module::deleteVectorMap(const SharemindModuleApi0x1SyscallContext * ctx,
+                                    const uint64_t vmapId)
+{
     // Get vector map store
-    SharemindDataStore * maps = m_dataStoreManager.get_datastore(&m_dataStoreManager,
-                                                        process,
-                                                        "mod_tabledb/vector_maps");
+    SharemindDataStore * const maps = m_dataStoreManager.get_datastore(
+                                          &m_dataStoreManager,
+                                          ctx,
+                                          "mod_tabledb/vector_maps");
     if (!maps) {
         m_logger.error() << "Failed to get process data store.";
         return false;
@@ -159,11 +172,14 @@ bool TdbHdf5Module::deleteVectorMap(const void * process, const uint64_t vmapId)
     return m_mapUtil.delete_map(&m_mapUtil, maps, vmapId);
 }
 
-SharemindTdbVectorMap * TdbHdf5Module::getVectorMap(const void * process, const uint64_t vmapId) const {
+SharemindTdbVectorMap * TdbHdf5Module::getVectorMap(const SharemindModuleApi0x1SyscallContext * ctx,
+                                                    const uint64_t vmapId) const
+{
     // Get vector map store
-    SharemindDataStore * maps = m_dataStoreManager.get_datastore(&m_dataStoreManager,
-                                                        process,
-                                                        "mod_tabledb/vector_maps");
+    SharemindDataStore * const maps = m_dataStoreManager.get_datastore(
+                                          &m_dataStoreManager,
+                                          ctx,
+                                          "mod_tabledb/vector_maps");
     if (!maps) {
         m_logger.error() << "Failed to get process data store.";
         return NULL;

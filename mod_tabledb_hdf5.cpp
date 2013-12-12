@@ -82,7 +82,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_open,
             || static_cast<const char *>(crefs[0u].pData)[crefs[0u].size - 1u] != '\0')
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
-    if (!c || !c->process_internal)
+    if (!c)
         return SHAREMIND_MODULE_API_0x1_SHAREMIND_ERROR;
 
     try {
@@ -90,7 +90,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_open,
 
         sharemind::TdbHdf5Module * m = static_cast<sharemind::TdbHdf5Module *>(c->moduleHandle);
 
-        if (!m->openConnection(c->process_internal, dsName))
+        if (!m->openConnection(c, dsName))
             return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
         return SHAREMIND_MODULE_API_0x1_OK;
@@ -115,7 +115,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_close,
             || static_cast<const char *>(crefs[0u].pData)[crefs[0u].size - 1u] != '\0')
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
-    if (!c || !c->process_internal)
+    if (!c)
         return SHAREMIND_MODULE_API_0x1_SHAREMIND_ERROR;
 
     try {
@@ -123,7 +123,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_close,
 
         sharemind::TdbHdf5Module * m = static_cast<sharemind::TdbHdf5Module *>(c->moduleHandle);
 
-        if (!m->closeConnection(c->process_internal, dsName))
+        if (!m->closeConnection(c, dsName))
             return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
         return SHAREMIND_MODULE_API_0x1_OK;
@@ -150,7 +150,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_create,
             || static_cast<const char *>(crefs[2u].pData)[crefs[2u].size - 1u] != '\0')
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
-    if (!c || !c->process_internal)
+    if (!c)
         return SHAREMIND_MODULE_API_0x1_SHAREMIND_ERROR;
 
     try {
@@ -162,7 +162,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_create,
 
         sharemind::TdbHdf5Module * m = static_cast<sharemind::TdbHdf5Module *>(c->moduleHandle);
 
-        TdbHdf5Connection * conn = m->getConnection(c->process_internal, dsName);
+        TdbHdf5Connection * const conn = m->getConnection(c, dsName);
         if (!conn)
             return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
@@ -191,7 +191,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_insert_row,
             || static_cast<const char *>(crefs[0u].pData)[crefs[0u].size - 1u] != '\0')
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
-    if (!c || !c->process_internal)
+    if (!c)
         return SHAREMIND_MODULE_API_0x1_SHAREMIND_ERROR;
 
     try {
@@ -227,7 +227,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_stmt_exec,
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
 
-    if (!c || !c->process_internal)
+    if (!c)
         return SHAREMIND_MODULE_API_0x1_SHAREMIND_ERROR;
 
     try {
@@ -240,7 +240,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_stmt_exec,
         sharemind::TdbHdf5Module * m = static_cast<sharemind::TdbHdf5Module *>(c->moduleHandle);
 
         // Get the parameter map
-        SharemindTdbVectorMap * pmap = m->getVectorMap(c->process_internal, vmapId);
+        SharemindTdbVectorMap * const pmap = m->getVectorMap(c, vmapId);
         if (!pmap)
             return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
@@ -272,7 +272,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_stmt_exec,
             // TODO use the consensus service
 
             // Get the connection
-            TdbHdf5Connection * conn = m->getConnection(c->process_internal, dsName);
+            TdbHdf5Connection * const conn = m->getConnection(c, dsName);
             if (!conn)
                 return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
