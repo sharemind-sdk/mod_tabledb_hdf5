@@ -95,6 +95,8 @@ TdbHdf5Module::TdbHdf5Module(ILogger & logger,
     , m_dataStoreManager(dataStoreManager)
     , m_dataSourceManager(dataSourceManager)
     , m_mapUtil(mapUtil)
+    , m_consensusService(consensusService)
+    , m_processFacility(processFacility)
     , m_dbManager(new TdbHdf5Manager(logger))
 {
     m_consensusService.add_operation_type(&m_consensusService, &databaseOperation);
