@@ -11,7 +11,6 @@
 #define SHAREMIND_MOD_TABLEDB_HDF5_TDBHDF5MODULE_H
 
 #include <string>
-#include <boost/ptr_container/ptr_map.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/thread/mutex.hpp>
 #include <sharemind/common/Logger/ILogger.h>
@@ -19,6 +18,7 @@
 #include <sharemind/dbcommon/datasourceapi.h>
 #include <sharemind/libmodapi/api_0x1.h>
 #include <sharemind/miner/Facilities/datastoreapi.h>
+#include <sharemind/miner/VirtualMachine/scopedobjectmap.h>
 #include <sharemind/mod_tabledb/tdbvectormapapi.h>
 
 
@@ -31,7 +31,7 @@ class TdbHdf5Manager;
 class __attribute__ ((visibility("internal"))) TdbHdf5Module {
 private: /* Types: */
 
-    typedef boost::ptr_map<std::string, TdbHdf5ConnectionConf> ConfMap;
+    typedef ScopedObjectMap<std::string, TdbHdf5ConnectionConf> ConfMap;
 
 public: /* Methods: */
 
