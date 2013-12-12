@@ -9,6 +9,7 @@
 
 #include <cassert>
 #include <new>
+#include <sstream>
 #include <string>
 #include <sharemind/common/Logger/Debug.h>
 #include <sharemind/libmodapi/api_0x1.h>
@@ -210,6 +211,36 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_insert_row,
     }
 }
 
+class CreateTable : public Transaction {
+
+public: /* Methods: */
+
+    CreateTable(TdbHdf5Connection & connection,
+                const std::string & tableName,
+                const std::vector<SharemindTdbString *> & names,
+                const std::vector<SharemindTdbType *> & types)
+        : m_connection(connection)
+        , m_tableName(tableName)
+        , m_names(names)
+        , m_types(types) {}
+
+    bool execute() {
+        return m_connection.tblCreate(m_tableName, m_names, m_types);
+    }
+
+    void rollback() {
+        // TODO: implement rollback
+        return;
+    }
+
+private: /* Fields: */
+
+    TdbHdf5Connection & m_connection;
+    const std::string & m_tableName;
+    const std::vector<SharemindTdbString *> & m_names;
+    const std::vector<SharemindTdbType *> & m_types;
+};
+
 SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_stmt_exec,
                                  args, num_args, refs, crefs,
                                  returnValue, c)
@@ -269,14 +300,16 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_stmt_exec,
 
             std::vector<SharemindTdbType *> typesVec(types, types + size);
 
-            // TODO use the consensus service
-
             // Get the connection
             TdbHdf5Connection * const conn = m->getConnection(c, dsName);
             if (!conn)
                 return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
-            if (!conn->tblCreate(tblName, namesVec, typesVec))
+            // Execute transaction
+            CreateTable transaction(*conn, tblName, namesVec, typesVec);
+            bool success = m->executeTransaction(transaction, c);
+
+            if (!success)
                 return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
         } else {
             m->logger().error() << "Failed to execute \"" << stmtType
@@ -323,16 +356,28 @@ SHAREMIND_MODULE_API_0x1_INITIALIZER(c) {
     if (!fvmaputil || !fvmaputil->facility)
         return SHAREMIND_MODULE_API_0x1_MISSING_FACILITY;
 
+    const SharemindModuleApi0x1Facility * fconsensus = c->getModuleFacility(c, "ConsensusService");
+    if (!fconsensus || !fconsensus->facility)
+        return SHAREMIND_MODULE_API_0x1_MISSING_FACILITY;
+
+    const SharemindModuleApi0x1Facility * fprocess = c->getModuleFacility(c, "ProcessFacility");
+    if (!fprocess || !fprocess->facility)
+        return SHAREMIND_MODULE_API_0x1_MISSING_FACILITY;
+
     sharemind::ILogger * logger = static_cast<sharemind::ILogger *>(flog->facility);
     SharemindDataStoreManager * dataStoreManager = static_cast<SharemindDataStoreManager *>(fstorem->facility);
     SharemindDataSourceManager * dataSourceManager = static_cast<SharemindDataSourceManager *>(fsourcem->facility);
     SharemindTdbVectorMapUtil * mapUtil = static_cast<SharemindTdbVectorMapUtil *>(fvmaputil->facility);
+    SharemindConsensusFacility * consensusService =
+        static_cast<SharemindConsensusFacility *>(fconsensus->facility);
+    SharemindProcessFacility * processFacility =
+        static_cast<SharemindProcessFacility *>(fprocess->facility);
 
     /*
      * Initialize the module handle
      */
     try {
-        c->moduleHandle = new sharemind::TdbHdf5Module(*logger, *dataStoreManager, *dataSourceManager, *mapUtil);
+        c->moduleHandle = new sharemind::TdbHdf5Module(*logger, *dataStoreManager, *dataSourceManager, *mapUtil, *consensusService, *processFacility);
 
         return SHAREMIND_MODULE_API_0x1_OK;
     } catch (const std::bad_alloc &) {

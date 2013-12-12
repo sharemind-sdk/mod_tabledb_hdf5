@@ -18,7 +18,8 @@
 #include <sharemind/dbcommon/datasourceapi.h>
 #include <sharemind/libmodapi/api_0x1.h>
 #include <sharemind/miner/Facilities/datastoreapi.h>
-#include <sharemind/miner/VirtualMachine/scopedobjectmap.h>
+#include <sharemind/miner/Facilities/libconsensusservice.h>
+#include <sharemind/miner/Facilities/libprocessfacility.h>
 #include <sharemind/mod_tabledb/tdbvectormapapi.h>
 
 
@@ -28,6 +29,25 @@ class TdbHdf5Connection;
 class TdbHdf5ConnectionConf;
 class TdbHdf5Manager;
 
+/**
+ * \brief Structure for implementing a transaction.
+ */
+struct Transaction {
+
+    virtual ~Transaction() {}
+
+    /**
+     * Callback to be called to execute the transaction.
+     * \returns whether the execution was successful.
+     */
+    virtual bool execute() = 0;
+
+    /**
+     * Callback to be called to roll back the transaction.
+     */
+    virtual void rollback() = 0;
+};
+
 class __attribute__ ((visibility("internal"))) TdbHdf5Module {
 private: /* Types: */
 
@@ -35,7 +55,12 @@ private: /* Types: */
 
 public: /* Methods: */
 
-    TdbHdf5Module(ILogger & logger, SharemindDataStoreManager & dataStoreManager, SharemindDataSourceManager & dsManager, SharemindTdbVectorMapUtil & mapUtil);
+    TdbHdf5Module(ILogger & logger,
+                  SharemindDataStoreManager & dataStoreManager,
+                  SharemindDataSourceManager & dsManager,
+                  SharemindTdbVectorMapUtil & mapUtil,
+                  SharemindConsensusFacility & consensusService,
+                  SharemindProcessFacility & processFacility);
 
     bool openConnection(const SharemindModuleApi0x1SyscallContext * ctx,
                         const std::string & dsName);
@@ -49,6 +74,9 @@ public: /* Methods: */
                          const uint64_t vmapId);
     SharemindTdbVectorMap * getVectorMap(const SharemindModuleApi0x1SyscallContext * ctx,
                                          const uint64_t vmapId) const;
+
+    bool executeTransaction(Transaction & strategy,
+                            const SharemindModuleApi0x1SyscallContext * context);
 
     inline ILogger::Wrapped & logger() { return m_logger; }
     inline const ILogger::Wrapped & logger() const { return m_logger; }
@@ -67,6 +95,8 @@ private: /* Fields: */
     SharemindDataStoreManager & m_dataStoreManager;
     SharemindDataSourceManager & m_dataSourceManager;
     SharemindTdbVectorMapUtil & m_mapUtil;
+    SharemindConsensusFacility & m_consensusService;
+    SharemindProcessFacility & m_processFacility;
 
     boost::shared_ptr<TdbHdf5Manager> m_dbManager;
 
