@@ -13,6 +13,7 @@
 #include <string>
 #include <boost/shared_ptr.hpp>
 #include <boost/thread/mutex.hpp>
+#include <sharemind/common/ScopedObjectMap.h>
 #include <sharemind/common/Logger/ILogger.h>
 #include <sharemind/common/Logger/Debug.h>
 #include <sharemind/dbcommon/datasourceapi.h>
@@ -20,7 +21,6 @@
 #include <sharemind/miner/Facilities/datastoreapi.h>
 #include <sharemind/miner/Facilities/libconsensusservice.h>
 #include <sharemind/miner/Facilities/libprocessfacility.h>
-#include <sharemind/miner/VirtualMachine/scopedobjectmap.h>
 #include <sharemind/mod_tabledb/tdbvectormapapi.h>
 
 
