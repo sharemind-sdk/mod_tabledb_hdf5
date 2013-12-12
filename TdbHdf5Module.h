@@ -20,6 +20,7 @@
 #include <sharemind/miner/Facilities/datastoreapi.h>
 #include <sharemind/miner/Facilities/libconsensusservice.h>
 #include <sharemind/miner/Facilities/libprocessfacility.h>
+#include <sharemind/miner/VirtualMachine/scopedobjectmap.h>
 #include <sharemind/mod_tabledb/tdbvectormapapi.h>
 
 
