@@ -30,11 +30,14 @@ template < size_t NumArgs
          , size_t NumCRefs = 0
          >
 struct SyscallArgs {
-    static inline bool check (size_t num_args,
-                              const SharemindModuleApi0x1Reference* refs,
-                              const SharemindModuleApi0x1CReference* crefs,
-                              SharemindCodeBlock * returnValue)
+    static inline bool check(SharemindCodeBlock * args,
+                             size_t num_args,
+                             const SharemindModuleApi0x1Reference* refs,
+                             const SharemindModuleApi0x1CReference* crefs,
+                             SharemindCodeBlock * returnValue)
     {
+        (void) args;
+
         if (num_args != NumArgs) {
             return false;
         }
@@ -73,9 +76,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_open,
                           args, num_args, refs, crefs,
                           returnValue, c)
 {
-    (void) args;
-
-    if (!SyscallArgs<0u, false, 0u, 1u>::check(num_args, refs, crefs, returnValue)) {
+    if (!SyscallArgs<0u, false, 0u, 1u>::check(args, num_args, refs, crefs, returnValue)) {
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
     }
 
@@ -106,9 +107,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_close,
                           args, num_args, refs, crefs,
                           returnValue, c)
 {
-    (void) args;
-
-    if (!SyscallArgs<0u, false, 0u, 1u>::check(num_args, refs, crefs, returnValue)) {
+    if (!SyscallArgs<0u, false, 0u, 1u>::check(args, num_args, refs, crefs, returnValue)) {
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
     }
 
@@ -139,7 +138,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_create,
                           args, num_args, refs, crefs,
                           returnValue, c)
 {
-    if (!SyscallArgs<1u, false, 0u, 3u>::check(num_args, refs, crefs, returnValue)) {
+    if (!SyscallArgs<1u, false, 0u, 3u>::check(args, num_args, refs, crefs, returnValue)) {
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
     }
 
@@ -178,13 +177,94 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_create,
     }
 }
 
+SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_delete,
+                          args, num_args, refs, crefs,
+                          returnValue, c)
+{
+    if (!SyscallArgs<0u, false, 0u, 2u>::check(args, num_args, refs, crefs, returnValue)) {
+        return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
+    }
+
+    if (crefs[0u].size == 0u
+            || crefs[1u].size == 0u
+            || static_cast<const char *>(crefs[0u].pData)[crefs[0u].size - 1u] != '\0'
+            || static_cast<const char *>(crefs[1u].pData)[crefs[1u].size - 1u] != '\0')
+        return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
+
+    if (!c)
+        return SHAREMIND_MODULE_API_0x1_SHAREMIND_ERROR;
+
+    try {
+        const std::string dsName(static_cast<const char *>(crefs[0u].pData), crefs[0u].size - 1u);
+        const std::string tblName(static_cast<const char *>(crefs[1u].pData), crefs[1u].size - 1u);
+
+        sharemind::TdbHdf5Module * m = static_cast<sharemind::TdbHdf5Module *>(c->moduleHandle);
+
+        TdbHdf5Connection * const conn = m->getConnection(c, dsName);
+        if (!conn)
+            return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
+
+        // TODO use the consensus service
+
+        if (!conn->tblDelete(tblName))
+            return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
+
+        return SHAREMIND_MODULE_API_0x1_OK;
+    } catch (const std::bad_alloc &) {
+        return SHAREMIND_MODULE_API_0x1_OUT_OF_MEMORY;
+    } catch (...) {
+        return SHAREMIND_MODULE_API_0x1_SHAREMIND_ERROR;
+    }
+}
+
+SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_exists,
+                          args, num_args, refs, crefs,
+                          returnValue, c)
+{
+    if (!SyscallArgs<0u, true, 0u, 2u>::check(args, num_args, refs, crefs, returnValue)) {
+        return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
+    }
+
+    if (crefs[0u].size == 0u
+            || crefs[1u].size == 0u
+            || static_cast<const char *>(crefs[0u].pData)[crefs[0u].size - 1u] != '\0'
+            || static_cast<const char *>(crefs[1u].pData)[crefs[1u].size - 1u] != '\0')
+        return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
+
+    if (!c)
+        return SHAREMIND_MODULE_API_0x1_SHAREMIND_ERROR;
+
+    try {
+        const std::string dsName(static_cast<const char *>(crefs[0u].pData), crefs[0u].size - 1u);
+        const std::string tblName(static_cast<const char *>(crefs[1u].pData), crefs[1u].size - 1u);
+
+        sharemind::TdbHdf5Module * m = static_cast<sharemind::TdbHdf5Module *>(c->moduleHandle);
+
+        TdbHdf5Connection * const conn = m->getConnection(c, dsName);
+        if (!conn)
+            return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
+
+        // TODO use the consensus service
+
+        bool exists = false;
+        if (!conn->tblExists(tblName, exists))
+            return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
+
+        returnValue->uint64[0] = exists;
+
+        return SHAREMIND_MODULE_API_0x1_OK;
+    } catch (const std::bad_alloc &) {
+        return SHAREMIND_MODULE_API_0x1_OUT_OF_MEMORY;
+    } catch (...) {
+        return SHAREMIND_MODULE_API_0x1_SHAREMIND_ERROR;
+    }
+}
+
 SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_insert_row,
                           args, num_args, refs, crefs,
                           returnValue, c)
 {
-    (void) args;
-
-    if (!SyscallArgs<0u, true, 0u, 1u>::check(num_args, refs, crefs, returnValue)) {
+    if (!SyscallArgs<0u, true, 0u, 1u>::check(args, num_args, refs, crefs, returnValue)) {
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
     }
 
@@ -245,7 +325,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_stmt_exec,
                                  args, num_args, refs, crefs,
                                  returnValue, c)
 {
-    if (!SyscallArgs<1u, false, 0u, 3u>::check(num_args, refs, crefs, returnValue)) {
+    if (!SyscallArgs<1u, false, 0u, 3u>::check(args, num_args, refs, crefs, returnValue)) {
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
     }
 
@@ -415,6 +495,8 @@ SHAREMIND_MODULE_API_0x1_SYSCALL_DEFINITIONS(
 
     /* Table database API */
     //, { "tdb_tbl_create",   &tdb_tbl_create }
+    , { "tdb_tbl_delete",   &tdb_tbl_delete }
+    , { "tdb_tbl_exists",   &tdb_tbl_exists }
     /* ... */
     //, { "tdb_insert_row",   &tdb_insert_row }
 
