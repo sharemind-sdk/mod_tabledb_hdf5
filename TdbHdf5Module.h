@@ -32,7 +32,7 @@ class TdbHdf5Manager;
 /**
  * \brief Structure for implementing a transaction.
  */
-struct Transaction {
+struct __attribute__ ((visibility("internal"))) Transaction {
 
     virtual ~Transaction() {}
 
