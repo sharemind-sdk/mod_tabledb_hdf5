@@ -11,6 +11,7 @@
 #define SHAREMIND_MOD_TABLEDB_HDF5_TDBHDF5MODULE_H
 
 #include <string>
+#include <boost/bind/bind.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/thread/mutex.hpp>
 #include <sharemind/common/ScopedObjectMap.h>
@@ -70,7 +71,8 @@ public: /* Methods: */
     TdbHdf5Connection * getConnection(const SharemindModuleApi0x1SyscallContext * ctx,
                                       const std::string & dsName) const;
 
-    SharemindTdbVectorMap * newVectorMap(const SharemindModuleApi0x1SyscallContext * ctx);
+    SharemindTdbVectorMap * newVectorMap(const SharemindModuleApi0x1SyscallContext * ctx,
+                                         uint64_t & vmapId);
     bool deleteVectorMap(const SharemindModuleApi0x1SyscallContext * ctx,
                          const uint64_t vmapId);
     SharemindTdbVectorMap * getVectorMap(const SharemindModuleApi0x1SyscallContext * ctx,

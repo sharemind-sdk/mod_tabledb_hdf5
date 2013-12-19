@@ -187,7 +187,7 @@ TdbHdf5Connection * TdbHdf5Module::getConnection(const SharemindModuleApi0x1Sysc
     }
 
     // Return the connection object
-    boost::shared_ptr<TdbHdf5Connection> * conn =
+    boost::shared_ptr<TdbHdf5Connection> * const conn =
         static_cast<boost::shared_ptr<TdbHdf5Connection> *>(connections->get(connections, dsName.c_str()));
     if (!conn) {
         m_logger.error() << "No open connection for data source \"" << dsName << "\".";
@@ -197,7 +197,8 @@ TdbHdf5Connection * TdbHdf5Module::getConnection(const SharemindModuleApi0x1Sysc
     return conn->get();
 }
 
-SharemindTdbVectorMap * TdbHdf5Module::newVectorMap(const SharemindModuleApi0x1SyscallContext * ctx) {
+SharemindTdbVectorMap * TdbHdf5Module::newVectorMap(const SharemindModuleApi0x1SyscallContext * ctx,
+                                                    uint64_t & vmapId) {
     // Get vector map store
     SharemindDataStore * const maps = m_dataStoreManager.get_datastore(
                                           &m_dataStoreManager,
@@ -209,11 +210,14 @@ SharemindTdbVectorMap * TdbHdf5Module::newVectorMap(const SharemindModuleApi0x1S
     }
 
     // Add new map to the store
-    SharemindTdbVectorMap * map = m_mapUtil.new_map(&m_mapUtil, maps);
+    SharemindTdbVectorMap * const map = m_mapUtil.new_map(&m_mapUtil, maps);
     if (!map) {
         m_logger.error() << "Failed to create new map object.";
         return NULL;
     }
+
+    // Get map identifier
+    vmapId = map->get_id(map);
 
     return map;
 }
@@ -249,7 +253,7 @@ SharemindTdbVectorMap * TdbHdf5Module::getVectorMap(const SharemindModuleApi0x1S
     }
 
     // Return an existing map object
-    SharemindTdbVectorMap * map = m_mapUtil.get_map(&m_mapUtil, maps, vmapId);
+    SharemindTdbVectorMap * const map = m_mapUtil.get_map(&m_mapUtil, maps, vmapId);
     if (!map) {
         m_logger.error() << "No map object with given identifier exists.";
         return NULL;
