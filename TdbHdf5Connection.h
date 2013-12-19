@@ -15,6 +15,7 @@
 #include <vector>
 #include <boost/filesystem/path.hpp>
 #include <boost/thread/mutex.hpp>
+#include <H5Rpublic.h>
 #include <H5Ipublic.h>
 #include <sharemind/common/Logger/Debug.h>
 #include <sharemind/common/Logger/ILogger.h>
@@ -25,16 +26,44 @@
 namespace sharemind {
 
 class __attribute__ ((visibility("internal"))) TdbHdf5Connection {
+
 public: /* Types: */
+
+    class Exception: public std::runtime_error {
+
+    public: /* Methods: */
+
+        inline Exception(const std::string & msg)
+            : std::runtime_error(msg) {}
+
+    };
+
+    class ConfigurationException: public Exception {
+
+    public: /* Methods: */
+
+        inline ConfigurationException(const std::string & msg)
+            : Exception(msg) {}
+
+    };
+
+    class InitializationException: public Exception {
+
+    public: /* Methods: */
+
+        inline InitializationException(const std::string & msg)
+            : Exception(msg) {}
+
+    };
 
     typedef uint64_t size_type;
 
 private: /* Types: */
 
     struct ColumnIndex {
-        const char * name;
-        const char * dataset_name;
-        size_type dataset_column;
+        const char *    name;
+        hobj_ref_t      dataset_ref;
+        hsize_t         dataset_column;
     };
 
     typedef std::map<std::string, hid_t> TableFileMap;
@@ -52,27 +81,51 @@ public: /* Methods: */
     bool tblDelete(const std::string & tbl);
     bool tblExists(const std::string & tbl, bool & status);
 
-    bool tblSize(const std::string & tbl, size_type & rows, size_type & cols);
+    bool tblColCount(const std::string & tbl, size_type & count);
+    bool tblRowCount(const std::string & tbl, size_type & count);
 
     /*
      * Table data manipulation functions
      */
 
-    bool readColumn(const std::string & tbl, const std::string & colId, std::vector<SharemindTdbValue *> & vals);
-    bool readColumn(const std::string & tbl, const size_type colId, std::vector<SharemindTdbValue *> & vals);
-    bool insertRow(const std::string & tbl, const std::vector<SharemindTdbValue *> & vals);
+    bool insertRow(const std::string & tbl, const std::vector<std::vector<SharemindTdbValue *> > & valuesBatch);
+
+    bool readColumn(const std::string & tbl, const std::vector<SharemindTdbString *> & colIdBatch, std::vector<SharemindTdbValue *> & valueBatch);
+    bool readColumn(const std::string & tbl, const std::vector<SharemindTdbIndex *> & colIdBatch, std::vector<SharemindTdbValue *> & valueBatch);
 
 private: /* Methods: */
 
     static bool isStringType(SharemindTdbType * const type);
+    static bool cleanupType(const hid_t aId, SharemindTdbType & type);
+
+    /*
+     * Filesystem operations
+     */
 
     boost::filesystem::path nameToPath(const std::string & tbl);
     bool pathRemove(const boost::filesystem::path & path);
     bool pathExists(const boost::filesystem::path & path, bool & status) const;
     bool pathIsHdf5(const boost::filesystem::path & path) const;
 
+    /*
+     * Parameter validation
+     */
+
     bool validateColumnNames(const std::vector<SharemindTdbString *> & names) const;
     bool validateTableName(const std::string & tbl) const;
+    bool validateValues(const std::vector<SharemindTdbValue *> & values) const;
+
+    /*
+     * Database operations
+     */
+
+    bool readColumn(const hid_t fileId, const hobj_ref_t ref, const hsize_t col, std::vector<SharemindTdbValue *> & values) const;
+
+    bool objRefToType(const hid_t fileId, const hobj_ref_t ref, hid_t & aId, SharemindTdbType & type) const;
+
+    bool getColumnCount(const hid_t fileId, hsize_t & ncols) const;
+    bool getRowCount(const hid_t fileId, hsize_t & nrows) const;
+    bool setRowCount(const hid_t fileId, const hsize_t nrows) const;
 
     bool closeTableFile(const std::string & tbl);
     hid_t openTableFile(const std::string & tbl);
@@ -84,8 +137,6 @@ private: /* Fields: */
     boost::filesystem::path m_path;
 
     TableFileMap m_tableFiles;
-    //std::map<std::string, std::set<std::string> > m_sortedTableKeys;
-    //std::map<std::string, std::vector<std::string> > m_tableKeys;
 
     mutable boost::mutex m_mutex; // TODO do we need a recursive mutex?
 

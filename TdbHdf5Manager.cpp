@@ -68,7 +68,11 @@ boost::shared_ptr<TdbHdf5Connection> TdbHdf5Manager::openConnection(const TdbHdf
 }
 
 TdbHdf5Connection * TdbHdf5Manager::alloc(const boost::filesystem::path & key) const {
-    return new TdbHdf5Connection(m_loggerRef, key);
+    try {
+        return new TdbHdf5Connection(m_loggerRef, key);
+    } catch (...) {
+        return NULL;
+    }
 }
 
 } /* namespace sharemind { */
