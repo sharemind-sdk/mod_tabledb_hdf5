@@ -139,16 +139,18 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_create,
                           args, num_args, refs, crefs,
                           returnValue, c)
 {
-    if (!SyscallArgs<1u, false, 0u, 3u>::check(args, num_args, refs, crefs, returnValue)) {
+    if (!SyscallArgs<2u, false, 0u, 4u>::check(args, num_args, refs, crefs, returnValue)) {
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
     }
 
     if (crefs[0u].size == 0u
             || crefs[1u].size == 0u
             || crefs[2u].size == 0u
+            || crefs[3u].size == 0u
             || static_cast<const char *>(crefs[0u].pData)[crefs[0u].size - 1u] != '\0'
             || static_cast<const char *>(crefs[1u].pData)[crefs[1u].size - 1u] != '\0'
-            || static_cast<const char *>(crefs[2u].pData)[crefs[2u].size - 1u] != '\0')
+            || static_cast<const char *>(crefs[2u].pData)[crefs[2u].size - 1u] != '\0'
+            || static_cast<const char *>(crefs[3u].pData)[crefs[3u].size - 1u] != '\0')
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
     if (!c)
@@ -161,18 +163,44 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_create,
         const std::string typeName(static_cast<const char *>(crefs[3u].pData), crefs[3u].size - 1u);
 
         const uint64_t typeSize = args[0u].uint64[0u];
-        const uint64_t cols = args[1u].uint64[0u];
+        const uint64_t ncols = args[1u].uint64[0u];
+
+        if (ncols == 0)
+            return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
         sharemind::TdbHdf5Module * m = static_cast<sharemind::TdbHdf5Module *>(c->moduleHandle);
 
+        // Get the connection
         TdbHdf5Connection * const conn = m->getConnection(c, dsName);
         if (!conn)
             return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
-        // TODO what about the column names?
+        // Set some parameters
+        std::vector<SharemindTdbString *> namesVec;
 
-        (void) typeSize; (void) cols;
-        // TODO ...
+        std::ostringstream oss;
+        for (uint64_t i = 0; i < ncols; ++i) {
+            oss << i;
+            namesVec.push_back(SharemindTdbString_new(oss.str()));
+            oss.str(""); oss.clear();
+        }
+
+        SharemindTdbType * const type = SharemindTdbType_new(typeDomain, typeName, typeSize);
+        const std::vector<SharemindTdbType *> typesVec(ncols, type);
+
+        // Execute the transaction
+        TdbHdf5Transaction transaction(*conn, &TdbHdf5Connection::tblCreate, tblName, const_cast<const std::vector<SharemindTdbString *> &>(namesVec), typesVec);
+        const bool success = m->executeTransaction(transaction, c);
+
+        // Clean up parameters
+        SharemindTdbType_delete(type);
+        std::vector<SharemindTdbString *>::iterator it;
+        for (it = namesVec.begin(); it != namesVec.end(); ++it)
+            SharemindTdbString_delete(*it);
+        namesVec.clear();
+
+        if (!success)
+            return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
         return SHAREMIND_MODULE_API_0x1_OK;
     } catch (const std::bad_alloc &) {
@@ -363,7 +391,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_insert_row,
                           args, num_args, refs, crefs,
                           returnValue, c)
 {
-    if (!SyscallArgs<1u, true, 0u, 5u>::check(args, num_args, refs, crefs, returnValue)) {
+    if (!SyscallArgs<1u, false, 0u, 5u>::check(args, num_args, refs, crefs, returnValue)) {
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
     }
 
