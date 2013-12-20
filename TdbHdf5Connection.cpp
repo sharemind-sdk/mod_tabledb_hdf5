@@ -1512,10 +1512,10 @@ bool TdbHdf5Connection::readColumn(const hid_t fileId, const hobj_ref_t ref, con
 
         // Read the column data
         if (isStringType(type)) {
-            buffer = new char * [dims[0]];
+            buffer = ::operator new(dims[0]);
         } else {
             bufferSize = dims[0] * type->size;
-            buffer = new char[bufferSize];
+            buffer = ::operator new(bufferSize);
         }
 
         // Select a hyperslab in the data space to read from
@@ -1563,7 +1563,7 @@ bool TdbHdf5Connection::readColumn(const hid_t fileId, const hobj_ref_t ref, con
                 SharemindTdbValue * const val = new SharemindTdbValue;
                 val->type = SharemindTdbType_new(type->domain, type->name, type->size);
                 bufferSize = strlen(strBuffer[i]) + 1;
-                val->buffer = new char[bufferSize];
+                val->buffer = ::operator new(bufferSize);
                 memcpy(val->buffer, strBuffer[i], bufferSize);
                 val->size = bufferSize;
 
