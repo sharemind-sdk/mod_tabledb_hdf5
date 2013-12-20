@@ -49,7 +49,6 @@ const size_t        VL_STR_REF_SIZE         = 16;
 
 namespace {
 
-#if defined SHAREMIND_LOGLEVEL_FULLDEBUG
 herr_t err_walk_cb(unsigned n, const H5E_error_t * err_desc, void * client_data) {
     assert(err_desc);
     assert(client_data);
@@ -77,7 +76,6 @@ herr_t err_handler(hid_t, void * client_data) {
         return -1;
     return H5Ewalk(estack, H5E_WALK_DOWNWARD, err_walk_cb, client_data);
 }
-#endif
 
 } /* namespace { */
 
