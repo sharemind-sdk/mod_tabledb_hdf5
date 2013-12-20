@@ -396,9 +396,15 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_insert_row,
 
             bufSize = crefs[4u].size;
         } else {
-            // TODO: the following is a workaround! We are always allocating one
-            // byte too much as VM does not allow us to allocate 0 sized memory block.
-            bufSize = crefs[4u].size - 1;
+            // If the buffer size equal the type size, we assume it is a scalar
+            // value and the workaround does not apply to it.
+            if (crefs[4u].size == typeSize) {
+                bufSize = crefs[4u].size;
+            } else {
+                // TODO: the following is a workaround! We are always allocating one
+                // byte too much as VM does not allow us to allocate 0 sized memory block.
+                bufSize = crefs[4u].size - 1;
+            }
         }
 
         sharemind::TdbHdf5Module * m = static_cast<sharemind::TdbHdf5Module *>(c->moduleHandle);
