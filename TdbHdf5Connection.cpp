@@ -1296,7 +1296,7 @@ bool TdbHdf5Connection::isStringType(SharemindTdbType * const type) {
     return strcmp(type->domain, "public") == 0 && strcmp(type->name, "string") == 0;
 }
 
-bool TdbHdf5Connection::pathExists(const fs::path & path, bool & status) const {
+bool TdbHdf5Connection::pathExists(const fs::path & path, bool & status) {
     try {
         status = exists(path);
     } catch (const fs::filesystem_error & e) {
@@ -1307,7 +1307,7 @@ bool TdbHdf5Connection::pathExists(const fs::path & path, bool & status) const {
     return true;
 }
 
-bool TdbHdf5Connection::pathIsHdf5(const fs::path & path) const {
+bool TdbHdf5Connection::pathIsHdf5(const fs::path & path) {
     // Check if the file has the right format
     htri_t isHdf5 = H5Fis_hdf5(path.c_str());
     if (isHdf5 < 0) {
@@ -1388,7 +1388,7 @@ boost::filesystem::path TdbHdf5Connection::nameToPath(const std::string & tbl) {
     return p;
 }
 
-bool TdbHdf5Connection::readColumn(const hid_t fileId, const hobj_ref_t ref, const hsize_t col, std::vector<SharemindTdbValue *> & values) const {
+bool TdbHdf5Connection::readColumn(const hid_t fileId, const hobj_ref_t ref, const hsize_t col, std::vector<SharemindTdbValue *> & values) {
     // Get dataset from reference
     const hid_t oId = H5Rdereference(fileId, H5R_OBJECT, &ref);
     if (oId < 0) {
@@ -1586,7 +1586,7 @@ bool TdbHdf5Connection::readColumn(const hid_t fileId, const hobj_ref_t ref, con
     return true;
 }
 
-bool TdbHdf5Connection::objRefToType(const hid_t fileId, const hobj_ref_t ref, hid_t & aId, SharemindTdbType & type) const {
+bool TdbHdf5Connection::objRefToType(const hid_t fileId, const hobj_ref_t ref, hid_t & aId, SharemindTdbType & type) {
     // Get the dataset from the reference
     const hid_t oId = H5Rdereference(fileId, H5R_OBJECT, &ref);
     if (oId < 0) {
@@ -1674,7 +1674,7 @@ bool TdbHdf5Connection::cleanupType(const hid_t aId, SharemindTdbType & type) {
     return true;
 }
 
-bool TdbHdf5Connection::getColumnCount(const hid_t fileId, hsize_t & ncols) const {
+bool TdbHdf5Connection::getColumnCount(const hid_t fileId, hsize_t & ncols) {
     // Get dataset
     const hid_t dId = H5Dopen(fileId, COL_INDEX_DATASET, H5P_DEFAULT);
     if (dId < 0) {
@@ -1721,7 +1721,7 @@ bool TdbHdf5Connection::getColumnCount(const hid_t fileId, hsize_t & ncols) cons
     return true;
 }
 
-bool TdbHdf5Connection::getRowCount(const hid_t fileId, hsize_t & nrows) const {
+bool TdbHdf5Connection::getRowCount(const hid_t fileId, hsize_t & nrows) {
     // Open meta info group
     const hid_t gId = H5Gopen(fileId, META_GROUP, H5P_DEFAULT);
     if (gId < 0) {
@@ -1754,7 +1754,7 @@ bool TdbHdf5Connection::getRowCount(const hid_t fileId, hsize_t & nrows) const {
     return true;
 }
 
-bool TdbHdf5Connection::setRowCount(const hid_t fileId, const hsize_t nrows) const {
+bool TdbHdf5Connection::setRowCount(const hid_t fileId, const hsize_t nrows) {
     // Open meta info group
     const hid_t gId = H5Gopen(fileId, META_GROUP, H5P_DEFAULT);
     if (gId < 0) {

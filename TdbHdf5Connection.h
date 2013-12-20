@@ -104,8 +104,8 @@ private: /* Methods: */
 
     boost::filesystem::path nameToPath(const std::string & tbl);
     bool pathRemove(const boost::filesystem::path & path);
-    bool pathExists(const boost::filesystem::path & path, bool & status) const;
-    bool pathIsHdf5(const boost::filesystem::path & path) const;
+    bool pathExists(const boost::filesystem::path & path, bool & status);
+    bool pathIsHdf5(const boost::filesystem::path & path);
 
     /*
      * Parameter validation
@@ -119,13 +119,13 @@ private: /* Methods: */
      * Database operations
      */
 
-    bool readColumn(const hid_t fileId, const hobj_ref_t ref, const hsize_t col, std::vector<SharemindTdbValue *> & values) const;
+    bool readColumn(const hid_t fileId, const hobj_ref_t ref, const hsize_t col, std::vector<SharemindTdbValue *> & values);
 
-    bool objRefToType(const hid_t fileId, const hobj_ref_t ref, hid_t & aId, SharemindTdbType & type) const;
+    bool objRefToType(const hid_t fileId, const hobj_ref_t ref, hid_t & aId, SharemindTdbType & type);
 
-    bool getColumnCount(const hid_t fileId, hsize_t & ncols) const;
-    bool getRowCount(const hid_t fileId, hsize_t & nrows) const;
-    bool setRowCount(const hid_t fileId, const hsize_t nrows) const;
+    bool getColumnCount(const hid_t fileId, hsize_t & ncols);
+    bool getRowCount(const hid_t fileId, hsize_t & nrows);
+    bool setRowCount(const hid_t fileId, const hsize_t nrows);
 
     bool closeTableFile(const std::string & tbl);
     hid_t openTableFile(const std::string & tbl);
