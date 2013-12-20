@@ -12,6 +12,7 @@
 
 #include <string>
 #include <boost/bind/bind.hpp>
+#include <boost/function.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/thread/mutex.hpp>
 #include <sharemind/common/ScopedObjectMap.h>
@@ -31,23 +32,67 @@ class TdbHdf5Connection;
 class TdbHdf5ConnectionConf;
 class TdbHdf5Manager;
 
-/**
- * \brief Structure for implementing a transaction.
- */
-struct __attribute__ ((visibility("internal"))) Transaction {
+class TdbHdf5Transaction {
 
-    virtual ~Transaction() {}
+public: /* Methods: */
 
-    /**
-     * Callback to be called to execute the transaction.
-     * \returns whether the execution was successful.
-     */
-    virtual bool execute() = 0;
+    template <typename T1>
+    TdbHdf5Transaction(TdbHdf5Connection & connection,
+                       bool (TdbHdf5Connection::*exec)(T1 &),
+                       T1 & a1)
+        : m_exec(boost::bind(exec, boost::ref(connection), boost::ref(a1)))
+    { }
 
-    /**
-     * Callback to be called to roll back the transaction.
-     */
-    virtual void rollback() = 0;
+    template <typename T1, typename T2>
+    TdbHdf5Transaction(TdbHdf5Connection & connection,
+                       bool (TdbHdf5Connection::*exec)(T1 &, T2 &),
+                       T1 & a1,
+                       T2 & a2)
+        : m_exec(boost::bind(exec,
+                    boost::ref(connection),
+                    boost::ref(a1),
+                    boost::ref(a2)))
+    { }
+
+    template <typename T1, typename T2, typename T3>
+    TdbHdf5Transaction(TdbHdf5Connection & connection,
+                       bool (TdbHdf5Connection::*exec)(T1 &, T2 &, T3 &),
+                       T1 & a1,
+                       T2 & a2,
+                       T3 & a3)
+        : m_exec(boost::bind(exec,
+                    boost::ref(connection),
+                    boost::ref(a1),
+                    boost::ref(a2),
+                    boost::ref(a3)))
+    { }
+
+    template <typename T1, typename T2, typename T3, typename T4>
+    TdbHdf5Transaction(TdbHdf5Connection & connection,
+                       bool (TdbHdf5Connection::*exec)(T1 &, T2 &, T3 &, T4 &),
+                       T1 & a1,
+                       T2 & a2,
+                       T3 & a3,
+                       T4 & a4)
+        : m_exec(boost::bind(exec,
+                    boost::ref(connection),
+                    boost::ref(a1),
+                    boost::ref(a2),
+                    boost::ref(a3),
+                    boost::ref(a4)))
+    { }
+
+    bool execute() {
+        return m_exec();
+    }
+
+    void rollback() {
+        // TODO
+    }
+
+private: /* Fields: */
+
+    boost::function<bool ()> m_exec;
 };
 
 class __attribute__ ((visibility("internal"))) TdbHdf5Module {
@@ -78,7 +123,7 @@ public: /* Methods: */
     SharemindTdbVectorMap * getVectorMap(const SharemindModuleApi0x1SyscallContext * ctx,
                                          const uint64_t vmapId) const;
 
-    bool executeTransaction(Transaction & strategy,
+    bool executeTransaction(TdbHdf5Transaction & strategy,
                             const SharemindModuleApi0x1SyscallContext * context);
 
     inline ILogger::Wrapped & logger() { return m_logger; }

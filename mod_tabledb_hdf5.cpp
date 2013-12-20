@@ -11,8 +11,6 @@
 #include <new>
 #include <sstream>
 #include <string>
-#include <boost/bind/bind.hpp>
-#include <boost/function.hpp>
 #include <sharemind/common/Logger/Debug.h>
 #include <sharemind/libmodapi/api_0x1.h>
 #include <sharemind/dbcommon/datasourceapi.h>
@@ -26,69 +24,6 @@
 namespace {
 
 using namespace sharemind;
-
-class TdbHdf5Transaction : public Transaction {
-
-public: /* Methods: */
-
-    template <typename T1>
-    TdbHdf5Transaction(TdbHdf5Connection & connection,
-                       bool (TdbHdf5Connection::*exec)(T1 &),
-                       T1 & a1)
-        : m_exec(boost::bind(exec, boost::ref(connection), boost::ref(a1)))
-    { }
-
-    template <typename T1, typename T2>
-    TdbHdf5Transaction(TdbHdf5Connection & connection,
-                       bool (TdbHdf5Connection::*exec)(T1 &, T2 &),
-                       T1 & a1,
-                       T2 & a2)
-        : m_exec(boost::bind(exec,
-                    boost::ref(connection),
-                    boost::ref(a1),
-                    boost::ref(a2)))
-    { }
-
-    template <typename T1, typename T2, typename T3>
-    TdbHdf5Transaction(TdbHdf5Connection & connection,
-                       bool (TdbHdf5Connection::*exec)(T1 &, T2 &, T3 &),
-                       T1 & a1,
-                       T2 & a2,
-                       T3 & a3)
-        : m_exec(boost::bind(exec,
-                    boost::ref(connection),
-                    boost::ref(a1),
-                    boost::ref(a2),
-                    boost::ref(a3)))
-    { }
-
-    template <typename T1, typename T2, typename T3, typename T4>
-    TdbHdf5Transaction(TdbHdf5Connection & connection,
-                       bool (TdbHdf5Connection::*exec)(T1 &, T2 &, T3 &, T4 &),
-                       T1 & a1,
-                       T2 & a2,
-                       T3 & a3,
-                       T4 & a4)
-        : m_exec(boost::bind(exec,
-                    boost::ref(connection),
-                    boost::ref(a1),
-                    boost::ref(a2),
-                    boost::ref(a3),
-                    boost::ref(a4)))
-    { }
-
-    bool execute() {
-        return m_exec();
-    }
-
-    void rollback() {
-        // TODO
-    }
-
-private: /* Fields: */
-
-    boost::function<bool ()> m_exec;
-};
 
 template < size_t NumArgs
          , bool   NeedReturnValue = false

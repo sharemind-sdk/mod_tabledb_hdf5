@@ -33,10 +33,10 @@ namespace {
 
 struct TransactionData {
 
-    TransactionData(Transaction & strategy_)
+    TransactionData(TdbHdf5Transaction & strategy_)
         : strategy(strategy_) {}
 
-    Transaction & strategy;
+    TdbHdf5Transaction & strategy;
     bool localResult;
 };
 
@@ -262,7 +262,7 @@ SharemindTdbVectorMap * TdbHdf5Module::getVectorMap(const SharemindModuleApi0x1S
     return map;
 }
 
-bool TdbHdf5Module::executeTransaction(Transaction & strategy,
+bool TdbHdf5Module::executeTransaction(TdbHdf5Transaction & strategy,
                                        const SharemindModuleApi0x1SyscallContext * context)
 {
     TransactionData transaction(strategy);
