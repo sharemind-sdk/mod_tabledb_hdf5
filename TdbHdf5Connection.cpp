@@ -1512,11 +1512,13 @@ bool TdbHdf5Connection::readColumn(const hid_t fileId, const hobj_ref_t ref, con
 
         // Read the column data
         if (isStringType(type)) {
-            buffer = ::operator new(dims[0]);
+            buffer = ::operator new(sizeof(char **) * dims[0]);
         } else {
             bufferSize = dims[0] * type->size;
             buffer = ::operator new(bufferSize);
         }
+
+        assert(buffer);
 
         // Select a hyperslab in the data space to read from
         const hsize_t start[] = { 0, col };
@@ -1571,8 +1573,11 @@ bool TdbHdf5Connection::readColumn(const hid_t fileId, const hobj_ref_t ref, con
             }
 
             // Release the memory allocated for the vlen types
-            if (H5Dvlen_reclaim(tId, sId, H5P_DEFAULT, buffer) < 0)
+            if (H5Dvlen_reclaim(tId, mSId, H5P_DEFAULT, buffer) < 0)
                 m_logger.fullDebug() << "Error while cleaning up column data.";
+
+            // Free the string vector
+            ::operator delete(buffer);
         } else {
             SharemindTdbValue * const val = new SharemindTdbValue;
             val->type = SharemindTdbType_new(type->domain, type->name, type->size);
