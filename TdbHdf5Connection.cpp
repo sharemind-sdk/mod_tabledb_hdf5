@@ -28,8 +28,11 @@ namespace fs = boost::filesystem;
 namespace std {
     template<> struct less<SharemindTdbType *> {
         bool operator() (SharemindTdbType * const lhs, SharemindTdbType * const rhs) {
-            const int cmp = strcmp(lhs->domain, rhs->domain);
-            return cmp == 0 ? strcmp(lhs->name, rhs->name) < 0 : cmp < 0;
+            int cmp = 0;
+            return !(cmp = strcmp(lhs->domain, rhs->domain))
+                    && !(cmp = strcmp(lhs->name, rhs->name))
+                    ? lhs->size < rhs->size
+                    : cmp < 0;
         }
     };
 } /* namespace std { */
@@ -44,7 +47,6 @@ const size_t        ERR_MSG_MAX             = 64;
 const char * const  FILE_EXT                = "h5";
 const char * const  META_GROUP              = "/meta";
 const char * const  ROW_COUNT_ATTR          = "row_count";
-const size_t        VL_STR_REF_SIZE         = 16;
 } /* namespace { */
 
 namespace {
@@ -202,17 +204,11 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
             SharemindTdbType * const type = *it;
 
             std::pair<TypeMap::iterator, bool> rv = typeMap.insert(TypeMap::value_type(type, 1));
-            if (!rv.second) {
-                // The length of public string type can vary
-                if (!isStringType(type) && rv.first->first->size != type->size) {
-                    m_logger.error() << "Inconsistent type data given for type \"" << type->domain << "::" << type->name << "\".";
-                    return false;
-                }
+            if (!rv.second)
                 ++rv.first->second;
-            }
 
             std::ostringstream oss; // TODO figure out something better than this
-            oss << type->domain << "::" << type->name;
+            oss << type->domain << "::" << type->name << "::" << type->size;
             colInfoVector.push_back(ColInfoVector::value_type(oss.str(), rv.first->second - 1));
         }
     }
@@ -242,19 +238,11 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
 
             hid_t tId = H5I_INVALID_HID;
 
-            if (isStringType(type)) {
-                // Create a variable length string type
-                tId = H5Tcopy(H5T_C_S1);
+            if (isVariableLengthType(type)) {
+                // Create a variable length type
+                tId = H5Tvlen_create(H5T_NATIVE_CHAR);
                 if (tId < 0) {
                     m_logger.error() << "Failed to create dataset type.";
-                    return false;
-                }
-
-                if (H5Tset_size(tId, H5T_VARIABLE) < 0) {
-                    m_logger.error() << "Failed to set dataset type size.";
-
-                    if (H5Tclose(tId) < 0)
-                        m_logger.fullDebug() << "Error while cleaning up dataset type.";
                     return false;
                 }
             } else {
@@ -267,7 +255,7 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
 
                 // Set a type tag
                 std::ostringstream oss; // TODO figure out something better than this
-                oss << type->domain << "::" << type->name;
+                oss << type->domain << "::" << type->name << "::" << type->size;
                 const std::string tag(oss.str());
 
                 if (H5Tset_tag(tId, tag.c_str()) < 0) {
@@ -418,10 +406,10 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
             SharemindTdbType * const type = typeIt->first;
             const hid_t & tId = typeIt->second;
 
-            const size_t size = isStringType(type) ? VL_STR_REF_SIZE : type->size;
+            const size_t size = isVariableLengthType(type) ? sizeof(hvl_t) : type->size;
 
             std::ostringstream oss; // TODO figure out something better than this
-            oss << type->domain << "::" << type->name;
+            oss << type->domain << "::" << type->name << "::" << type->size;
             const std::string tag(oss.str());
 
             // TODO take CHUNK_SIZE from configuration?
@@ -592,7 +580,7 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
                 m_logger.fullDebug() << "Error while cleaning up column meta info dataset creation property list.";
         } BOOST_SCOPE_EXIT_END
 
-        const hsize_t dimsChunk = CHUNK_SIZE / (sizeof(hobj_ref_t) + VL_STR_REF_SIZE + sizeof(size_type));
+        const hsize_t dimsChunk = CHUNK_SIZE / (sizeof(hobj_ref_t) + sizeof(hvl_t) + sizeof(size_type));
         if (H5Pset_chunk(plistId, 1, &dimsChunk) < 0) {
             m_logger.error() << "Failed to set column meta info dataset creation property list info.";
             return false;
@@ -604,6 +592,11 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
             m_logger.error() << "Failed to create column meta info dataset.";
             return false;
         }
+
+        BOOST_SCOPE_EXIT((&m_logger)(&dId)) {
+            if (H5Dclose(dId) < 0)
+                m_logger.fullDebug() << "Error while cleaning up column meta info dataset.";
+        } BOOST_SCOPE_EXIT_END
 
         // Write column index data
         if (size > 0) {
@@ -629,9 +622,6 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
                 return false;
             }
         }
-
-        if (H5Dclose(dId) < 0)
-            m_logger.fullDebug() << "Error while cleaning up column meta info dataset.";
     }
 
     // Flush the buffers to reduce the chance of file corruption
@@ -907,8 +897,8 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
                 return false;
             }
 
-            if (isStringType(type)) {
-                // Currently, there are no string arrays
+            if (isVariableLengthType(type)) {
+                // For variable length types we do not support arrays
                 valCount += 1;
             } else {
                 if (type->size != tIt->first->size) {
@@ -939,8 +929,8 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
 
             size_type count = 0;
 
-            if (isStringType(type)) {
-                // Currently, there are no string arrays
+            if (isVariableLengthType(type)) {
+                // For variable length types we do not support arrays
                 count = values.size();
             } else {
                 std::vector<SharemindTdbValue *>::const_iterator vIt;
@@ -959,7 +949,7 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
         }
     }
 
-    // Set cleanup handler to restore the initial if when something goes wrong
+    // Set cleanup handler to restore the initial state if when something goes wrong
     typedef std::map<hobj_ref_t, std::pair<hsize_t, hsize_t> > CleanupMap;
     CleanupMap cleanup;
 
@@ -1086,15 +1076,19 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
             void * buffer = NULL;
             bool delBuffer = false;
 
-            if (isStringType(type)) {
-                buffer = ::operator new(dsetCols * sizeof(char *));
+            if (isVariableLengthType(type)) {
+                assert(dsetCols == values.size());
+
+                buffer = ::operator new(dsetCols * sizeof(hvl_t));
                 delBuffer = true;
 
-                size_t count = 0;
+                hvl_t * cursor = static_cast<hvl_t *>(buffer);
                 std::vector<SharemindTdbValue *>::const_iterator vIt;
                 for (vIt = values.begin(); vIt != values.end(); ++vIt) {
                     SharemindTdbValue * const val = *vIt;
-                    static_cast<char **>(buffer)[count++] = static_cast<char *>(val->buffer);
+                    cursor->len = val->size;
+                    cursor->p = val->buffer;
+                    ++cursor;
                 }
             } else {
                 if (values.size() == 1) {
@@ -1292,8 +1286,8 @@ bool TdbHdf5Connection::readColumn(const std::string & tbl, const std::vector<Sh
     return true;
 }
 
-bool TdbHdf5Connection::isStringType(SharemindTdbType * const type) {
-    return strcmp(type->domain, "public") == 0 && strcmp(type->name, "string") == 0;
+bool TdbHdf5Connection::isVariableLengthType(SharemindTdbType * const type) {
+    return !type->size;
 }
 
 bool TdbHdf5Connection::pathExists(const fs::path & path, bool & status) {
@@ -1361,8 +1355,8 @@ bool TdbHdf5Connection::validateValues(const std::vector<SharemindTdbValue *> & 
             return false;
         }
 
-        // String types are handled differently
-        if (isStringType(type))
+        // Variable length types are handled differently
+        if (isVariableLengthType(type))
             continue;
 
         // Check if the value buffer length is a multiple of the type size
@@ -1511,8 +1505,8 @@ bool TdbHdf5Connection::readColumn(const hid_t fileId, const hobj_ref_t ref, con
         size_type bufferSize = 0;
 
         // Read the column data
-        if (isStringType(type)) {
-            buffer = ::operator new(sizeof(char **) * dims[0]);
+        if (isVariableLengthType(type)) {
+            buffer = ::operator new(dims[0] * sizeof(hvl_t));
         } else {
             bufferSize = dims[0] * type->size;
             buffer = ::operator new(bufferSize);
@@ -1537,7 +1531,7 @@ bool TdbHdf5Connection::readColumn(const hid_t fileId, const hobj_ref_t ref, con
 
         BOOST_SCOPE_EXIT((&m_logger)(&tId)) {
             if (H5Tclose(tId) < 0)
-                m_logger.fullDebug() << __LINE__; // TODO
+                m_logger.fullDebug() << "Error while cleaning up type for column data";
         } BOOST_SCOPE_EXIT_END
 
         // Create a simple memory data space
@@ -1559,24 +1553,24 @@ bool TdbHdf5Connection::readColumn(const hid_t fileId, const hobj_ref_t ref, con
             return false;
         }
 
-        if (isStringType(type)) {
-            char ** strBuffer = static_cast<char **>(buffer);
+        if (isVariableLengthType(type)) {
+            hvl_t * hvlBuffer = static_cast<hvl_t *>(buffer);
             for (hsize_t i = 0; i < dims[0]; ++i) {
                 SharemindTdbValue * const val = new SharemindTdbValue;
                 val->type = SharemindTdbType_new(type->domain, type->name, type->size);
-                bufferSize = strlen(strBuffer[i]) + 1;
+                bufferSize = hvlBuffer[i].len;
                 val->buffer = ::operator new(bufferSize);
-                memcpy(val->buffer, strBuffer[i], bufferSize);
+                memcpy(val->buffer, hvlBuffer[i].p, bufferSize);
                 val->size = bufferSize;
 
                 values.push_back(val);
             }
 
-            // Release the memory allocated for the vlen types
+            // Release the memory allocated for the variable length types
             if (H5Dvlen_reclaim(tId, mSId, H5P_DEFAULT, buffer) < 0)
                 m_logger.fullDebug() << "Error while cleaning up column data.";
 
-            // Free the string vector
+            // Free the variable length type array
             ::operator delete(buffer);
         } else {
             SharemindTdbValue * const val = new SharemindTdbValue;
