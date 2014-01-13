@@ -275,16 +275,24 @@ bool TdbHdf5Module::executeTransaction(TdbHdf5Transaction & strategy,
                                             &processId,
                                             &transaction);
 
-    if (ret == SHAREMIND_CONSENSUS_FACILITY_OK)
+    switch (ret) {
+
+    case SHAREMIND_CONSENSUS_FACILITY_OK:
         return true;
-    if (ret == SHAREMIND_CONSENSUS_FACILITY_FAIL)
+
+    case SHAREMIND_CONSENSUS_FACILITY_FAIL:
         return false;
-    if (ret == SHAREMIND_CONSENSUS_FACILITY_OUT_OF_MEMORY)
+
+    case SHAREMIND_CONSENSUS_FACILITY_OUT_OF_MEMORY:
         throw std::bad_alloc();
-    if (ret == SHAREMIND_CONSENSUS_FACILITY_NOT_STARTED)
+
+    case SHAREMIND_CONSENSUS_FACILITY_NOT_STARTED:
         throw std::runtime_error("ConsensusService has not been started.");
-    else
-        throw;
+
+    default:
+        throw std::runtime_error("Unknown ConsensusService exception.");
+
+    }
 }
 
 } // namespace sharemind {
