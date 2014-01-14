@@ -629,7 +629,8 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
         m_logger.fullDebug() << "Error while flushing buffers.";
 
     // Add the file handler to the map
-    assert(m_tableFiles.insert(TableFileMap::value_type(tbl, fileId)).second);
+    const bool r = m_tableFiles.insert(TableFileMap::value_type(tbl, fileId)).second;
+    assert(r);
 
     success = true;
 
@@ -868,8 +869,10 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
                     return false;
                 }
 
-                assert(refTypes.insert(RefTypeMap::value_type(dsetRefs[i], RefTypeMap::mapped_type(type, aId))).second);
-                assert(typeCounts.insert(TypeCountMap::value_type(type, 1)).second);
+                const bool r = refTypes.insert(RefTypeMap::value_type(dsetRefs[i], RefTypeMap::mapped_type(type, aId))).second;
+                assert(r);
+                const bool r2 = typeCounts.insert(TypeCountMap::value_type(type, 1)).second;
+                assert(r2);
             } else {
                 SharemindTdbType * const type = it->second.first;
                 ++typeCounts[type];

@@ -127,7 +127,8 @@ bool TdbHdf5Module::openConnection(const SharemindModuleApi0x1SyscallContext * c
                 return false;
             }
 
-            assert(m_dsConf.insert(const_cast<std::string &>(dsName), cfg).second);
+            const bool r = m_dsConf.insert(const_cast<std::string &>(dsName), cfg).second;
+            assert(r);
         } else {
             cfg = it->second;
         }
