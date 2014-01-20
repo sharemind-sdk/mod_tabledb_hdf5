@@ -287,9 +287,6 @@ bool TdbHdf5Module::executeTransaction(TdbHdf5Transaction & strategy,
     case SHAREMIND_CONSENSUS_FACILITY_OUT_OF_MEMORY:
         throw std::bad_alloc();
 
-    case SHAREMIND_CONSENSUS_FACILITY_NOT_STARTED:
-        throw std::runtime_error("ConsensusService has not been started.");
-
     default:
         throw std::runtime_error("Unknown ConsensusService exception.");
 
