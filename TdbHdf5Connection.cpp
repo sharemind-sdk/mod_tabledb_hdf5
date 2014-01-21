@@ -25,18 +25,6 @@
 
 namespace fs = boost::filesystem;
 
-namespace std {
-    template<> struct less<SharemindTdbType *> {
-        bool operator() (SharemindTdbType * const lhs, SharemindTdbType * const rhs) {
-            int cmp = 0;
-            return !(cmp = strcmp(lhs->domain, rhs->domain))
-                    && !(cmp = strcmp(lhs->name, rhs->name))
-                    ? lhs->size < rhs->size
-                    : cmp < 0;
-        }
-    };
-} /* namespace std { */
-
 namespace {
 const char * const  COL_INDEX_DATASET       = "/meta/column_index";
 const char * const  COL_INDEX_TYPE          = "/meta/column_index_type";
@@ -50,6 +38,16 @@ const char * const  ROW_COUNT_ATTR          = "row_count";
 } /* namespace { */
 
 namespace {
+
+struct SharemindTdbTypeLess {
+    bool operator() (SharemindTdbType * const lhs, SharemindTdbType * const rhs) const {
+        int cmp = 0;
+        return !(cmp = strcmp(lhs->domain, rhs->domain))
+                && !(cmp = strcmp(lhs->name, rhs->name))
+                ? lhs->size < rhs->size
+                : cmp < 0;
+    }
+};
 
 herr_t err_walk_cb(unsigned n, const H5E_error_t * err_desc, void * client_data) {
     assert(err_desc);
@@ -195,7 +193,7 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
     // Check the provided types
     typedef std::vector<std::pair<std::string, size_type> > ColInfoVector;
     ColInfoVector colInfoVector;
-    typedef std::map<SharemindTdbType *, size_t> TypeMap;
+    typedef std::map<SharemindTdbType *, size_t, SharemindTdbTypeLess> TypeMap;
     TypeMap typeMap;
 
     {
@@ -232,7 +230,7 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
     } BOOST_SCOPE_EXIT_END
 
     {
-        std::map<SharemindTdbType *, size_t>::const_iterator it;
+        std::map<SharemindTdbType *, size_t, SharemindTdbTypeLess>::const_iterator it;
         for (it = typeMap.begin(); it != typeMap.end(); ++it) {
             SharemindTdbType * const type = it->first;
 
@@ -794,7 +792,7 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
     typedef std::map<hobj_ref_t, std::pair<SharemindTdbType *, hid_t> > RefTypeMap;
     RefTypeMap refTypes;
 
-    typedef std::map<SharemindTdbType *, size_type> TypeCountMap;
+    typedef std::map<SharemindTdbType *, size_type, SharemindTdbTypeLess> TypeCountMap;
     TypeCountMap typeCounts;
 
     BOOST_SCOPE_EXIT((&m_logger)(&refTypes)) {
@@ -881,7 +879,7 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
     }
 
     // Aggregate the values by the value types
-    typedef std::map<SharemindTdbType *, std::vector<SharemindTdbValue *> > TypeValueMap;
+    typedef std::map<SharemindTdbType *, std::vector<SharemindTdbValue *>, SharemindTdbTypeLess> TypeValueMap;
     TypeValueMap typeValues;
 
     size_type valCount = 0;
