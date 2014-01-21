@@ -25,17 +25,15 @@
 
 namespace fs = boost::filesystem;
 
-namespace {
-const char * const  COL_INDEX_DATASET       = "/meta/column_index";
-const char * const  COL_INDEX_TYPE          = "/meta/column_index_type";
-const size_t        CHUNK_SIZE              = 4096;
-const char * const  DATASET_TYPE_ATTR       = "type";
-const char * const  DATASET_TYPE_ATTR_TYPE  = "/meta/dataset_type";
-const size_t        ERR_MSG_MAX             = 64;
-const char * const  FILE_EXT                = "h5";
-const char * const  META_GROUP              = "/meta";
-const char * const  ROW_COUNT_ATTR          = "row_count";
-} /* namespace { */
+#define COL_INDEX_DATASET      "/meta/column_index"
+#define COL_INDEX_TYPE         "/meta/column_index_type"
+#define CHUNK_SIZE             (static_cast<size_t>(4096u))
+#define DATASET_TYPE_ATTR      "type"
+#define DATASET_TYPE_ATTR_TYPE "/meta/dataset_type"
+#define ERR_MSG_MAX            (64u)
+#define FILE_EXT               "h5"
+#define META_GROUP             "/meta"
+#define ROW_COUNT_ATTR         "row_count"
 
 namespace {
 
