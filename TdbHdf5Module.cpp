@@ -105,7 +105,7 @@ TdbHdf5Module::TdbHdf5Module(ILogger & logger,
 bool TdbHdf5Module::openConnection(const SharemindModuleApi0x1SyscallContext * ctx,
                                    const std::string & dsName)
 {
-    TdbHdf5ConnectionConf * cfg = NULL;
+    TdbHdf5ConnectionConf * cfg = nullptr;
 
     {
         boost::lock_guard<boost::mutex> lock(m_dsConfMutex);
@@ -184,7 +184,7 @@ TdbHdf5Connection * TdbHdf5Module::getConnection(const SharemindModuleApi0x1Sysc
                                                  "mod_tabledb_hdf5/connections");
     if (!connections) {
         m_logger.error() << "Failed to get process data store.";
-        return NULL;
+        return nullptr;
     }
 
     // Return the connection object
@@ -192,7 +192,7 @@ TdbHdf5Connection * TdbHdf5Module::getConnection(const SharemindModuleApi0x1Sysc
         static_cast<boost::shared_ptr<TdbHdf5Connection> *>(connections->get(connections, dsName.c_str()));
     if (!conn) {
         m_logger.error() << "No open connection for data source \"" << dsName << "\".";
-        return NULL;
+        return nullptr;
     }
 
     return conn->get();
@@ -207,14 +207,14 @@ SharemindTdbVectorMap * TdbHdf5Module::newVectorMap(const SharemindModuleApi0x1S
                                           "mod_tabledb/vector_maps");
     if (!maps) {
         m_logger.error() << "Failed to get process data store.";
-        return NULL;
+        return nullptr;
     }
 
     // Add new map to the store
     SharemindTdbVectorMap * const map = m_mapUtil.new_map(&m_mapUtil, maps);
     if (!map) {
         m_logger.error() << "Failed to create new map object.";
-        return NULL;
+        return nullptr;
     }
 
     // Get map identifier
@@ -250,14 +250,14 @@ SharemindTdbVectorMap * TdbHdf5Module::getVectorMap(const SharemindModuleApi0x1S
                                           "mod_tabledb/vector_maps");
     if (!maps) {
         m_logger.error() << "Failed to get process data store.";
-        return NULL;
+        return nullptr;
     }
 
     // Return an existing map object
     SharemindTdbVectorMap * const map = m_mapUtil.get_map(&m_mapUtil, maps, vmapId);
     if (!map) {
         m_logger.error() << "No map object with given identifier exists.";
-        return NULL;
+        return nullptr;
     }
 
     return map;

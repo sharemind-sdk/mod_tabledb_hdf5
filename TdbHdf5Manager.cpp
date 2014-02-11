@@ -71,7 +71,7 @@ TdbHdf5Connection * TdbHdf5Manager::alloc(const boost::filesystem::path & key) c
     try {
         return new TdbHdf5Connection(m_loggerRef, key);
     } catch (...) {
-        return NULL;
+        return nullptr;
     }
 }
 

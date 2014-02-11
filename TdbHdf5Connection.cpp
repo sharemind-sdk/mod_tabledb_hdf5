@@ -54,11 +54,11 @@ herr_t err_walk_cb(unsigned n, const H5E_error_t * err_desc, void * client_data)
     sharemind::ILogger::Wrapped * logger = static_cast<sharemind::ILogger::Wrapped *>(client_data);
 
     char maj_msg[ERR_MSG_MAX];
-    if (H5Eget_msg(err_desc->maj_num, NULL, maj_msg, ERR_MSG_MAX) < 0)
+    if (H5Eget_msg(err_desc->maj_num, nullptr, maj_msg, ERR_MSG_MAX) < 0)
         return -1;
 
     char min_msg[ERR_MSG_MAX];
-    if (H5Eget_msg(err_desc->min_num, NULL, min_msg, ERR_MSG_MAX) < 0)
+    if (H5Eget_msg(err_desc->min_num, nullptr, min_msg, ERR_MSG_MAX) < 0)
         return -1;
 
     logger->fullDebug() << "HDF5 Error[" << n << "]:" << err_desc->func_name << " - " << maj_msg << ": " << min_msg;
@@ -285,7 +285,7 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
 
         // Create a data space for the row count attribute
         const hsize_t aDims = 1;
-        const hid_t aSId = H5Screate_simple(1, &aDims, NULL);
+        const hid_t aSId = H5Screate_simple(1, &aDims, nullptr);
         if (aSId < 0) {
             m_logger.error() << "Failed to create row count attribute data space.";
             return false;
@@ -456,7 +456,7 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
 
             // Create a data space for the type attribute
             const hsize_t aDims = 1;
-            const hid_t aSId = H5Screate_simple(1, &aDims, NULL);
+            const hid_t aSId = H5Screate_simple(1, &aDims, nullptr);
             if (aSId < 0) {
                 m_logger.error() << "Failed to create dataset type attribute data space.";
                 return false;
@@ -1025,7 +1025,7 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
 
             // Create a simple memory data space
             const hsize_t mDims = dsetCols;
-            const hid_t mSId = H5Screate_simple(1, &mDims, NULL);
+            const hid_t mSId = H5Screate_simple(1, &mDims, nullptr);
             if (mSId < 0) {
                 m_logger.error() << "Failed to create memory data space for type \"" << type->domain << "::" << type->name << "\".";
                 return false;
@@ -1061,7 +1061,7 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
             // Select a hyperslab in the data space to write to
             const hsize_t start[] = { rowCount, 0 };
             const hsize_t count[] = { 1, dsetCols };
-            if (H5Sselect_hyperslab(sId, H5S_SELECT_SET, start, NULL, count, NULL) < 0) {
+            if (H5Sselect_hyperslab(sId, H5S_SELECT_SET, start, nullptr, count, nullptr) < 0) {
                 m_logger.error() << "Failed to do selection in data space for type \"" << type->domain << "::" << type->name << "\".";
                 return false;
             }
@@ -1072,7 +1072,7 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
             const std::vector<SharemindTdbValue *> & values = tvIt->second;
 
             // Aggregate the values into a single buffer
-            void * buffer = NULL;
+            void * buffer = nullptr;
             bool delBuffer = false;
 
             if (isVariableLengthType(type)) {
@@ -1226,7 +1226,7 @@ bool TdbHdf5Connection::readColumn(const std::string & tbl, const std::vector<Sh
 
         // Create a simple memory data space
         const hsize_t mDims = 1;
-        const hid_t mSId = H5Screate_simple(1, &mDims, NULL);
+        const hid_t mSId = H5Screate_simple(1, &mDims, nullptr);
         if (mSId < 0) {
             m_logger.error() << "Failed to create column meta info memory data space.";
             return false;
@@ -1264,7 +1264,7 @@ bool TdbHdf5Connection::readColumn(const std::string & tbl, const std::vector<Sh
         // Select a hyperslab in the data space for reading
         const hsize_t start = colId->idx;
         const hsize_t count = 1;
-        if (H5Sselect_hyperslab(sId, H5S_SELECT_SET, &start, NULL, &count, NULL) < 0) {
+        if (H5Sselect_hyperslab(sId, H5S_SELECT_SET, &start, nullptr, &count, nullptr) < 0) {
             m_logger.error() << "Failed to do selection in column meta info data space.";
             return false;
         }
@@ -1433,7 +1433,7 @@ bool TdbHdf5Connection::readColumn(const hid_t fileId, const hobj_ref_t ref, con
 
     // Get size of data space
     hsize_t dims[2];
-    if (H5Sget_simple_extent_dims(sId, dims, NULL) < 0) {
+    if (H5Sget_simple_extent_dims(sId, dims, nullptr) < 0) {
         m_logger.error() << "Failed to get dataset data space size.";
         return false;
     }
@@ -1497,10 +1497,10 @@ bool TdbHdf5Connection::readColumn(const hid_t fileId, const hobj_ref_t ref, con
     // Check if we have anything to read
     if (dims[0] == 0) {
         // TODO check if this is handled correctly
-        SharemindTdbValue * const val = SharemindTdbValue_new(type->domain, type->name, type->size, NULL, 0);
+        SharemindTdbValue * const val = SharemindTdbValue_new(type->domain, type->name, type->size, nullptr, 0);
         values.push_back(val);
     } else {
-        void * buffer = NULL;
+        void * buffer = nullptr;
         size_type bufferSize = 0;
 
         // Read the column data
@@ -1516,7 +1516,7 @@ bool TdbHdf5Connection::readColumn(const hid_t fileId, const hobj_ref_t ref, con
         // Select a hyperslab in the data space to read from
         const hsize_t start[] = { 0, col };
         const hsize_t count[] = { dims[0], 1 };
-        if (H5Sselect_hyperslab(sId, H5S_SELECT_SET, start, NULL, count, NULL) < 0) {
+        if (H5Sselect_hyperslab(sId, H5S_SELECT_SET, start, nullptr, count, nullptr) < 0) {
             m_logger.error() << "Failed to do selection in dataset data space.";
             return false;
         }
@@ -1535,7 +1535,7 @@ bool TdbHdf5Connection::readColumn(const hid_t fileId, const hobj_ref_t ref, con
 
         // Create a simple memory data space
         const hsize_t mDims = dims[0];
-        const hid_t mSId = H5Screate_simple(1, &mDims, NULL);
+        const hid_t mSId = H5Screate_simple(1, &mDims, nullptr);
         if (mSId < 0) {
             m_logger.error() << "Failed to create memory data space for column data.";
             return false;
@@ -1711,7 +1711,7 @@ bool TdbHdf5Connection::getColumnCount(const hid_t fileId, hsize_t & ncols) {
     }
 
     // Get size of data space
-    if (H5Sget_simple_extent_dims(sId, &ncols, NULL) < 0) {
+    if (H5Sget_simple_extent_dims(sId, &ncols, nullptr) < 0) {
         m_logger.error() << "Failed to get column count from column meta info.";
         return false;
     }
