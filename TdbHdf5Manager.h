@@ -11,6 +11,7 @@
 #define SHAREMIND_MOD_TABLEDB_HDF5_TDBHDF5MANAGER_H
 
 #include <map>
+#include <memory>
 #include <set>
 #include <string>
 #include <boost/filesystem/path.hpp>
@@ -31,7 +32,7 @@ public: /* Methods: */
 
     TdbHdf5Manager(ILogger & logger);
 
-    boost::shared_ptr<TdbHdf5Connection> openConnection(const TdbHdf5ConnectionConf & config);
+    std::shared_ptr<TdbHdf5Connection> openConnection(const TdbHdf5ConnectionConf & config);
 
 private: /* Methods: */
 

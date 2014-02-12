@@ -10,20 +10,20 @@
 #ifndef SHAREMIND_MOD_TABLEDB_HDF5_TDBHDF5MODULE_H
 #define SHAREMIND_MOD_TABLEDB_HDF5_TDBHDF5MODULE_H
 
-#include <string>
 #include <boost/bind/bind.hpp>
 #include <boost/function.hpp>
-#include <boost/shared_ptr.hpp>
 #include <boost/thread/mutex.hpp>
-#include <sharemind/common/ScopedObjectMap.h>
-#include <sharemind/common/Logger/ILogger.h>
+#include <memory>
 #include <sharemind/common/Logger/Debug.h>
+#include <sharemind/common/Logger/ILogger.h>
+#include <sharemind/common/ScopedObjectMap.h>
 #include <sharemind/dbcommon/datasourceapi.h>
 #include <sharemind/libmodapi/api_0x1.h>
 #include <sharemind/miner/Facilities/datastoreapi.h>
 #include <sharemind/miner/Facilities/libconsensusservice.h>
 #include <sharemind/miner/Facilities/libprocessfacility.h>
 #include <sharemind/mod_tabledb/tdbvectormapapi.h>
+#include <string>
 
 
 namespace sharemind  {
@@ -146,7 +146,7 @@ private: /* Fields: */
     SharemindConsensusFacility & m_consensusService;
     SharemindProcessFacility & m_processFacility;
 
-    boost::shared_ptr<TdbHdf5Manager> m_dbManager;
+    std::shared_ptr<TdbHdf5Manager> m_dbManager;
 
     ConfMap m_dsConf;
     boost::mutex m_dsConfMutex;

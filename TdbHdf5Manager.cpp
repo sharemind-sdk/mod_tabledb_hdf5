@@ -9,10 +9,12 @@
 
 #include "TdbHdf5Manager.h"
 
+#include "TdbHdf5Connection.h"
+
 #include <boost/filesystem.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/system/error_code.hpp>
-#include "TdbHdf5Connection.h"
+#include <memory>
 
 
 namespace fs = boost::filesystem;
@@ -26,7 +28,7 @@ TdbHdf5Manager::TdbHdf5Manager(ILogger & logger)
     // Intentionally empty
 }
 
-boost::shared_ptr<TdbHdf5Connection> TdbHdf5Manager::openConnection(const TdbHdf5ConnectionConf & config) {
+std::shared_ptr<TdbHdf5Connection> TdbHdf5Manager::openConnection(const TdbHdf5ConnectionConf & config) {
     // Get the canonical path for the connection
     // TODO workaround for older boost filesystem versions?
     fs::path canonicalPath;
@@ -42,7 +44,7 @@ boost::shared_ptr<TdbHdf5Connection> TdbHdf5Manager::openConnection(const TdbHdf
             if (!fs::is_directory(canonicalPath)) {
                 m_logger.error() << "Database path " << dbPath
                     << " exists, but is not a directory.";
-                return boost::shared_ptr<TdbHdf5Connection>();
+                return std::shared_ptr<TdbHdf5Connection>();
             }
         } else {
             // Create the path to the data source
@@ -51,7 +53,7 @@ boost::shared_ptr<TdbHdf5Connection> TdbHdf5Manager::openConnection(const TdbHdf
 
             if (!create_directories(dbPath)) {
                 m_logger.error() << "Failed to create path " << dbPath << ".";
-                return boost::shared_ptr<TdbHdf5Connection>();
+                return std::shared_ptr<TdbHdf5Connection>();
             }
 
             // Get the canonical path for the database (e.g. with no dots or symlinks)
@@ -60,7 +62,7 @@ boost::shared_ptr<TdbHdf5Connection> TdbHdf5Manager::openConnection(const TdbHdf
     } catch (const fs::filesystem_error & e) {
         m_logger.error() << "Error while while performing file system"
             << " operations: " << e.what();
-        return boost::shared_ptr<TdbHdf5Connection>();
+        return std::shared_ptr<TdbHdf5Connection>();
     }
 
     // Return the connection object from the cache or construct a new one

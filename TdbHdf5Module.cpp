@@ -9,15 +9,16 @@
 
 #include "TdbHdf5Module.h"
 
+#include "TdbHdf5ConnectionConf.h"
+#include "TdbHdf5Manager.h"
+
 #include <boost/version.hpp>
-#include <boost/shared_ptr.hpp>
 #if BOOST_VERSION >= 105300
 #include <boost/thread/lock_guard.hpp>
 #else
 #include <boost/thread/locks.hpp>
 #endif
-#include "TdbHdf5ConnectionConf.h"
-#include "TdbHdf5Manager.h"
+#include <memory>
 
 
 namespace {
@@ -145,14 +146,14 @@ bool TdbHdf5Module::openConnection(const SharemindModuleApi0x1SyscallContext * c
     }
 
     // Open the connection
-    boost::shared_ptr<TdbHdf5Connection> conn = m_dbManager->openConnection(*cfg);
+    std::shared_ptr<TdbHdf5Connection> conn = m_dbManager->openConnection(*cfg);
     if (!conn.get())
         return false;
 
     return connections->set(connections,
                             dsName.c_str(),
-                            new boost::shared_ptr<TdbHdf5Connection>(conn),
-                            &destroy<boost::shared_ptr<TdbHdf5Connection> >);
+                            new std::shared_ptr<TdbHdf5Connection>(conn),
+                            &destroy<std::shared_ptr<TdbHdf5Connection> >);
 }
 
 bool TdbHdf5Module::closeConnection(const SharemindModuleApi0x1SyscallContext * ctx,
@@ -188,8 +189,8 @@ TdbHdf5Connection * TdbHdf5Module::getConnection(const SharemindModuleApi0x1Sysc
     }
 
     // Return the connection object
-    boost::shared_ptr<TdbHdf5Connection> * const conn =
-        static_cast<boost::shared_ptr<TdbHdf5Connection> *>(connections->get(connections, dsName.c_str()));
+    std::shared_ptr<TdbHdf5Connection> * const conn =
+        static_cast<std::shared_ptr<TdbHdf5Connection> *>(connections->get(connections, dsName.c_str()));
     if (!conn) {
         m_logger.error() << "No open connection for data source \"" << dsName << "\".";
         return nullptr;
