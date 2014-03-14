@@ -90,8 +90,8 @@ public: /* Methods: */
 
     bool insertRow(const std::string & tbl, const std::vector<std::vector<SharemindTdbValue *> > & valuesBatch);
 
-    bool readColumn(const std::string & tbl, const std::vector<SharemindTdbString *> & colIdBatch, std::vector<SharemindTdbValue *> & valueBatch);
-    bool readColumn(const std::string & tbl, const std::vector<SharemindTdbIndex *> & colIdBatch, std::vector<SharemindTdbValue *> & valueBatch);
+    bool readColumn(const std::string & tbl, const std::vector<SharemindTdbString *> & colIdBatch, std::vector<std::vector<SharemindTdbValue *> > & valuesBatch);
+    bool readColumn(const std::string & tbl, const std::vector<SharemindTdbIndex *> & colIdBatch, std::vector<std::vector<SharemindTdbValue *> > & valuesBatch);
 
 private: /* Methods: */
 
@@ -119,7 +119,8 @@ private: /* Methods: */
      * Database operations
      */
 
-    bool readColumn(const hid_t fileId, const hobj_ref_t ref, const hsize_t col, std::vector<SharemindTdbValue *> & values);
+    bool readColumn(const hid_t fileId, const hobj_ref_t ref,
+            const std::vector<std::pair<hsize_t, std::vector<SharemindTdbValue *> *> > & paramBatch);
 
     bool objRefToType(const hid_t fileId, const hobj_ref_t ref, hid_t & aId, SharemindTdbType & type);
 

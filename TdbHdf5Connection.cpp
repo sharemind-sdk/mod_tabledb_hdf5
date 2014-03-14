@@ -9,6 +9,7 @@
 
 #include "TdbHdf5Connection.h"
 
+#include <set>
 #include <sstream>
 #include <boost/filesystem.hpp>
 #include <boost/scope_exit.hpp>
@@ -85,6 +86,8 @@ TdbHdf5Connection::TdbHdf5Connection(ILogger & logger, const fs::path & path)
     : m_logger(logger.wrap("[TdbHdf5Connection] "))
     , m_path(path)
 {
+    // TODO Needs some refactoring. It is getting unreadable.
+
     // TODO need two kinds of rollback:
     // 1) Per operation rollback stack - so that the operation leaves the
     // database in a consistent state.
@@ -94,7 +97,6 @@ TdbHdf5Connection::TdbHdf5Connection(ILogger & logger, const fs::path & path)
     // TODO Check the given path.
     // TODO Some stuff probably should be allocated on the heap.
     // TODO locking?
-    // TODO batch operations support
     // TODO check for uniqueness of column names
     // TODO Need to refactor the huge functions into smaller ones.
 
@@ -411,9 +413,6 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
             // TODO take CHUNK_SIZE from configuration?
             // TODO what about the chunk shape?
             // Set chunk size
-            // HDF5 API doesn't give us the size of the variable length string
-            // references. However, through simple experimentation we know that
-            // the string references currently take up 16 bytes.
             const hsize_t chunkSize = CHUNK_SIZE / size;
             hsize_t dimsChunk[2];
             dimsChunk[0] = chunkSize; dimsChunk[1] = 1; // TODO are vertical chunks OK?
@@ -745,29 +744,30 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
             m_logger.error() << "Failed to insert row(s) into table \"" << tbl << "\".";
     } BOOST_SCOPE_EXIT_END
 
-    if (valuesBatch.size() > 1) {
-        m_logger.error() << "Currently we don't support batched operations.";
-        return false;
-    }
-
     if (valuesBatch.empty()) {
-        m_logger.error() << "Empty batch of parameters given.";
-        return false;
-    }
-
-    const std::vector<SharemindTdbValue *> & values = valuesBatch.back();
-
-    // Do some simple checks on the parameters
-    if (values.empty()) {
         m_logger.error() << "No values given.";
         return false;
     }
 
+    size_t batchCount = valuesBatch.size();
+
+    // Do some simple checks on the parameters
     if (!validateTableName(tbl))
         return false;
 
-    if (!validateValues(values))
-        return false;
+    typedef std::vector<std::vector<SharemindTdbValue *> > ValuesBatchVector;
+    {
+        ValuesBatchVector::const_iterator it;
+        for (it = valuesBatch.begin(); it != valuesBatch.end(); ++it) {
+            if (it->empty()) {
+                m_logger.error() << "Empty batch of values given.";
+                return false;
+            }
+
+            if (!validateValues(*it))
+                return false;
+        }
+    }
 
     // Open the table file
     const hid_t fileId = openTableFile(tbl);
@@ -877,73 +877,73 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
     }
 
     // Aggregate the values by the value types
-    typedef std::map<SharemindTdbType *, std::vector<SharemindTdbValue *>, SharemindTdbTypeLess> TypeValueMap;
+    typedef std::vector<SharemindTdbValue *> ValuesVector;
+    typedef std::map<SharemindTdbType *, ValuesVector, SharemindTdbTypeLess> TypeValueMap;
     TypeValueMap typeValues;
 
-    size_type valCount = 0;
+    ValuesBatchVector::const_iterator valIt;
+    for (valIt = valuesBatch.begin(); valIt != valuesBatch.end(); ++valIt) {
+        const ValuesVector & values = *valIt;
 
-    {
-        std::vector<SharemindTdbValue *>::const_iterator it;
-        for (it = values.begin(); it != values.end(); ++it) {
-            SharemindTdbValue * const val = *it;
-            SharemindTdbType * const type = val->type;
+        size_type batchColCount = 0;
 
-            assert(val->size);
+        typedef std::map<SharemindTdbType *, size_t, SharemindTdbTypeLess> BatchTypeCountMap;
+        BatchTypeCountMap batchTypeCount;
 
-            TypeCountMap::const_iterator tIt = typeCounts.find(type);
-            if (tIt == typeCounts.end()) {
-                m_logger.error() << "Given values do not match the table schema.";
-                return false;
-            }
+        {
+            std::vector<SharemindTdbValue *>::const_iterator it;
+            for (it = values.begin(); it != values.end(); ++it) {
+                SharemindTdbValue * const val = *it;
+                SharemindTdbType * const type = val->type;
 
-            if (isVariableLengthType(type)) {
-                // For variable length types we do not support arrays
-                valCount += 1;
-            } else {
-                if (type->size != tIt->first->size) {
+                assert(val->size);
+
+                TypeCountMap::const_iterator tIt = typeCounts.find(type);
+                if (tIt == typeCounts.end()) {
                     m_logger.error() << "Given values do not match the table schema.";
                     return false;
                 }
 
-                assert(val->size % type->size == 0);
-                valCount += val->size / type->size;
-            }
+                if (isVariableLengthType(type)) {
+                    // For variable length types we do not support arrays
+                    batchColCount += 1;
+                    batchTypeCount[type] += 1;
+                } else {
+                    if (type->size != tIt->first->size) {
+                        m_logger.error() << "Given values do not match the table schema.";
+                        return false;
+                    }
 
-            typeValues[type].push_back(val);
+                    assert(val->size % type->size == 0);
+                    batchColCount += val->size / type->size;
+                    batchTypeCount[type] += val->size / type->size;
+                }
+
+                typeValues[type].push_back(val);
+            }
         }
-    }
 
-    // Check if we have values for all the columns
-    if (valCount != colCount) {
-        m_logger.error() << "Given number of values differs from the number of columns.";
-        return false;
-    }
+        // Check if we have values for all the columns
+        if (batchColCount != colCount) {
+            m_logger.error() << "Given number of values differs from the number of columns.";
+            return false;
+        }
 
-    // Check the if we have the correct number of values for each type
-    {
-        TypeValueMap::const_iterator it;
-        for (it = typeValues.begin(); it != typeValues.end(); ++it) {
-            SharemindTdbType * const type = it->first;
-            const std::vector<SharemindTdbValue *> & values = it->second;
+        // Check the if we have the correct number of values for each type
+        {
+            BatchTypeCountMap::const_iterator it;
+            for (it = batchTypeCount.begin(); it != batchTypeCount.end(); ++it) {
+                SharemindTdbType * const type = it->first;
+                const size_t count = it->second;
 
-            size_type count = 0;
+                TypeCountMap::const_iterator tIt = typeCounts.find(type);
+                assert(tIt != typeCounts.end());
 
-            if (isVariableLengthType(type)) {
-                // For variable length types we do not support arrays
-                count = values.size();
-            } else {
-                std::vector<SharemindTdbValue *>::const_iterator vIt;
-                for (vIt = values.begin(); vIt != values.end(); ++vIt)
-                    count += (*vIt)->size / (*vIt)->type->size;
-            }
-
-            TypeCountMap::const_iterator tIt = typeCounts.find(type);
-            assert(tIt != typeCounts.end());
-
-            if (count != tIt->second) {
-                m_logger.error() << "Invalid number of values for type \""
-                    << type->domain << "::" << type->name << "\".";
-                return false;
+                if (count != tIt->second) {
+                    m_logger.error() << "Invalid number of values for type \""
+                        << type->domain << "::" << type->name << "\".";
+                    return false;
+                }
             }
         }
     }
@@ -985,6 +985,7 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
     } BOOST_SCOPE_EXIT_END
 
     // For each dataset, write the data
+    // TODO move to a separate function
     {
         RefTypeMap::const_iterator it;
         for (it = refTypes.begin(); it != refTypes.end(); ++it) {
@@ -1024,8 +1025,8 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
             } BOOST_SCOPE_EXIT_END
 
             // Create a simple memory data space
-            const hsize_t mDims = dsetCols;
-            const hid_t mSId = H5Screate_simple(1, &mDims, nullptr);
+            const hsize_t mDims[] = { batchCount, dsetCols };
+            const hid_t mSId = H5Screate_simple(2, mDims, nullptr);
             if (mSId < 0) {
                 m_logger.error() << "Failed to create memory data space for type \"" << type->domain << "::" << type->name << "\".";
                 return false;
@@ -1037,7 +1038,7 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
             } BOOST_SCOPE_EXIT_END
 
             // Extend the dataset
-            const hsize_t dims[] = { rowCount + 1, dsetCols };
+            const hsize_t dims[] = { rowCount + batchCount, dsetCols };
             if (H5Dset_extent(oId, dims) < 0) {
                 m_logger.error() << "Failed to extend dataset for type \"" << type->domain << "::" << type->name << "\".";
                 return false;
@@ -1060,7 +1061,7 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
 
             // Select a hyperslab in the data space to write to
             const hsize_t start[] = { rowCount, 0 };
-            const hsize_t count[] = { 1, dsetCols };
+            const hsize_t count[] = { batchCount, dsetCols };
             if (H5Sselect_hyperslab(sId, H5S_SELECT_SET, start, nullptr, count, nullptr) < 0) {
                 m_logger.error() << "Failed to do selection in data space for type \"" << type->domain << "::" << type->name << "\".";
                 return false;
@@ -1076,9 +1077,9 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
             bool delBuffer = false;
 
             if (isVariableLengthType(type)) {
-                assert(dsetCols == values.size());
+                assert(batchCount * dsetCols == values.size());
 
-                buffer = ::operator new(dsetCols * sizeof(hvl_t));
+                buffer = ::operator new(batchCount * dsetCols * sizeof(hvl_t));
                 delBuffer = true;
 
                 hvl_t * cursor = static_cast<hvl_t *>(buffer);
@@ -1090,12 +1091,13 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
                     ++cursor;
                 }
             } else {
-                if (values.size() == 1) {
+                if (batchCount == 1 && values.size() == 1) {
                     // Since we don't have to aggregate anything, we can use the
                     // existing buffer.
                     buffer = values.back()->buffer;
                 } else {
-                    buffer = ::operator new(dsetCols * type->size);
+                    // Copy the values into a continuous buffer
+                    buffer = ::operator new(batchCount * dsetCols * type->size);
                     delBuffer = true;
 
                     size_t offset = 0;
@@ -1139,12 +1141,12 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
     return true;
 }
 
-bool TdbHdf5Connection::readColumn(const std::string & tbl, const std::vector<SharemindTdbString *> & colIdBatch, std::vector<SharemindTdbValue *> & valueBatch) {
-    (void)tbl; (void)colIdBatch; (void)valueBatch;
+bool TdbHdf5Connection::readColumn(const std::string & tbl, const std::vector<SharemindTdbString *> & colIdBatch, std::vector<std::vector<SharemindTdbValue *> > & valuesBatch) {
+    (void)tbl; (void)colIdBatch; (void)valuesBatch;
     return false;
 }
 
-bool TdbHdf5Connection::readColumn(const std::string & tbl, const std::vector<SharemindTdbIndex *> & colIdBatch, std::vector<SharemindTdbValue *> & valueBatch) {
+bool TdbHdf5Connection::readColumn(const std::string & tbl, const std::vector<SharemindTdbIndex *> & colIdBatch, std::vector<std::vector<SharemindTdbValue *> > & valuesBatch) {
     // Set the cleanup flag
     bool success = false;
 
@@ -1153,17 +1155,10 @@ bool TdbHdf5Connection::readColumn(const std::string & tbl, const std::vector<Sh
             m_logger.error() << "Failed to read column(s) in table \"" << tbl << "\".";
     } BOOST_SCOPE_EXIT_END
 
-    if (colIdBatch.size() > 1) {
-        m_logger.error() << "Currently we don't support batched operations.";
-        return false;
-    }
-
     if (colIdBatch.empty()) {
         m_logger.error() << "Empty batch of parameters given.";
         return false;
     }
-
-    const SharemindTdbIndex * const colId = colIdBatch.back();
 
     // Do some simple checks on the parameters
     if (!validateTableName(tbl))
@@ -1182,9 +1177,22 @@ bool TdbHdf5Connection::readColumn(const std::string & tbl, const std::vector<Sh
         return false;
 
     // Check if column number is valid
-    if (colId->idx >= colCount) {
-        m_logger.error() << "Column number out of range.";
-        return false;
+    {
+        std::set<uint64_t> uniqueColumns;
+        std::vector<SharemindTdbIndex *>::const_iterator it;
+        for (it = colIdBatch.begin(); it != colIdBatch.end(); ++it) {
+            const SharemindTdbIndex * const colId = *it;
+            assert(colId);
+
+            if (colId->idx >= colCount) {
+                m_logger.error() << "Column number out of range.";
+                return false;
+            }
+            if (!uniqueColumns.insert(colId->idx).second) {
+                m_logger.error() << "Duplicate column numbers given.";
+                return false;
+            }
+        }
     }
 
     // Get table row count
@@ -1199,8 +1207,8 @@ bool TdbHdf5Connection::readColumn(const std::string & tbl, const std::vector<Sh
     };
 
     // Get the column meta info
-    PartialColumnIndex idx;
-
+    // TODO this needs to go into a separate function
+    std::vector<PartialColumnIndex> indices;
     {
         // Create a type for reading the partial index
         const hid_t tId = H5Tcreate(H5T_COMPOUND, sizeof(PartialColumnIndex));
@@ -1225,7 +1233,7 @@ bool TdbHdf5Connection::readColumn(const std::string & tbl, const std::vector<Sh
         }
 
         // Create a simple memory data space
-        const hsize_t mDims = 1;
+        const hsize_t mDims = colIdBatch.size();
         const hid_t mSId = H5Screate_simple(1, &mDims, nullptr);
         if (mSId < 0) {
             m_logger.error() << "Failed to create column meta info memory data space.";
@@ -1261,24 +1269,64 @@ bool TdbHdf5Connection::readColumn(const std::string & tbl, const std::vector<Sh
                 m_logger.fullDebug() << "Error while cleaning up column meta info data space.";
         } BOOST_SCOPE_EXIT_END
 
-        // Select a hyperslab in the data space for reading
-        const hsize_t start = colId->idx;
-        const hsize_t count = 1;
-        if (H5Sselect_hyperslab(sId, H5S_SELECT_SET, &start, nullptr, &count, nullptr) < 0) {
+        // Select points in the data space for reading
+        // NOTE: points are read in the order of point selection
+        std::vector<hsize_t> coords;
+        coords.reserve(colIdBatch.size());
+
+        std::vector<SharemindTdbIndex *>::const_iterator it;
+        for (it = colIdBatch.begin(); it != colIdBatch.end(); ++it)
+            coords.push_back((*it)->idx);
+
+        if (H5Sselect_elements(sId, H5S_SELECT_SET, coords.size(), &coords.front()) < 0) {
             m_logger.error() << "Failed to do selection in column meta info data space.";
             return false;
         }
 
+        indices.resize(colIdBatch.size());
+
         // Read column meta info from the dataset
-        if (H5Dread(dId, tId, mSId, sId, H5P_DEFAULT, &idx) < 0) {
+        if (H5Dread(dId, tId, mSId, sId, H5P_DEFAULT, &indices.front()) < 0) {
             m_logger.error() << "Failed to read column meta info dataset.";
             return false;
         }
     }
 
-    // Read the column
-    if (!readColumn(fileId, idx.dataset_ref, idx.dataset_column, valueBatch))
-        return false;
+    // Aggregate the column numbers and results for each dataset
+    typedef std::vector<SharemindTdbValue *> ValuesVector;
+    typedef std::map<hobj_ref_t, std::vector<std::pair<hsize_t, ValuesVector *> > > DatasetBatchMap;
+
+    DatasetBatchMap dsetBatch;
+    {
+        valuesBatch.resize(colIdBatch.size());
+
+        size_t count = 0;
+        std::vector<PartialColumnIndex>::const_iterator it;
+        for (it = indices.begin(); it != indices.end(); ++it)
+            dsetBatch[it->dataset_ref].push_back(std::make_pair(it->dataset_column, &valuesBatch[count++]));
+    }
+
+    // Register cleanup for valuesBatch, if something goes wrong
+    BOOST_SCOPE_EXIT((&success)(&valuesBatch)) {
+        if (!success) {
+            std::vector<std::vector<SharemindTdbValue *> >::iterator it;
+            std::vector<SharemindTdbValue *>::iterator innerIt;
+            for (it = valuesBatch.begin(); it != valuesBatch.end(); ++it) {
+                for (innerIt = it->begin(); innerIt != it->end(); ++innerIt)
+                    SharemindTdbValue_delete(*innerIt);
+            }
+            valuesBatch.clear();
+        }
+    } BOOST_SCOPE_EXIT_END
+
+    // Read the columns
+    {
+        DatasetBatchMap::iterator it;
+        for (it = dsetBatch.begin(); it != dsetBatch.end(); ++it) {
+            if (!readColumn(fileId, it->first, it->second))
+                return false;
+        }
+    }
 
     success = true;
 
@@ -1381,7 +1429,11 @@ boost::filesystem::path TdbHdf5Connection::nameToPath(const std::string & tbl) {
     return p;
 }
 
-bool TdbHdf5Connection::readColumn(const hid_t fileId, const hobj_ref_t ref, const hsize_t col, std::vector<SharemindTdbValue *> & values) {
+bool TdbHdf5Connection::readColumn(const hid_t fileId, const hobj_ref_t ref,
+        const std::vector<std::pair<hsize_t, std::vector<SharemindTdbValue *> *> > & paramBatch) {
+    typedef std::vector<std::pair<hsize_t, std::vector<SharemindTdbValue *> *> > ParamBatchVector;
+    assert(paramBatch.size());
+
     // Get dataset from reference
     const hid_t oId = H5Rdereference(fileId, H5R_OBJECT, &ref);
     if (oId < 0) {
@@ -1441,9 +1493,14 @@ bool TdbHdf5Connection::readColumn(const hid_t fileId, const hobj_ref_t ref, con
     // TODO check dims[0] against row count attribute?
 
     // Check if column offset is in range
-    if (col >= dims[1]) {
-        m_logger.error() << "Invalid dataset column number: out of range.";
-        return false;
+    {
+        ParamBatchVector::const_iterator it;
+        for (it = paramBatch.begin(); it != paramBatch.end(); ++it) {
+            if (it->first >= dims[1]) {
+                m_logger.error() << "Invalid dataset column number: out of range.";
+                return false;
+            }
+        }
     }
 
     // Open the type attribute
@@ -1494,90 +1551,96 @@ bool TdbHdf5Connection::readColumn(const hid_t fileId, const hobj_ref_t ref, con
         delete type;
     } BOOST_SCOPE_EXIT_END
 
-    // Check if we have anything to read
-    if (dims[0] == 0) {
-        // TODO check if this is handled correctly
-        SharemindTdbValue * const val = SharemindTdbValue_new(type->domain, type->name, type->size, nullptr, 0);
-        values.push_back(val);
-    } else {
-        void * buffer = nullptr;
-        size_type bufferSize = 0;
+    {
+        ParamBatchVector::const_iterator it;
+        for (it = paramBatch.begin(); it != paramBatch.end(); ++it) {
+            // Check if we have anything to read
+            if (dims[0] == 0) {
+                // TODO check if this is handled correctly
+                SharemindTdbValue * const val = SharemindTdbValue_new(type->domain, type->name, type->size, nullptr, 0);
+                it->second->push_back(val);
+            } else {
+                void * buffer = nullptr;
+                size_type bufferSize = 0;
 
-        // Read the column data
-        if (isVariableLengthType(type)) {
-            buffer = ::operator new(dims[0] * sizeof(hvl_t));
-        } else {
-            bufferSize = dims[0] * type->size;
-            buffer = ::operator new(bufferSize);
-        }
+                // Read the column data
+                if (isVariableLengthType(type)) {
+                    buffer = ::operator new(dims[0] * sizeof(hvl_t));
+                } else {
+                    bufferSize = dims[0] * type->size;
+                    buffer = ::operator new(bufferSize);
+                }
 
-        assert(buffer);
+                assert(buffer);
 
-        // Select a hyperslab in the data space to read from
-        const hsize_t start[] = { 0, col };
-        const hsize_t count[] = { dims[0], 1 };
-        if (H5Sselect_hyperslab(sId, H5S_SELECT_SET, start, nullptr, count, nullptr) < 0) {
-            m_logger.error() << "Failed to do selection in dataset data space.";
-            return false;
-        }
+                // Select a hyperslab in the data space to read from
+                const hsize_t start[] = { 0, it->first };
+                const hsize_t count[] = { dims[0], 1 };
+                if (H5Sselect_hyperslab(sId, H5S_SELECT_SET, start, nullptr, count, nullptr) < 0) {
+                    m_logger.error() << "Failed to do selection in dataset data space.";
+                    return false;
+                }
 
-        // Get dataset type
-        const hid_t tId = H5Dget_type(oId);
-        if (tId < 0) {
-            m_logger.error() << "Failed to get dataset type.";
-            return false;
-        }
+                // Get dataset type
+                const hid_t tId = H5Dget_type(oId);
+                if (tId < 0) {
+                    m_logger.error() << "Failed to get dataset type.";
+                    return false;
+                }
 
-        BOOST_SCOPE_EXIT((&m_logger)(&tId)) {
-            if (H5Tclose(tId) < 0)
-                m_logger.fullDebug() << "Error while cleaning up type for column data";
-        } BOOST_SCOPE_EXIT_END
+                BOOST_SCOPE_EXIT((&m_logger)(&tId)) {
+                    if (H5Tclose(tId) < 0)
+                        m_logger.fullDebug() << "Error while cleaning up type for column data";
+                } BOOST_SCOPE_EXIT_END
 
-        // Create a simple memory data space
-        const hsize_t mDims = dims[0];
-        const hid_t mSId = H5Screate_simple(1, &mDims, nullptr);
-        if (mSId < 0) {
-            m_logger.error() << "Failed to create memory data space for column data.";
-            return false;
-        }
+                // Create a simple memory data space
+                const hsize_t mDims[] = { dims[0], 1 };
+                const hid_t mSId = H5Screate_simple(2, mDims, nullptr);
+                if (mSId < 0) {
+                    m_logger.error() << "Failed to create memory data space for column data.";
+                    return false;
+                }
 
-        BOOST_SCOPE_EXIT((&m_logger)(&mSId)) {
-            if (H5Sclose(mSId) < 0)
-                m_logger.fullDebug() << "Error while cleaning up memory data space for column data.";
-        } BOOST_SCOPE_EXIT_END
+                BOOST_SCOPE_EXIT((&m_logger)(&mSId)) {
+                    if (H5Sclose(mSId) < 0)
+                        m_logger.fullDebug() << "Error while cleaning up memory data space for column data.";
+                } BOOST_SCOPE_EXIT_END
 
-        // Read the dataset data
-        if (H5Dread(oId, tId, mSId, sId, H5P_DEFAULT, buffer) < 0) {
-            m_logger.error() << "Failed to read the dataset.";
-            return false;
-        }
+                // Read the dataset data
+                if (H5Dread(oId, tId, mSId, sId, H5P_DEFAULT, buffer) < 0) {
+                    m_logger.error() << "Failed to read the dataset.";
+                    return false;
+                }
 
-        if (isVariableLengthType(type)) {
-            hvl_t * hvlBuffer = static_cast<hvl_t *>(buffer);
-            for (hsize_t i = 0; i < dims[0]; ++i) {
-                SharemindTdbValue * const val = new SharemindTdbValue;
-                val->type = SharemindTdbType_new(type->domain, type->name, type->size);
-                bufferSize = hvlBuffer[i].len;
-                val->buffer = ::operator new(bufferSize);
-                memcpy(val->buffer, hvlBuffer[i].p, bufferSize);
-                val->size = bufferSize;
+                if (isVariableLengthType(type)) {
+                    hvl_t * const hvlBuffer = static_cast<hvl_t *>(buffer);
 
-                values.push_back(val);
+                    for (hsize_t i = 0; i < dims[0]; ++i) {
+                        SharemindTdbValue * const val = new SharemindTdbValue;
+                        val->type = SharemindTdbType_new(type->domain, type->name, type->size);
+                        bufferSize = hvlBuffer[i].len;
+                        val->buffer = ::operator new(bufferSize);
+                        memcpy(val->buffer, hvlBuffer[i].p, bufferSize);
+                        val->size = bufferSize;
+
+                        it->second->push_back(val);
+                    }
+
+                    // Release the memory allocated for the variable length types
+                    if (H5Dvlen_reclaim(tId, mSId, H5P_DEFAULT, buffer) < 0)
+                        m_logger.fullDebug() << "Error while cleaning up column data.";
+
+                    // Free the variable length type array
+                    ::operator delete(buffer);
+                } else {
+                    SharemindTdbValue * const val = new SharemindTdbValue;
+                    val->type = SharemindTdbType_new(type->domain, type->name, type->size);
+                    val->buffer = buffer;
+                    val->size = bufferSize;
+
+                    it->second->push_back(val);
+                }
             }
-
-            // Release the memory allocated for the variable length types
-            if (H5Dvlen_reclaim(tId, mSId, H5P_DEFAULT, buffer) < 0)
-                m_logger.fullDebug() << "Error while cleaning up column data.";
-
-            // Free the variable length type array
-            ::operator delete(buffer);
-        } else {
-            SharemindTdbValue * const val = new SharemindTdbValue;
-            val->type = SharemindTdbType_new(type->domain, type->name, type->size);
-            val->buffer = buffer;
-            val->size = bufferSize;
-
-            values.push_back(val);
         }
     }
 
