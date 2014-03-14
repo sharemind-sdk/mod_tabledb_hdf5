@@ -1127,7 +1127,7 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
     }
 
     // Update row count
-    if (!setRowCount(fileId, rowCount + 1)) {
+    if (!setRowCount(fileId, rowCount + batchCount)) {
         m_logger.error() << "Failed to update row count.";
         return false;
     }
