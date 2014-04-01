@@ -38,6 +38,40 @@ namespace fs = boost::filesystem;
 #define ROW_COUNT_ATTR         "row_count"
 #define TBL_NAME_SIZE_MAX      (64u)
 
+extern "C" {
+
+static herr_t err_walk_cb(unsigned n, const H5E_error_t * err_desc, void * client_data) {
+    assert(err_desc);
+    assert(client_data);
+
+    sharemind::ILogger::Wrapped * logger = static_cast<sharemind::ILogger::Wrapped *>(client_data);
+
+    char maj_msg[ERR_MSG_SIZE_MAX];
+    if (H5Eget_msg(err_desc->maj_num, nullptr, maj_msg, ERR_MSG_SIZE_MAX) < 0)
+        return -1;
+
+    char min_msg[ERR_MSG_SIZE_MAX];
+    if (H5Eget_msg(err_desc->min_num, nullptr, min_msg, ERR_MSG_SIZE_MAX) < 0)
+        return -1;
+
+    logger->fullDebug() << "HDF5 Error[" << n << "]:" << err_desc->func_name << " - " << maj_msg << ": " << min_msg;
+
+    return 0;
+}
+
+static herr_t err_handler(hid_t, void * client_data) {
+    // Have to make a copy of the stack here. Otherwise HDF5 resets the stack at
+    // some point.
+    const hid_t estack = H5Eget_current_stack();
+    if (estack < 0)
+        return -1;
+    const herr_t rv = H5Ewalk(estack, H5E_WALK_DOWNWARD, err_walk_cb, client_data);
+    H5Eclose_stack(estack);
+    return rv;
+}
+
+} /* extern "C" { */
+
 namespace {
 
 struct SharemindTdbTypeLess {
@@ -49,34 +83,6 @@ struct SharemindTdbTypeLess {
                 : cmp < 0;
     }
 };
-
-herr_t err_walk_cb(unsigned n, const H5E_error_t * err_desc, void * client_data) {
-    assert(err_desc);
-    assert(client_data);
-
-    sharemind::ILogger::Wrapped * logger = static_cast<sharemind::ILogger::Wrapped *>(client_data);
-
-    char maj_msg[ERR_MSG_MAX];
-    if (H5Eget_msg(err_desc->maj_num, nullptr, maj_msg, ERR_MSG_MAX) < 0)
-        return -1;
-
-    char min_msg[ERR_MSG_MAX];
-    if (H5Eget_msg(err_desc->min_num, nullptr, min_msg, ERR_MSG_MAX) < 0)
-        return -1;
-
-    logger->fullDebug() << "HDF5 Error[" << n << "]:" << err_desc->func_name << " - " << maj_msg << ": " << min_msg;
-
-    return 0;
-}
-
-herr_t err_handler(hid_t, void * client_data) {
-    // Have to make a copy of the stack here. Otherwise HDF5 resets the stack at
-    // some point.
-    const hid_t estack = H5Eget_current_stack();
-    if (estack < 0)
-        return -1;
-    return H5Ewalk(estack, H5E_WALK_DOWNWARD, err_walk_cb, client_data);
-}
 
 } /* namespace { */
 
@@ -121,6 +127,8 @@ TdbHdf5Connection::~TdbHdf5Connection() {
 }
 
 bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<SharemindTdbString *> & names, const std::vector<SharemindTdbType *> & types) {
+    H5Eset_auto(H5E_DEFAULT, err_handler, &m_logger);
+
     // Set the cleanup flag
     bool success = false;
 
@@ -635,6 +643,8 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
 }
 
 bool TdbHdf5Connection::tblDelete(const std::string & tbl) {
+    H5Eset_auto(H5E_DEFAULT, err_handler, &m_logger);
+
     if (!validateTableName(tbl))
         return false;
 
@@ -656,6 +666,8 @@ bool TdbHdf5Connection::tblDelete(const std::string & tbl) {
 }
 
 bool TdbHdf5Connection::tblExists(const std::string & tbl, bool & status) {
+    H5Eset_auto(H5E_DEFAULT, err_handler, &m_logger);
+
     if (!validateTableName(tbl))
         return false;
 
@@ -676,6 +688,8 @@ bool TdbHdf5Connection::tblExists(const std::string & tbl, bool & status) {
 }
 
 bool TdbHdf5Connection::tblColCount(const std::string & tbl, size_type & count) {
+    H5Eset_auto(H5E_DEFAULT, err_handler, &m_logger);
+
     // Set the cleanup flag
     bool success = false;
 
@@ -707,6 +721,8 @@ bool TdbHdf5Connection::tblColCount(const std::string & tbl, size_type & count) 
 }
 
 bool TdbHdf5Connection::tblColNames(const std::string & tbl, std::vector<SharemindTdbString *> & names) {
+    H5Eset_auto(H5E_DEFAULT, err_handler, &m_logger);
+
     // Set the cleanup flag
     bool success = false;
 
@@ -833,6 +849,8 @@ bool TdbHdf5Connection::tblColNames(const std::string & tbl, std::vector<Sharemi
 }
 
 bool TdbHdf5Connection::tblColTypes(const std::string & tbl, std::vector<SharemindTdbType *> & types) {
+    H5Eset_auto(H5E_DEFAULT, err_handler, &m_logger);
+
     // Set the cleanup flag
     bool success = false;
 
@@ -1000,6 +1018,8 @@ bool TdbHdf5Connection::tblColTypes(const std::string & tbl, std::vector<Sharemi
 }
 
 bool TdbHdf5Connection::tblRowCount(const std::string & tbl, size_type & count) {
+    H5Eset_auto(H5E_DEFAULT, err_handler, &m_logger);
+
     // Set the cleanup flag
     bool success = false;
 
@@ -1031,6 +1051,8 @@ bool TdbHdf5Connection::tblRowCount(const std::string & tbl, size_type & count) 
 }
 
 bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std::vector<SharemindTdbValue *> > & valuesBatch) {
+    H5Eset_auto(H5E_DEFAULT, err_handler, &m_logger);
+
     // Set the cleanup flag
     bool success = false;
 
@@ -1437,11 +1459,15 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
 }
 
 bool TdbHdf5Connection::readColumn(const std::string & tbl, const std::vector<SharemindTdbString *> & colIdBatch, std::vector<std::vector<SharemindTdbValue *> > & valuesBatch) {
+    H5Eset_auto(H5E_DEFAULT, err_handler, &m_logger);
+
     (void)tbl; (void)colIdBatch; (void)valuesBatch;
     return false;
 }
 
 bool TdbHdf5Connection::readColumn(const std::string & tbl, const std::vector<SharemindTdbIndex *> & colIdBatch, std::vector<std::vector<SharemindTdbValue *> > & valuesBatch) {
+    H5Eset_auto(H5E_DEFAULT, err_handler, &m_logger);
+
     // Set the cleanup flag
     bool success = false;
 
@@ -1842,6 +1868,7 @@ bool TdbHdf5Connection::readColumn(const hid_t fileId, const hobj_ref_t ref,
     SharemindTdbType * const type = new SharemindTdbType;
     if (H5Aread(aId, aTId, type) < 0) {
         m_logger.error() << "Failed to read dataset type attribute.";
+        delete type;
         return false;
     }
 
