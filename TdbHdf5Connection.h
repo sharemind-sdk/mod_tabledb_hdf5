@@ -10,16 +10,15 @@
 #ifndef SHAREMIND_MOD_TABLEDB_HDF5_TDBHDF5CONNECTION_H
 #define SHAREMIND_MOD_TABLEDB_HDF5_TDBHDF5CONNECTION_H
 
-#include <map>
-#include <string>
-#include <vector>
 #include <boost/filesystem/path.hpp>
-#include <boost/thread/mutex.hpp>
 #include <H5Rpublic.h>
 #include <H5Ipublic.h>
+#include <map>
 #include <sharemind/common/Logger/Debug.h>
 #include <sharemind/common/Logger/ILogger.h>
 #include <sharemind/mod_tabledb/tdbtypes.h>
+#include <string>
+#include <vector>
 #include "TdbHdf5ConnectionConf.h"
 
 
@@ -138,8 +137,6 @@ private: /* Fields: */
     boost::filesystem::path m_path;
 
     TableFileMap m_tableFiles;
-
-    mutable boost::mutex m_mutex; // TODO do we need a recursive mutex?
 
 }; /* class TdbHdf5Connection { */
 
