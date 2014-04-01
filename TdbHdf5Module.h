@@ -10,10 +10,9 @@
 #ifndef SHAREMIND_MOD_TABLEDB_HDF5_TDBHDF5MODULE_H
 #define SHAREMIND_MOD_TABLEDB_HDF5_TDBHDF5MODULE_H
 
-#include <boost/bind/bind.hpp>
-#include <boost/function.hpp>
-#include <boost/thread/mutex.hpp>
+#include <functional>
 #include <memory>
+#include <mutex>
 #include <sharemind/common/Logger/Debug.h>
 #include <sharemind/common/Logger/ILogger.h>
 #include <sharemind/common/ScopedObjectMap.h>
@@ -40,7 +39,7 @@ public: /* Methods: */
     TdbHdf5Transaction(TdbHdf5Connection & connection,
                        bool (TdbHdf5Connection::*exec)(T1 &),
                        T1 & a1)
-        : m_exec(boost::bind(exec, boost::ref(connection), boost::ref(a1)))
+        : m_exec(std::bind(exec, std::ref(connection), std::ref(a1)))
     { }
 
     template <typename T1, typename T2>
@@ -48,10 +47,10 @@ public: /* Methods: */
                        bool (TdbHdf5Connection::*exec)(T1 &, T2 &),
                        T1 & a1,
                        T2 & a2)
-        : m_exec(boost::bind(exec,
-                    boost::ref(connection),
-                    boost::ref(a1),
-                    boost::ref(a2)))
+        : m_exec(std::bind(exec,
+                    std::ref(connection),
+                    std::ref(a1),
+                    std::ref(a2)))
     { }
 
     template <typename T1, typename T2, typename T3>
@@ -60,11 +59,11 @@ public: /* Methods: */
                        T1 & a1,
                        T2 & a2,
                        T3 & a3)
-        : m_exec(boost::bind(exec,
-                    boost::ref(connection),
-                    boost::ref(a1),
-                    boost::ref(a2),
-                    boost::ref(a3)))
+        : m_exec(std::bind(exec,
+                    std::ref(connection),
+                    std::ref(a1),
+                    std::ref(a2),
+                    std::ref(a3)))
     { }
 
     template <typename T1, typename T2, typename T3, typename T4>
@@ -74,12 +73,12 @@ public: /* Methods: */
                        T2 & a2,
                        T3 & a3,
                        T4 & a4)
-        : m_exec(boost::bind(exec,
-                    boost::ref(connection),
-                    boost::ref(a1),
-                    boost::ref(a2),
-                    boost::ref(a3),
-                    boost::ref(a4)))
+        : m_exec(std::bind(exec,
+                    std::ref(connection),
+                    std::ref(a1),
+                    std::ref(a2),
+                    std::ref(a3),
+                    std::ref(a4)))
     { }
 
     bool execute() {
@@ -92,7 +91,7 @@ public: /* Methods: */
 
 private: /* Fields: */
 
-    boost::function<bool ()> m_exec;
+    std::function<bool ()> m_exec;
 };
 
 class __attribute__ ((visibility("internal"))) TdbHdf5Module {
@@ -149,7 +148,7 @@ private: /* Fields: */
     std::shared_ptr<TdbHdf5Manager> m_dbManager;
 
     ConfMap m_dsConf;
-    boost::mutex m_dsConfMutex;
+    std::mutex m_dsConfMutex;
 
 }; /* class TdbHdf5Module { */
 

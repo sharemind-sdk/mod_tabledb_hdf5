@@ -12,14 +12,6 @@
 #include "TdbHdf5ConnectionConf.h"
 #include "TdbHdf5Manager.h"
 
-#include <boost/version.hpp>
-#if BOOST_VERSION >= 105300
-#include <boost/thread/lock_guard.hpp>
-#else
-#include <boost/thread/locks.hpp>
-#endif
-#include <memory>
-
 
 namespace {
 
@@ -109,7 +101,7 @@ bool TdbHdf5Module::openConnection(const SharemindModuleApi0x1SyscallContext * c
     TdbHdf5ConnectionConf * cfg = nullptr;
 
     {
-        boost::lock_guard<boost::mutex> lock(m_dsConfMutex);
+        std::lock_guard<std::mutex> lock(m_dsConfMutex);
 
         // Get configuration from file or load a cached configuration
         ConfMap::iterator it = m_dsConf.find(dsName);
