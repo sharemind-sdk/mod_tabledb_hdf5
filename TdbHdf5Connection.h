@@ -81,6 +81,8 @@ public: /* Methods: */
     bool tblExists(const std::string & tbl, bool & status);
 
     bool tblColCount(const std::string & tbl, size_type & count);
+    bool tblColNames(const std::string & tbl, std::vector<SharemindTdbString *> & names);
+    bool tblColTypes(const std::string & tbl, std::vector<SharemindTdbType *> & types);
     bool tblRowCount(const std::string & tbl, size_type & count);
 
     /*
