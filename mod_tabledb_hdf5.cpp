@@ -190,7 +190,11 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_create,
         const std::vector<SharemindTdbType *> typesVec(ncols, type);
 
         // Execute the transaction
-        TdbHdf5Transaction transaction(*conn, &TdbHdf5Connection::tblCreate, tblName, const_cast<const std::vector<SharemindTdbString *> &>(namesVec), typesVec);
+        TdbHdf5Transaction transaction(*conn,
+                                       &TdbHdf5Connection::tblCreate,
+                                       std::cref(tblName),
+                                       std::cref(namesVec),
+                                       std::cref(typesVec));
         const bool success = m->executeTransaction(transaction, c);
 
         // Clean up parameters
@@ -239,7 +243,9 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_delete,
             return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
         // Execute the transaction
-        TdbHdf5Transaction transaction(*conn, &TdbHdf5Connection::tblDelete, tblName);
+        TdbHdf5Transaction transaction(*conn,
+                                       &TdbHdf5Connection::tblDelete,
+                                       std::cref(tblName));
         const bool success = m->executeTransaction(transaction, c);
 
         if (!success)
@@ -282,7 +288,10 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_exists,
 
         // Execute the transaction
         bool exists = false;
-        TdbHdf5Transaction transaction(*conn, &TdbHdf5Connection::tblExists, tblName, exists);
+        TdbHdf5Transaction transaction(*conn,
+                                       &TdbHdf5Connection::tblExists,
+                                       std::cref(tblName),
+                                       std::ref(exists));
         const bool success = m->executeTransaction(transaction, c);
 
         if (!success)
@@ -327,7 +336,10 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_col_count,
 
         // Execute the transaction
         uint64_t count = 0;
-        TdbHdf5Transaction transaction(*conn, &TdbHdf5Connection::tblColCount, tblName, count);
+        TdbHdf5Transaction transaction(*conn,
+                                       &TdbHdf5Connection::tblColCount,
+                                       std::cref(tblName),
+                                       std::ref(count));
         const bool success = m->executeTransaction(transaction, c);
 
         if (!success)
@@ -372,7 +384,10 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_row_count,
 
         // Execute the transaction
         uint64_t count = 0;
-        TdbHdf5Transaction transaction(*conn, &TdbHdf5Connection::tblRowCount, tblName, count);
+        TdbHdf5Transaction transaction(*conn,
+                                       &TdbHdf5Connection::tblRowCount,
+                                       std::cref(tblName),
+                                       std::ref(count));
         const bool success = m->executeTransaction(transaction, c);
 
         if (!success)
@@ -446,7 +461,10 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_insert_row,
         const std::vector<std::vector<SharemindTdbValue *> > valuesBatch(1, valuesVec);
 
         // Execute the transaction
-        TdbHdf5Transaction transaction(*conn, &TdbHdf5Connection::insertRow, tblName, valuesBatch);
+        TdbHdf5Transaction transaction(*conn,
+                                       &TdbHdf5Connection::insertRow,
+                                       std::cref(tblName),
+                                       std::cref(valuesBatch));
         const bool success = m->executeTransaction(transaction, c);
 
         // Clean up parameters
@@ -499,9 +517,17 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_read_col,
         const std::vector<SharemindTdbIndex *> colIdBatch(1, idx);
 
         // Execute the transaction
+        typedef bool (TdbHdf5Connection::*ExecFunc)(const std::string &,
+                                                    const std::vector<SharemindTdbIndex *> &,
+                                                    std::vector<std::vector<SharemindTdbValue *> > &);
+
         typedef std::vector<std::vector<SharemindTdbValue *> > ValuesBatchVector;
         ValuesBatchVector valuesBatch;
-        TdbHdf5Transaction transaction(*conn, &TdbHdf5Connection::readColumn, tblName, colIdBatch, valuesBatch);
+        TdbHdf5Transaction transaction(*conn,
+                                       static_cast<ExecFunc>(&TdbHdf5Connection::readColumn),
+                                       std::cref(tblName),
+                                       std::cref(colIdBatch),
+                                       std::ref(valuesBatch));
         const bool success = m->executeTransaction(transaction, c);
 
         SharemindTdbIndex_delete(idx);
@@ -642,7 +668,11 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_stmt_exec,
                 return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
             // Execute transaction
-            TdbHdf5Transaction transaction(*conn, &TdbHdf5Connection::tblCreate, tblName, namesVec, typesVec);
+            TdbHdf5Transaction transaction(*conn,
+                                           &TdbHdf5Connection::tblCreate,
+                                           std::cref(tblName),
+                                           std::cref(namesVec),
+                                           std::cref(typesVec));
             const bool success = m->executeTransaction(transaction, c);
 
             if (!success)
@@ -687,7 +717,10 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_stmt_exec,
                 return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
             // Execute transaction
-            TdbHdf5Transaction transaction(*conn, &TdbHdf5Connection::insertRow, tblName, const_cast<const ValuesBatchVector &>(valuesBatch));
+            TdbHdf5Transaction transaction(*conn,
+                                           &TdbHdf5Connection::insertRow,
+                                           std::cref(tblName),
+                                           std::cref(valuesBatch));
             const bool success = m->executeTransaction(transaction, c);
 
             if (!success)
@@ -743,9 +776,17 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_stmt_exec,
                 return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
             // Execute transaction
+            typedef bool (TdbHdf5Connection::*ExecFunc)(const std::string &,
+                                                        const std::vector<SharemindTdbIndex *> &,
+                                                        std::vector<std::vector<SharemindTdbValue *> > &);
+
             typedef std::vector<std::vector<SharemindTdbValue *> > ValuesBatchVector;
             ValuesBatchVector valuesBatch;
-            TdbHdf5Transaction transaction(*conn, &TdbHdf5Connection::readColumn, tblName, const_cast<const ColIdBatchVector &>(colIdBatch), valuesBatch);
+            TdbHdf5Transaction transaction(*conn,
+                                           static_cast<ExecFunc>(&TdbHdf5Connection::readColumn),
+                                           std::cref(tblName),
+                                           std::cref(colIdBatch),
+                                           std::ref(valuesBatch));
             const bool success = m->executeTransaction(transaction, c);
 
             if (!success)

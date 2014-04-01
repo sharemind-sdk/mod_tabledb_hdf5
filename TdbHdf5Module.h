@@ -35,50 +35,13 @@ class TdbHdf5Transaction {
 
 public: /* Methods: */
 
-    template <typename T1>
+    template <typename F, typename ... Args>
     TdbHdf5Transaction(TdbHdf5Connection & connection,
-                       bool (TdbHdf5Connection::*exec)(T1 &),
-                       T1 & a1)
-        : m_exec(std::bind(exec, std::ref(connection), std::ref(a1)))
-    { }
-
-    template <typename T1, typename T2>
-    TdbHdf5Transaction(TdbHdf5Connection & connection,
-                       bool (TdbHdf5Connection::*exec)(T1 &, T2 &),
-                       T1 & a1,
-                       T2 & a2)
-        : m_exec(std::bind(exec,
-                    std::ref(connection),
-                    std::ref(a1),
-                    std::ref(a2)))
-    { }
-
-    template <typename T1, typename T2, typename T3>
-    TdbHdf5Transaction(TdbHdf5Connection & connection,
-                       bool (TdbHdf5Connection::*exec)(T1 &, T2 &, T3 &),
-                       T1 & a1,
-                       T2 & a2,
-                       T3 & a3)
-        : m_exec(std::bind(exec,
-                    std::ref(connection),
-                    std::ref(a1),
-                    std::ref(a2),
-                    std::ref(a3)))
-    { }
-
-    template <typename T1, typename T2, typename T3, typename T4>
-    TdbHdf5Transaction(TdbHdf5Connection & connection,
-                       bool (TdbHdf5Connection::*exec)(T1 &, T2 &, T3 &, T4 &),
-                       T1 & a1,
-                       T2 & a2,
-                       T3 & a3,
-                       T4 & a4)
-        : m_exec(std::bind(exec,
-                    std::ref(connection),
-                    std::ref(a1),
-                    std::ref(a2),
-                    std::ref(a3),
-                    std::ref(a4)))
+                       F&& exec,
+                       Args && ... args)
+        : m_exec(std::bind(std::forward<F>(exec),
+                           std::ref(connection),
+                           std::forward<Args>(args) ...))
     { }
 
     bool execute() {
