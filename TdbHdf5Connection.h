@@ -120,7 +120,8 @@ private: /* Methods: */
      * Database operations
      */
 
-    bool readColumn(const hid_t fileId, const hobj_ref_t ref,
+    bool readColumn(const hid_t fileId, const std::vector<SharemindTdbIndex *> & colNrBatch, std::vector<std::vector<SharemindTdbValue *> > & valuesBatch);
+    bool readDatasetColumn(const hid_t fileId, const hobj_ref_t ref,
             const std::vector<std::pair<hsize_t, std::vector<SharemindTdbValue *> *> > & paramBatch);
 
     bool objRefToType(const hid_t fileId, const hobj_ref_t ref, hid_t & aId, SharemindTdbType & type);

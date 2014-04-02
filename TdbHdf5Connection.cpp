@@ -74,6 +74,12 @@ static herr_t err_handler(hid_t, void * client_data) {
 
 namespace {
 
+struct SharemindTdbStringLess {
+    bool operator() (SharemindTdbString * const lhs, SharemindTdbString * const rhs) const {
+        return strcmp(lhs->str, rhs->str) < 0;
+    }
+};
+
 struct SharemindTdbTypeLess {
     bool operator() (SharemindTdbType * const lhs, SharemindTdbType * const rhs) const {
         int cmp = 0;
@@ -159,6 +165,18 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
     // Check column names
     if (!validateColumnNames(names))
         return false;
+
+    // Check for duplicate column names
+    {
+        std::set<SharemindTdbString *, SharemindTdbStringLess> namesSet;
+        std::vector<SharemindTdbString *>::const_iterator nIt;
+        for (nIt = names.begin(); nIt != names.end(); ++nIt) {
+            if (!namesSet.insert(*nIt).second) {
+                m_logger.error() << "Given column names must be unique.";
+                return false;
+            }
+        }
+    }
 
     fs::path tblPath = nameToPath(tbl);
 
@@ -1461,8 +1479,97 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
 bool TdbHdf5Connection::readColumn(const std::string & tbl, const std::vector<SharemindTdbString *> & colIdBatch, std::vector<std::vector<SharemindTdbValue *> > & valuesBatch) {
     H5Eset_auto(H5E_DEFAULT, err_handler, &m_logger);
 
-    (void)tbl; (void)colIdBatch; (void)valuesBatch;
-    return false;
+    // Set the cleanup flag
+    bool success = false;
+
+    BOOST_SCOPE_EXIT((&success)(&m_logger)(&tbl)) {
+        if (!success)
+            m_logger.error() << "Failed to read column(s) in table \"" << tbl << "\".";
+    } BOOST_SCOPE_EXIT_END
+
+    if (colIdBatch.empty()) {
+        m_logger.error() << "Empty batch of parameters given.";
+        return false;
+    }
+
+    // Do some simple checks on the parameters
+    if (!validateTableName(tbl))
+        return false;
+
+    // Open the table file
+    const hid_t fileId = openTableFile(tbl);
+    if (fileId < 0) {
+        m_logger.error() << "Failed to open table file.";
+        return false;
+    }
+
+    // Check the column names
+    if (!validateColumnNames(colIdBatch))
+        return false;
+
+    // Check for duplicates
+    {
+        std::set<SharemindTdbString *, SharemindTdbStringLess> colIdSet;
+
+        std::vector<SharemindTdbString *>::const_iterator it;
+        for (it = colIdBatch.begin(); it != colIdBatch.end(); ++it) {
+            if (!colIdSet.insert(*it).second) {
+                m_logger.error() << "Duplicate column names given.";
+                return false;
+            }
+        }
+    }
+
+    // Get the table column names
+    std::vector<SharemindTdbString *> colNames;
+    if (!tblColNames(tbl, colNames))
+        return false;
+
+    BOOST_SCOPE_EXIT((&colNames)) {
+        std::vector<SharemindTdbString *>::iterator it;
+        for (it = colNames.begin(); it != colNames.end(); ++it)
+            SharemindTdbString_delete(*it);
+        colNames.clear();
+    } BOOST_SCOPE_EXIT_END
+
+    // Sort the table column names
+    typedef std::map<SharemindTdbString *, size_t, SharemindTdbStringLess> ColNamesMap;
+    ColNamesMap colNamesMap;
+    for (size_t i = 0, end = colNames.size(); i < end; ++i) {
+        const bool rv = colNamesMap.insert(std::pair<SharemindTdbString *, size_t>(colNames[i], i)).second;
+        (void) rv; assert(rv);
+    }
+
+    // Get the column numbers for the names
+    std::vector<SharemindTdbIndex *> colNrBatch;
+    colNrBatch.reserve(colIdBatch.size());
+
+    BOOST_SCOPE_EXIT((&colNrBatch)) {
+        std::vector<SharemindTdbIndex *>::iterator it;
+        for (it = colNrBatch.begin(); it != colNrBatch.end(); ++it)
+            SharemindTdbIndex_delete(*it);
+        colNrBatch.clear();
+    } BOOST_SCOPE_EXIT_END
+
+    {
+        std::vector<SharemindTdbString *>::const_iterator it;
+        for (it = colIdBatch.begin(); it != colIdBatch.end(); ++it) {
+            ColNamesMap::const_iterator nIt = colNamesMap.find(*it);
+            if (nIt == colNamesMap.end()) {
+                m_logger.error() << "Table \"" << tbl << "\" does not contain column \"" << (*it)->str << "\".";
+                return false;
+            }
+
+            colNrBatch.push_back(SharemindTdbIndex_new(nIt->second));
+        }
+    }
+
+    if (!readColumn(fileId, colNrBatch, valuesBatch))
+        return false;
+
+    success = true;
+
+    return true;
 }
 
 bool TdbHdf5Connection::readColumn(const std::string & tbl, const std::vector<SharemindTdbIndex *> & colIdBatch, std::vector<std::vector<SharemindTdbValue *> > & valuesBatch) {
@@ -1497,7 +1604,7 @@ bool TdbHdf5Connection::readColumn(const std::string & tbl, const std::vector<Sh
     if (!getColumnCount(fileId, colCount))
         return false;
 
-    // Check if column number is valid
+    // Check if column numbers are valid
     {
         std::set<uint64_t> uniqueColumns;
         std::vector<SharemindTdbIndex *>::const_iterator it;
@@ -1516,138 +1623,8 @@ bool TdbHdf5Connection::readColumn(const std::string & tbl, const std::vector<Sh
         }
     }
 
-    // Get table row count
-    hsize_t rowCount = 0;
-    if (!getRowCount(fileId, rowCount))
+    if (!readColumn(fileId, colIdBatch, valuesBatch))
         return false;
-
-    // Declare a partial column index type
-    struct PartialColumnIndex {
-        hobj_ref_t dataset_ref;
-        hsize_t dataset_column;
-    };
-
-    // Get the column meta info
-    // TODO this needs to go into a separate function
-    std::vector<PartialColumnIndex> indices;
-    {
-        // Create a type for reading the partial index
-        const hid_t tId = H5Tcreate(H5T_COMPOUND, sizeof(PartialColumnIndex));
-        if (tId < 0) {
-            m_logger.error() << "Failed to create column meta info type.";
-            return false;
-        }
-
-        BOOST_SCOPE_EXIT((&m_logger)(&tId)) {
-            if (H5Tclose(tId) < 0)
-                m_logger.fullDebug() << "Error while cleaning up column meta info type.";
-        } BOOST_SCOPE_EXIT_END
-
-        if (H5Tinsert(tId, "dataset_ref", HOFFSET(PartialColumnIndex, dataset_ref), H5T_STD_REF_OBJ) < 0) {
-            m_logger.error() << "Failed to create column meta info type.";
-            return false;
-        }
-
-        if (H5Tinsert(tId, "dataset_column", HOFFSET(PartialColumnIndex, dataset_column), H5T_NATIVE_HSIZE) < 0) {
-            m_logger.error() << "Failed to create column meta info type.";
-            return false;
-        }
-
-        // Create a simple memory data space
-        const hsize_t mDims = colIdBatch.size();
-        const hid_t mSId = H5Screate_simple(1, &mDims, nullptr);
-        if (mSId < 0) {
-            m_logger.error() << "Failed to create column meta info memory data space.";
-            return false;
-        }
-
-        BOOST_SCOPE_EXIT((&m_logger)(&mSId)) {
-            if (H5Sclose(mSId) < 0)
-                m_logger.fullDebug() << "Error while cleaning up column meta info memory data space.";
-        } BOOST_SCOPE_EXIT_END
-
-        // Open the column meta info dataset
-        const hid_t dId = H5Dopen(fileId, COL_INDEX_DATASET, H5P_DEFAULT);
-        if (dId < 0) {
-            m_logger.error() << "Failed to open column meta info dataset.";
-            return false;
-        }
-
-        BOOST_SCOPE_EXIT((&m_logger)(&dId)) {
-            if (H5Dclose(dId) < 0)
-                m_logger.fullDebug() << "Error while cleaning up column meta info dataset.";
-        } BOOST_SCOPE_EXIT_END
-
-        // Open the column meta info data space
-        const hid_t sId = H5Dget_space(dId);
-        if (sId < 0) {
-            m_logger.error() << "Failed to get column meta info data space.";
-            return false;
-        }
-
-        BOOST_SCOPE_EXIT((&m_logger)(&sId)) {
-            if (H5Sclose(sId) < 0)
-                m_logger.fullDebug() << "Error while cleaning up column meta info data space.";
-        } BOOST_SCOPE_EXIT_END
-
-        // Select points in the data space for reading
-        // NOTE: points are read in the order of point selection
-        std::vector<hsize_t> coords;
-        coords.reserve(colIdBatch.size());
-
-        std::vector<SharemindTdbIndex *>::const_iterator it;
-        for (it = colIdBatch.begin(); it != colIdBatch.end(); ++it)
-            coords.push_back((*it)->idx);
-
-        if (H5Sselect_elements(sId, H5S_SELECT_SET, coords.size(), &coords.front()) < 0) {
-            m_logger.error() << "Failed to do selection in column meta info data space.";
-            return false;
-        }
-
-        indices.resize(colIdBatch.size());
-
-        // Read column meta info from the dataset
-        if (H5Dread(dId, tId, mSId, sId, H5P_DEFAULT, &indices.front()) < 0) {
-            m_logger.error() << "Failed to read column meta info dataset.";
-            return false;
-        }
-    }
-
-    // Aggregate the column numbers and results for each dataset
-    typedef std::vector<SharemindTdbValue *> ValuesVector;
-    typedef std::map<hobj_ref_t, std::vector<std::pair<hsize_t, ValuesVector *> > > DatasetBatchMap;
-
-    DatasetBatchMap dsetBatch;
-    {
-        valuesBatch.resize(colIdBatch.size());
-
-        size_t count = 0;
-        std::vector<PartialColumnIndex>::const_iterator it;
-        for (it = indices.begin(); it != indices.end(); ++it)
-            dsetBatch[it->dataset_ref].push_back(std::make_pair(it->dataset_column, &valuesBatch[count++]));
-    }
-
-    // Register cleanup for valuesBatch, if something goes wrong
-    BOOST_SCOPE_EXIT((&success)(&valuesBatch)) {
-        if (!success) {
-            std::vector<std::vector<SharemindTdbValue *> >::iterator it;
-            std::vector<SharemindTdbValue *>::iterator innerIt;
-            for (it = valuesBatch.begin(); it != valuesBatch.end(); ++it) {
-                for (innerIt = it->begin(); innerIt != it->end(); ++innerIt)
-                    SharemindTdbValue_delete(*innerIt);
-            }
-            valuesBatch.clear();
-        }
-    } BOOST_SCOPE_EXIT_END
-
-    // Read the columns
-    {
-        DatasetBatchMap::iterator it;
-        for (it = dsetBatch.begin(); it != dsetBatch.end(); ++it) {
-            if (!readColumn(fileId, it->first, it->second))
-                return false;
-        }
-    }
 
     success = true;
 
@@ -1755,7 +1732,152 @@ boost::filesystem::path TdbHdf5Connection::nameToPath(const std::string & tbl) {
     return p;
 }
 
-bool TdbHdf5Connection::readColumn(const hid_t fileId, const hobj_ref_t ref,
+bool TdbHdf5Connection::readColumn(const hid_t fileId,
+                                   const std::vector<SharemindTdbIndex *> & colNrBatch,
+                                   std::vector<std::vector<SharemindTdbValue *> > & valuesBatch)
+{
+    // Set the cleanup flag
+    bool success = false;
+
+    // Get table row count
+    hsize_t rowCount = 0;
+    if (!getRowCount(fileId, rowCount))
+        return false;
+
+    // Declare a partial column index type
+    struct PartialColumnIndex {
+        hobj_ref_t dataset_ref;
+        hsize_t dataset_column;
+    };
+
+    // Get the column meta info
+    // TODO this needs to go into a separate function
+    std::vector<PartialColumnIndex> indices;
+    {
+        // Create a type for reading the partial index
+        const hid_t tId = H5Tcreate(H5T_COMPOUND, sizeof(PartialColumnIndex));
+        if (tId < 0) {
+            m_logger.error() << "Failed to create column meta info type.";
+            return false;
+        }
+
+        BOOST_SCOPE_EXIT((&m_logger)(&tId)) {
+            if (H5Tclose(tId) < 0)
+                m_logger.fullDebug() << "Error while cleaning up column meta info type.";
+        } BOOST_SCOPE_EXIT_END
+
+        if (H5Tinsert(tId, "dataset_ref", HOFFSET(PartialColumnIndex, dataset_ref), H5T_STD_REF_OBJ) < 0) {
+            m_logger.error() << "Failed to create column meta info type.";
+            return false;
+        }
+
+        if (H5Tinsert(tId, "dataset_column", HOFFSET(PartialColumnIndex, dataset_column), H5T_NATIVE_HSIZE) < 0) {
+            m_logger.error() << "Failed to create column meta info type.";
+            return false;
+        }
+
+        // Create a simple memory data space
+        const hsize_t mDims = colNrBatch.size();
+        const hid_t mSId = H5Screate_simple(1, &mDims, nullptr);
+        if (mSId < 0) {
+            m_logger.error() << "Failed to create column meta info memory data space.";
+            return false;
+        }
+
+        BOOST_SCOPE_EXIT((&m_logger)(&mSId)) {
+            if (H5Sclose(mSId) < 0)
+                m_logger.fullDebug() << "Error while cleaning up column meta info memory data space.";
+        } BOOST_SCOPE_EXIT_END
+
+        // Open the column meta info dataset
+        const hid_t dId = H5Dopen(fileId, COL_INDEX_DATASET, H5P_DEFAULT);
+        if (dId < 0) {
+            m_logger.error() << "Failed to open column meta info dataset.";
+            return false;
+        }
+
+        BOOST_SCOPE_EXIT((&m_logger)(&dId)) {
+            if (H5Dclose(dId) < 0)
+                m_logger.fullDebug() << "Error while cleaning up column meta info dataset.";
+        } BOOST_SCOPE_EXIT_END
+
+        // Open the column meta info data space
+        const hid_t sId = H5Dget_space(dId);
+        if (sId < 0) {
+            m_logger.error() << "Failed to get column meta info data space.";
+            return false;
+        }
+
+        BOOST_SCOPE_EXIT((&m_logger)(&sId)) {
+            if (H5Sclose(sId) < 0)
+                m_logger.fullDebug() << "Error while cleaning up column meta info data space.";
+        } BOOST_SCOPE_EXIT_END
+
+        // Select points in the data space for reading
+        // NOTE: points are read in the order of point selection
+        std::vector<hsize_t> coords;
+        coords.reserve(colNrBatch.size());
+
+        std::vector<SharemindTdbIndex *>::const_iterator it;
+        for (it = colNrBatch.begin(); it != colNrBatch.end(); ++it)
+            coords.push_back((*it)->idx);
+
+        if (H5Sselect_elements(sId, H5S_SELECT_SET, coords.size(), &coords.front()) < 0) {
+            m_logger.error() << "Failed to do selection in column meta info data space.";
+            return false;
+        }
+
+        indices.resize(colNrBatch.size());
+
+        // Read column meta info from the dataset
+        if (H5Dread(dId, tId, mSId, sId, H5P_DEFAULT, &indices.front()) < 0) {
+            m_logger.error() << "Failed to read column meta info dataset.";
+            return false;
+        }
+    }
+
+    // Aggregate the column numbers and results for each dataset
+    typedef std::vector<SharemindTdbValue *> ValuesVector;
+    typedef std::map<hobj_ref_t, std::vector<std::pair<hsize_t, ValuesVector *> > > DatasetBatchMap;
+
+    DatasetBatchMap dsetBatch;
+    {
+        valuesBatch.resize(colNrBatch.size());
+
+        size_t count = 0;
+        std::vector<PartialColumnIndex>::const_iterator it;
+        for (it = indices.begin(); it != indices.end(); ++it)
+            dsetBatch[it->dataset_ref].push_back(std::make_pair(it->dataset_column, &valuesBatch[count++]));
+    }
+
+    // Register cleanup for valuesBatch, if something goes wrong
+    BOOST_SCOPE_EXIT((&success)(&valuesBatch)) {
+        if (!success) {
+            std::vector<std::vector<SharemindTdbValue *> >::iterator it;
+            std::vector<SharemindTdbValue *>::iterator innerIt;
+            for (it = valuesBatch.begin(); it != valuesBatch.end(); ++it) {
+                for (innerIt = it->begin(); innerIt != it->end(); ++innerIt)
+                    SharemindTdbValue_delete(*innerIt);
+            }
+            valuesBatch.clear();
+        }
+    } BOOST_SCOPE_EXIT_END
+
+    // Read the columns
+    {
+        DatasetBatchMap::iterator it;
+        for (it = dsetBatch.begin(); it != dsetBatch.end(); ++it) {
+            if (!readDatasetColumn(fileId, it->first, it->second))
+                return false;
+        }
+    }
+
+    success = true;
+
+    return true;
+}
+
+bool TdbHdf5Connection::readDatasetColumn(const hid_t fileId, const hobj_ref_t ref,
         const std::vector<std::pair<hsize_t, std::vector<SharemindTdbValue *> *> > & paramBatch) {
     typedef std::vector<std::pair<hsize_t, std::vector<SharemindTdbValue *> *> > ParamBatchVector;
     assert(paramBatch.size());

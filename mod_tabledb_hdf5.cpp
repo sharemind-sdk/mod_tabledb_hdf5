@@ -179,6 +179,13 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_create,
         // Set some parameters
         std::vector<SharemindTdbString *> namesVec;
 
+        BOOST_SCOPE_EXIT((&namesVec)) {
+            std::vector<SharemindTdbString *>::iterator it;
+            for (it = namesVec.begin(); it != namesVec.end(); ++it)
+                SharemindTdbString_delete(*it);
+            namesVec.clear();
+        } BOOST_SCOPE_EXIT_END
+
         std::ostringstream oss;
         for (uint64_t i = 0; i < ncols; ++i) {
             oss << i;
@@ -187,6 +194,11 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_create,
         }
 
         SharemindTdbType * const type = SharemindTdbType_new(typeDomain, typeName, typeSize);
+
+        BOOST_SCOPE_EXIT((&type)) {
+            SharemindTdbType_delete(type);
+        } BOOST_SCOPE_EXIT_END
+
         const std::vector<SharemindTdbType *> typesVec(ncols, type);
 
         // Execute the transaction
@@ -196,13 +208,6 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_create,
                                        std::cref(namesVec),
                                        std::cref(typesVec));
         const bool success = m->executeTransaction(transaction, c);
-
-        // Clean up parameters
-        SharemindTdbType_delete(type);
-        std::vector<SharemindTdbString *>::iterator it;
-        for (it = namesVec.begin(); it != namesVec.end(); ++it)
-            SharemindTdbString_delete(*it);
-        namesVec.clear();
 
         if (!success)
             return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
@@ -625,7 +630,17 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_insert_row,
 
         // Construct some parameters
         SharemindTdbValue * const val = new SharemindTdbValue;
+
+        BOOST_SCOPE_EXIT((&val)) {
+            delete val;
+        } BOOST_SCOPE_EXIT_END
+
         val->type = SharemindTdbType_new(typeDomain, typeName, typeSize);
+
+        BOOST_SCOPE_EXIT((&val)) {
+            SharemindTdbType_delete(val->type);
+        } BOOST_SCOPE_EXIT_END
+
         val->buffer = const_cast<void *>(crefs[4u].pData);
         val->size = bufSize;
 
@@ -638,10 +653,6 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_insert_row,
                                        std::cref(tblName),
                                        std::cref(valuesBatch));
         const bool success = m->executeTransaction(transaction, c);
-
-        // Clean up parameters
-        SharemindTdbType_delete(val->type);
-        delete val;
 
         if (!success)
             return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
@@ -658,7 +669,8 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_read_col,
                           args, num_args, refs, crefs,
                           returnValue, c)
 {
-    if (!SyscallArgs<1u, true, 0u, 2u>::check(args, num_args, refs, crefs, returnValue)) {
+    if (!SyscallArgs<1u, true, 0u, 2u>::check(args, num_args, refs, crefs, returnValue) &&
+            !SyscallArgs<0u, true, 0u, 3u>::check(args, num_args, refs, crefs, returnValue)) {
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
     }
 
@@ -675,8 +687,6 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_read_col,
         const std::string dsName(static_cast<const char *>(crefs[0u].pData), crefs[0u].size - 1u);
         const std::string tblName(static_cast<const char *>(crefs[1u].pData), crefs[1u].size - 1u);
 
-        const uint64_t colId = args[0u].uint64[0u];
-
         sharemind::TdbHdf5Module * m = static_cast<sharemind::TdbHdf5Module *>(c->moduleHandle);
 
         // Get the connection
@@ -684,30 +694,67 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_read_col,
         if (!conn)
             return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
-        // Construct some parameters
-        SharemindTdbIndex * const idx = SharemindTdbIndex_new(colId);
-        const std::vector<SharemindTdbIndex *> colIdBatch(1, idx);
-
-        // Execute the transaction
-        typedef bool (TdbHdf5Connection::*ExecFunc)(const std::string &,
-                                                    const std::vector<SharemindTdbIndex *> &,
-                                                    std::vector<std::vector<SharemindTdbValue *> > &);
+        bool success = false;
 
         typedef std::vector<std::vector<SharemindTdbValue *> > ValuesBatchVector;
         ValuesBatchVector valuesBatch;
-        TdbHdf5Transaction transaction(*conn,
-                                       static_cast<ExecFunc>(&TdbHdf5Connection::readColumn),
-                                       std::cref(tblName),
-                                       std::cref(colIdBatch),
-                                       std::ref(valuesBatch));
-        const bool success = m->executeTransaction(transaction, c);
 
-        SharemindTdbIndex_delete(idx);
+        if (SyscallArgs<1u, true, 0u, 2u>::check(args, num_args, refs, crefs, returnValue)) {
+            // Read the column by column index
+            const uint64_t colId = args[0u].uint64[0u];
+
+            // Construct some parameters
+            SharemindTdbIndex * const idx = SharemindTdbIndex_new(colId);
+
+            BOOST_SCOPE_EXIT((&idx)) {
+                SharemindTdbIndex_delete(idx);
+            } BOOST_SCOPE_EXIT_END
+
+            const std::vector<SharemindTdbIndex *> colIdBatch(1, idx);
+
+            // Execute the transaction
+            typedef bool (TdbHdf5Connection::*ExecFunc)(const std::string &,
+                                                        const std::vector<SharemindTdbIndex *> &,
+                                                        std::vector<std::vector<SharemindTdbValue *> > &);
+
+            TdbHdf5Transaction transaction(*conn,
+                                           static_cast<ExecFunc>(&TdbHdf5Connection::readColumn),
+                                           std::cref(tblName),
+                                           std::cref(colIdBatch),
+                                           std::ref(valuesBatch));
+            success = m->executeTransaction(transaction, c);
+        } else if (SyscallArgs<0u, true, 0u, 3u>::check(args, num_args, refs, crefs, returnValue)) {
+            // Read the column by column name
+            const std::string colId(static_cast<const char *>(crefs[2u].pData), crefs[2u].size - 1u);
+
+            // Construct some parameters
+            SharemindTdbString * const idx = SharemindTdbString_new(colId);
+
+            BOOST_SCOPE_EXIT((&idx)) {
+                SharemindTdbString_delete(idx);
+            } BOOST_SCOPE_EXIT_END
+
+            const std::vector<SharemindTdbString *> colIdBatch(1, idx);
+
+            // Execute the transaction
+            typedef bool (TdbHdf5Connection::*ExecFunc)(const std::string &,
+                                                        const std::vector<SharemindTdbString *> &,
+                                                        std::vector<std::vector<SharemindTdbValue *> > &);
+
+            TdbHdf5Transaction transaction(*conn,
+                                           static_cast<ExecFunc>(&TdbHdf5Connection::readColumn),
+                                           std::cref(tblName),
+                                           std::cref(colIdBatch),
+                                           std::ref(valuesBatch));
+            success = m->executeTransaction(transaction, c);
+        } else {
+            return SHAREMIND_MODULE_API_0x1_SHAREMIND_ERROR;
+        }
 
         if (!success)
             return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
-        assert(colIdBatch.size() == valuesBatch.size());
+        assert(valuesBatch.size() == 1u);
 
         // Register cleanup in case we fail to hand over the ownership for the
         // values
@@ -911,60 +958,115 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_stmt_exec,
                 return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
             }
 
-            // Aggregate the parameters
-            typedef std::vector<SharemindTdbIndex *> ColIdBatchVector;
-            ColIdBatchVector colIdBatch;
-            colIdBatch.reserve(batchCount);
-
-            // Process each parameter batch
-            for (size_t i = 0; i < batchCount; ++i) {
-                if (pmap->set_batch(pmap, i) != TDB_VECTOR_MAP_OK) {
-                    m->logger().error() << "Failed to execute \"" << stmtType
-                        << "\" statement: Failed to iterate parameter vector map batches.";
-                    return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
-                }
-
-                // Parse the "colId" parameter
-                size_t size = 0;
-                SharemindTdbIndex ** colId;
-                if (pmap->get_index_vector(pmap, "colId", &colId, &size) != TDB_VECTOR_MAP_OK) {
-                    m->logger().error() << "Failed to execute \"" << stmtType
-                        << "\" statement: Failed to get \"colId\" index vector parameter.";
-                    return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
-                }
-
-                if (size != 1) {
-                    m->logger().error() << "Failed to execute \"" << stmtType
-                        << "\" statement: Expecting single index value parameter per batch.";
-                    return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
-                }
-
-                colIdBatch.push_back(colId[0]);
-            }
-
             // Get the connection
             TdbHdf5Connection * const conn = m->getConnection(c, dsName);
             if (!conn)
                 return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
-            // Execute transaction
-            typedef bool (TdbHdf5Connection::*ExecFunc)(const std::string &,
-                                                        const std::vector<SharemindTdbIndex *> &,
-                                                        std::vector<std::vector<SharemindTdbValue *> > &);
+            bool success = false;
 
             typedef std::vector<std::vector<SharemindTdbValue *> > ValuesBatchVector;
             ValuesBatchVector valuesBatch;
-            TdbHdf5Transaction transaction(*conn,
-                                           static_cast<ExecFunc>(&TdbHdf5Connection::readColumn),
-                                           std::cref(tblName),
-                                           std::cref(colIdBatch),
-                                           std::ref(valuesBatch));
-            const bool success = m->executeTransaction(transaction, c);
+
+            bool rv = false;
+            if (pmap->is_index_vector(pmap, "colId", &rv) == TDB_VECTOR_MAP_OK && rv) {
+                // Aggregate the parameters
+                typedef std::vector<SharemindTdbIndex *> ColIdBatchVector;
+                ColIdBatchVector colIdBatch;
+                colIdBatch.reserve(batchCount);
+
+                // Process each parameter batch
+                for (size_t i = 0; i < batchCount; ++i) {
+                    if (pmap->set_batch(pmap, i) != TDB_VECTOR_MAP_OK) {
+                        m->logger().error() << "Failed to execute \"" << stmtType
+                            << "\" statement: Failed to iterate parameter vector map batches.";
+                        return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
+                    }
+
+                    // Parse the "colId" parameter
+                    size_t size = 0;
+                    SharemindTdbIndex ** colId;
+                    if (pmap->get_index_vector(pmap, "colId", &colId, &size) != TDB_VECTOR_MAP_OK) {
+                        m->logger().error() << "Failed to execute \"" << stmtType
+                            << "\" statement: Failed to get \"colId\" index vector parameter.";
+                        return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
+                    }
+
+                    if (size != 1) {
+                        m->logger().error() << "Failed to execute \"" << stmtType
+                            << "\" statement: Expecting single index value parameter per batch.";
+                        return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
+                    }
+
+                    colIdBatch.push_back(colId[0]);
+                }
+
+                // Execute transaction
+                typedef bool (TdbHdf5Connection::*ExecFunc)(const std::string &,
+                                                            const std::vector<SharemindTdbIndex *> &,
+                                                            std::vector<std::vector<SharemindTdbValue *> > &);
+
+                TdbHdf5Transaction transaction(*conn,
+                                               static_cast<ExecFunc>(&TdbHdf5Connection::readColumn),
+                                               std::cref(tblName),
+                                               std::cref(colIdBatch),
+                                               std::ref(valuesBatch));
+                success = m->executeTransaction(transaction, c);
+
+                assert(colIdBatch.size() == valuesBatch.size());
+            } else if (pmap->is_string_vector(pmap, "colId", &rv) == TDB_VECTOR_MAP_OK && rv) {
+                // Aggregate the parameters
+                typedef std::vector<SharemindTdbString *> ColIdBatchVector;
+                ColIdBatchVector colIdBatch;
+                colIdBatch.reserve(batchCount);
+
+                // Process each parameter batch
+                for (size_t i = 0; i < batchCount; ++i) {
+                    if (pmap->set_batch(pmap, i) != TDB_VECTOR_MAP_OK) {
+                        m->logger().error() << "Failed to execute \"" << stmtType
+                            << "\" statement: Failed to iterate parameter vector map batches.";
+                        return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
+                    }
+
+                    // Parse the "colId" parameter
+                    size_t size = 0;
+                    SharemindTdbString ** colId;
+                    if (pmap->get_string_vector(pmap, "colId", &colId, &size) != TDB_VECTOR_MAP_OK) {
+                        m->logger().error() << "Failed to execute \"" << stmtType
+                            << "\" statement: Failed to get \"colId\" index vector parameter.";
+                        return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
+                    }
+
+                    if (size != 1) {
+                        m->logger().error() << "Failed to execute \"" << stmtType
+                            << "\" statement: Expecting single index value parameter per batch.";
+                        return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
+                    }
+
+                    colIdBatch.push_back(colId[0]);
+                }
+
+                // Execute transaction
+                typedef bool (TdbHdf5Connection::*ExecFunc)(const std::string &,
+                                                            const std::vector<SharemindTdbString *> &,
+                                                            std::vector<std::vector<SharemindTdbValue *> > &);
+
+                TdbHdf5Transaction transaction(*conn,
+                                               static_cast<ExecFunc>(&TdbHdf5Connection::readColumn),
+                                               std::cref(tblName),
+                                               std::cref(colIdBatch),
+                                               std::ref(valuesBatch));
+                success = m->executeTransaction(transaction, c);
+
+                assert(colIdBatch.size() == valuesBatch.size());
+            } else {
+                m->logger().error() << "Failed to execute \"" << stmtType
+                    << "\" statement: \"colId\" parameter must be either index or string vector.";
+                return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
+            }
 
             if (!success)
                 return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
-
-            assert(colIdBatch.size() == valuesBatch.size());
 
             // Register cleanup in case we fail to hand over the ownership for the
             // values
