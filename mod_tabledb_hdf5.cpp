@@ -629,11 +629,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_insert_row,
             return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
         // Construct some parameters
-        SharemindTdbValue * const val = new SharemindTdbValue;
-
-        BOOST_SCOPE_EXIT((&val)) {
-            delete val;
-        } BOOST_SCOPE_EXIT_END
+        const std::unique_ptr<SharemindTdbValue> val (new SharemindTdbValue);
 
         val->type = SharemindTdbType_new(typeDomain, typeName, typeSize);
 
@@ -644,8 +640,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_insert_row,
         val->buffer = const_cast<void *>(crefs[4u].pData);
         val->size = bufSize;
 
-        const std::vector<SharemindTdbValue *> valuesVec(1, val);
-        const std::vector<std::vector<SharemindTdbValue *> > valuesBatch(1, valuesVec);
+        const std::vector<std::vector<SharemindTdbValue *> > valuesBatch { {  val.get () } };
 
         // Execute the transaction
         TdbHdf5Transaction transaction(*conn,
