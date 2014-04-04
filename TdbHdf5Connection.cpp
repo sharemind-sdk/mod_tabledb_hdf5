@@ -138,10 +138,10 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
     // Set the cleanup flag
     bool success = false;
 
-    BOOST_SCOPE_EXIT((&success)(&m_logger)(&tbl)) {
+    BOOST_SCOPE_EXIT_ALL(&success, this, &tbl) {
         if (!success)
             m_logger.fullDebug() << "Failed to create table \"" << tbl << "\".";
-    } BOOST_SCOPE_EXIT_END
+    };
 
     // Do some simple checks on the parameters
     if (names.empty()) {
@@ -203,7 +203,7 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
     }
 
     // Set cleanup handler for the file
-    BOOST_SCOPE_EXIT((&success)(&m_logger)(&tblPath)(&fileId)) {
+    BOOST_SCOPE_EXIT_ALL(&success, this, &tblPath, fileId) {
         if (!success) {
             // Close the file
             if (H5Fclose(fileId) < 0)
@@ -216,7 +216,7 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
                 m_logger.fullDebug() << "Error while removing table file: " << e.what();
             }
         }
-    } BOOST_SCOPE_EXIT_END
+    };
 
     // Check the provided types
     typedef std::vector<std::pair<std::string, size_type> > ColInfoVector;
@@ -249,13 +249,13 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
     colSizes.reserve(ntypes);
 
     // Set cleanup handler for the opened HDF5 types
-    BOOST_SCOPE_EXIT((&m_logger)(&memTypes)) {
+    BOOST_SCOPE_EXIT_ALL(this, &memTypes) {
         std::vector<std::pair<SharemindTdbType *, hid_t> >::const_iterator it;
         for (it = memTypes.begin(); it != memTypes.end(); ++it)
             if (H5Tclose(it->second) < 0)
                 m_logger.fullDebug() << "Error while cleaning up dataset type.";
         memTypes.clear();
-    } BOOST_SCOPE_EXIT_END
+    };
 
     {
         std::map<SharemindTdbType *, size_t, SharemindTdbTypeLess>::const_iterator it;
@@ -308,10 +308,10 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
             return false;
         }
 
-        BOOST_SCOPE_EXIT((&m_logger)(&gId)) {
+        BOOST_SCOPE_EXIT_ALL(this, gId) {
             if (H5Gclose(gId) < 0)
                 m_logger.fullDebug() << "Error while cleaning up meta info group.";
-        } BOOST_SCOPE_EXIT_END
+        };
 
         // Create a data space for the row count attribute
         const hsize_t aDims = 1;
@@ -322,10 +322,10 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
         }
 
         // Set cleanup handler for the row count attribute data space
-        BOOST_SCOPE_EXIT((&m_logger)(&aSId)) {
+        BOOST_SCOPE_EXIT_ALL(this, aSId) {
             if (H5Sclose(aSId) < 0)
                 m_logger.fullDebug() << "Error while cleaning up row count attribute data space.";
-        } BOOST_SCOPE_EXIT_END
+        };
 
         // Add a type attribute to the dataset
         const hid_t aId = H5Acreate(gId, ROW_COUNT_ATTR, H5T_NATIVE_HSIZE, aSId, H5P_DEFAULT, H5P_DEFAULT);
@@ -335,10 +335,10 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
         }
 
         // Set cleanup handler for the attribute
-        BOOST_SCOPE_EXIT((&m_logger)(&aId)) {
+        BOOST_SCOPE_EXIT_ALL(this, aId) {
             if (H5Aclose(aId) < 0)
                 m_logger.fullDebug() << "Error while cleaning up row count attribute.";
-        } BOOST_SCOPE_EXIT_END
+        };
 
         // Write the type attribute
         const hsize_t rowCount = 0;
@@ -353,10 +353,10 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
         // Set dataset creation properties
         const hid_t plistId = H5Pcreate(H5P_DATASET_CREATE);
 
-        BOOST_SCOPE_EXIT((&m_logger)(&plistId)) {
+        BOOST_SCOPE_EXIT_ALL(this, plistId) {
             if (H5Pclose(plistId) < 0)
                 m_logger.fullDebug() << "Error while cleaning up dataset creation property list.";
-        } BOOST_SCOPE_EXIT_END
+        };
 
         // Create the type attribute data type
         const hid_t aTId = H5Tcreate(H5T_COMPOUND, sizeof(SharemindTdbType));
@@ -365,10 +365,10 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
             return false;
         }
 
-        BOOST_SCOPE_EXIT((&m_logger)(&aTId)) {
+        BOOST_SCOPE_EXIT_ALL(this, aTId) {
             if (H5Tclose(aTId) < 0)
                 m_logger.fullDebug() << "Error while cleaning up dataset type attribute type.";
-        } BOOST_SCOPE_EXIT_END
+        };
 
         // const char * domain
         const hid_t domainTId = H5Tcopy(H5T_C_S1);
@@ -380,10 +380,10 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
             return false;
         }
 
-        BOOST_SCOPE_EXIT((&m_logger)(&domainTId)) {
+        BOOST_SCOPE_EXIT_ALL(this, domainTId) {
             if (H5Tclose(domainTId) < 0)
                 m_logger.fullDebug() << "Error while cleaning up dataset type attribute type.";
-        } BOOST_SCOPE_EXIT_END
+        };
 
         if (H5Tinsert(aTId, "domain", HOFFSET(SharemindTdbType, domain), domainTId) < 0) {
             m_logger.error() << "Failed to create dataset type attribute data type.";
@@ -400,10 +400,10 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
             return false;
         }
 
-        BOOST_SCOPE_EXIT((&m_logger)(&nameTId)) {
+        BOOST_SCOPE_EXIT_ALL(this, nameTId) {
             if (H5Tclose(nameTId) < 0)
                 m_logger.fullDebug() << "Error while cleaning up dataset type attribute type.";
-        } BOOST_SCOPE_EXIT_END
+        };
 
         if (H5Tinsert(aTId, "name", HOFFSET(SharemindTdbType, name), nameTId) < 0) {
             m_logger.error() << "Failed to create dataset type attribute data type.";
@@ -463,10 +463,10 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
             }
 
             // Set cleanup handler for the data space
-            BOOST_SCOPE_EXIT((&m_logger)(&sId)) {
+            BOOST_SCOPE_EXIT_ALL(this, sId) {
                 if (H5Sclose(sId) < 0)
                     m_logger.fullDebug() << "Error while cleaning up data space.";
-            } BOOST_SCOPE_EXIT_END
+            };
 
             // Create the dataset
             const hid_t dId = H5Dcreate(fileId, tag.c_str(), tId, sId, H5P_DEFAULT, plistId, H5P_DEFAULT);
@@ -476,10 +476,10 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
             }
 
             // Set cleanup handler for the dataset
-            BOOST_SCOPE_EXIT((&m_logger)(&dId)) {
+            BOOST_SCOPE_EXIT_ALL(this, dId) {
                 if (H5Dclose(dId) < 0)
                     m_logger.fullDebug() << "Error while cleaning up dataset.";
-            } BOOST_SCOPE_EXIT_END
+            };
 
             // Create a data space for the type attribute
             const hsize_t aDims = 1;
@@ -490,10 +490,10 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
             }
 
             // Set cleanup handler for the type attribute data space
-            BOOST_SCOPE_EXIT((&m_logger)(&aSId)) {
+            BOOST_SCOPE_EXIT_ALL(this, aSId) {
                 if (H5Sclose(aSId) < 0)
                     m_logger.fullDebug() << "Error while cleaning up dataset type attribute data space.";
-            } BOOST_SCOPE_EXIT_END
+            };
 
             // Add a type attribute to the dataset
             const hid_t aId = H5Acreate(dId, DATASET_TYPE_ATTR, aTId, aSId, H5P_DEFAULT, H5P_DEFAULT);
@@ -503,10 +503,10 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
             }
 
             // Set cleanup handler for the attribute
-            BOOST_SCOPE_EXIT((&m_logger)(&aId)) {
+            BOOST_SCOPE_EXIT_ALL(this, aId) {
                 if (H5Aclose(aId) < 0)
                     m_logger.fullDebug() << "Error while cleaning up dataset type attribute.";
-            } BOOST_SCOPE_EXIT_END
+            };
 
             // Write the type attribute
             if (H5Awrite(aId, aTId, type) < 0) {
@@ -534,10 +534,10 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
             return false;
         }
 
-        BOOST_SCOPE_EXIT((&m_logger)(&tId)) {
+        BOOST_SCOPE_EXIT_ALL(this, tId) {
             if (H5Tclose(tId) < 0)
                 m_logger.fullDebug() << "Error while cleaning up column meta info type.";
-        } BOOST_SCOPE_EXIT_END
+        };
 
         // const char * name
         const hid_t nameTId = H5Tcopy(H5T_C_S1);
@@ -549,10 +549,10 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
             return false;
         }
 
-        BOOST_SCOPE_EXIT((&m_logger)(&nameTId)) {
+        BOOST_SCOPE_EXIT_ALL(this, nameTId) {
             if (H5Tclose(nameTId) < 0)
                 m_logger.fullDebug() << "Error while cleaning up column meta info type.";
-        } BOOST_SCOPE_EXIT_END
+        };
 
         if (H5Tinsert(tId, "name", HOFFSET(ColumnIndex, name), nameTId) < 0) {
             m_logger.error() << "Failed to create column meta info data type.";
@@ -580,10 +580,10 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
             return false;
         }
 
-        BOOST_SCOPE_EXIT((&m_logger)(&sId)) {
+        BOOST_SCOPE_EXIT_ALL(this, sId) {
             if (H5Sclose(sId) < 0)
                 m_logger.fullDebug() << "Error while cleaning up column meta info data space.";
-        } BOOST_SCOPE_EXIT_END
+        };
 
         // Commit the column meta info data type
         if (H5Tcommit(fileId, COL_INDEX_TYPE, tId, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT) < 0) {
@@ -598,10 +598,10 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
             return false;
         }
 
-        BOOST_SCOPE_EXIT((&m_logger)(&plistId)) {
+        BOOST_SCOPE_EXIT_ALL(this, plistId) {
             if (H5Pclose(plistId) < 0)
                 m_logger.fullDebug() << "Error while cleaning up column meta info dataset creation property list.";
-        } BOOST_SCOPE_EXIT_END
+        };
 
         const hsize_t dimsChunk = CHUNK_SIZE / (sizeof(hobj_ref_t) + sizeof(hvl_t) + sizeof(size_type));
         if (H5Pset_chunk(plistId, 1, &dimsChunk) < 0) {
@@ -616,10 +616,10 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
             return false;
         }
 
-        BOOST_SCOPE_EXIT((&m_logger)(&dId)) {
+        BOOST_SCOPE_EXIT_ALL(this, dId) {
             if (H5Dclose(dId) < 0)
                 m_logger.fullDebug() << "Error while cleaning up column meta info dataset.";
-        } BOOST_SCOPE_EXIT_END
+        };
 
         // Write column index data
         if (size > 0) {
@@ -711,10 +711,10 @@ bool TdbHdf5Connection::tblColCount(const std::string & tbl, size_type & count) 
     // Set the cleanup flag
     bool success = false;
 
-    BOOST_SCOPE_EXIT((&success)(&m_logger)(&tbl)) {
+    BOOST_SCOPE_EXIT_ALL(&success, this, &tbl) {
         if (!success)
             m_logger.error() << "Failed to get column count for table \"" << tbl << "\".";
-    } BOOST_SCOPE_EXIT_END
+    };
 
     if (!validateTableName(tbl))
         return false;
@@ -744,10 +744,10 @@ bool TdbHdf5Connection::tblColNames(const std::string & tbl, std::vector<Sharemi
     // Set the cleanup flag
     bool success = false;
 
-    BOOST_SCOPE_EXIT((&success)(&m_logger)(&tbl)) {
+    BOOST_SCOPE_EXIT_ALL(&success, this, &tbl) {
         if (!success)
             m_logger.error() << "Failed to get column names for table \"" << tbl << "\".";
-    } BOOST_SCOPE_EXIT_END
+    };
 
     // Do some simple checks on the parameters
     if (!validateTableName(tbl))
@@ -777,10 +777,10 @@ bool TdbHdf5Connection::tblColNames(const std::string & tbl, std::vector<Sharemi
         return false;
     }
 
-    BOOST_SCOPE_EXIT((&m_logger)(&tId)) {
+    BOOST_SCOPE_EXIT_ALL(this, tId) {
         if (H5Tclose(tId) < 0)
             m_logger.fullDebug() << "Error while cleaning up column meta info type.";
-    } BOOST_SCOPE_EXIT_END
+    };
 
     // const char * name
     const hid_t nameTId = H5Tcopy(H5T_C_S1);
@@ -792,10 +792,10 @@ bool TdbHdf5Connection::tblColNames(const std::string & tbl, std::vector<Sharemi
         return false;
     }
 
-    BOOST_SCOPE_EXIT((&m_logger)(&nameTId)) {
+    BOOST_SCOPE_EXIT_ALL(this, nameTId) {
         if (H5Tclose(nameTId) < 0)
             m_logger.fullDebug() << "Error while cleaning up column meta info type.";
-    } BOOST_SCOPE_EXIT_END
+    };
 
     if (H5Tinsert(tId, "name", HOFFSET(ColumnIndex, name), nameTId) < 0) {
         m_logger.error() << "Failed to create column meta info data type.";
@@ -810,10 +810,10 @@ bool TdbHdf5Connection::tblColNames(const std::string & tbl, std::vector<Sharemi
         return false;
     }
 
-    BOOST_SCOPE_EXIT((&m_logger)(&mSId)) {
+    BOOST_SCOPE_EXIT_ALL(this, mSId) {
         if (H5Sclose(mSId) < 0)
             m_logger.fullDebug() << "Error while cleaning up column meta info memory data space.";
-    } BOOST_SCOPE_EXIT_END
+    };
 
     // Open the column meta info dataset
     const hid_t dId = H5Dopen(fileId, COL_INDEX_DATASET, H5P_DEFAULT);
@@ -822,16 +822,16 @@ bool TdbHdf5Connection::tblColNames(const std::string & tbl, std::vector<Sharemi
         return false;
     }
 
-    BOOST_SCOPE_EXIT((&m_logger)(&dId)) {
+    BOOST_SCOPE_EXIT_ALL(this, dId) {
         if (H5Dclose(dId) < 0)
             m_logger.fullDebug() << "Error while cleaning up column meta info dataset.";
-    } BOOST_SCOPE_EXIT_END
+    };
 
     // Allocate a buffer for reading
     PartialColumnIndex * buffer = new PartialColumnIndex[colCount];
-    BOOST_SCOPE_EXIT((&buffer)) {
+    BOOST_SCOPE_EXIT_ALL(&buffer) {
         delete[] buffer;
-    } BOOST_SCOPE_EXIT_END
+    };
 
     // Read column meta info from the dataset
     if (H5Dread(dId, tId, mSId, H5S_ALL, H5P_DEFAULT, buffer) < 0) {
@@ -839,24 +839,24 @@ bool TdbHdf5Connection::tblColNames(const std::string & tbl, std::vector<Sharemi
         return false;
     }
 
-    BOOST_SCOPE_EXIT((&m_logger)(&tId)(&mSId)(&buffer)) {
+    BOOST_SCOPE_EXIT_ALL(this, tId, mSId, &buffer) {
         // Release the memory allocated for the variable length types
         if (H5Dvlen_reclaim(tId, mSId, H5P_DEFAULT, buffer) < 0)
             m_logger.fullDebug() << "Error while cleaning up column meta data.";
-    } BOOST_SCOPE_EXIT_END
+    };
 
     // Copy the strings to the return values
     names.clear();
     names.reserve(colCount);
 
-    BOOST_SCOPE_EXIT((&success)(&names)) {
+    BOOST_SCOPE_EXIT_ALL(&success, &names) {
         if (!success) {
             std::vector<SharemindTdbString *>::iterator it;
             for (it = names.begin(); it != names.end(); ++it)
                 SharemindTdbString_delete(*it);
             names.clear();
         }
-    } BOOST_SCOPE_EXIT_END
+    };
 
     for (hsize_t i = 0; i < colCount; ++i)
         names.push_back(SharemindTdbString_new(buffer[i].name));
@@ -872,10 +872,10 @@ bool TdbHdf5Connection::tblColTypes(const std::string & tbl, std::vector<Sharemi
     // Set the cleanup flag
     bool success = false;
 
-    BOOST_SCOPE_EXIT((&success)(&m_logger)(&tbl)) {
+    BOOST_SCOPE_EXIT_ALL(&success, this, &tbl) {
         if (!success)
             m_logger.error() << "Failed to get column types for table \"" << tbl << "\".";
-    } BOOST_SCOPE_EXIT_END
+    };
 
     // Do some simple checks on the parameters
     if (!validateTableName(tbl))
@@ -905,10 +905,10 @@ bool TdbHdf5Connection::tblColTypes(const std::string & tbl, std::vector<Sharemi
         return false;
     }
 
-    BOOST_SCOPE_EXIT((&m_logger)(&tId)) {
+    BOOST_SCOPE_EXIT_ALL(this, tId) {
         if (H5Tclose(tId) < 0)
             m_logger.fullDebug() << "Error while cleaning up column meta info type.";
-    } BOOST_SCOPE_EXIT_END
+    };
 
     if (H5Tinsert(tId, "dataset_ref", HOFFSET(PartialColumnIndex, dataset_ref), H5T_STD_REF_OBJ) < 0) {
         m_logger.error() << "Failed to create column meta info type.";
@@ -922,16 +922,16 @@ bool TdbHdf5Connection::tblColTypes(const std::string & tbl, std::vector<Sharemi
         return false;
     }
 
-    BOOST_SCOPE_EXIT((&m_logger)(&dId)) {
+    BOOST_SCOPE_EXIT_ALL(this, dId) {
         if (H5Dclose(dId) < 0)
             m_logger.fullDebug() << "Error while cleaning up column meta info dataset.";
-    } BOOST_SCOPE_EXIT_END
+    };
 
     // Allocate a buffer for reading
     PartialColumnIndex * indices = new PartialColumnIndex[colCount];
-    BOOST_SCOPE_EXIT((&indices)) {
+    BOOST_SCOPE_EXIT_ALL(&indices) {
         delete[] indices;
-    } BOOST_SCOPE_EXIT_END
+    };
 
     // Read column meta info from the dataset
     if (H5Dread(dId, tId, H5S_ALL, H5S_ALL, H5P_DEFAULT, indices) < 0) {
@@ -943,14 +943,14 @@ bool TdbHdf5Connection::tblColTypes(const std::string & tbl, std::vector<Sharemi
     types.clear();
     types.reserve(colCount);
 
-    BOOST_SCOPE_EXIT((&success)(&types)) {
+    BOOST_SCOPE_EXIT_ALL(&success, &types) {
         if (!success) {
             std::vector<SharemindTdbType *>::iterator it;
             for (it = types.begin(); it != types.end(); ++it)
                 SharemindTdbType_delete(*it);
             types.clear();
         }
-    } BOOST_SCOPE_EXIT_END
+    };
 
     // Cache the types that have already been resolved
     typedef std::map<hobj_ref_t, SharemindTdbType *> TypesMap;
@@ -967,10 +967,10 @@ bool TdbHdf5Connection::tblColTypes(const std::string & tbl, std::vector<Sharemi
                 return false;
             }
 
-            BOOST_SCOPE_EXIT((&m_logger)(&oId)) {
+            BOOST_SCOPE_EXIT_ALL(this, oId) {
                 if (H5Oclose(oId) < 0)
                     m_logger.fullDebug() << "Error while cleaning up dataset.";
-            } BOOST_SCOPE_EXIT_END
+            };
 
             // Open the type attribute
             const hid_t aId = H5Aopen(oId, DATASET_TYPE_ATTR, H5P_DEFAULT);
@@ -979,10 +979,10 @@ bool TdbHdf5Connection::tblColTypes(const std::string & tbl, std::vector<Sharemi
                 return false;
             }
 
-            BOOST_SCOPE_EXIT((&m_logger)(&aId)) {
+            BOOST_SCOPE_EXIT_ALL(this, aId) {
                 if (H5Aclose(aId) < 0)
                     m_logger.fullDebug() << "Error while cleaning up dataset type attribute.";
-            } BOOST_SCOPE_EXIT_END
+            };
 
             // Open type attribute type
             const hid_t aTId = H5Aget_type(aId);
@@ -991,10 +991,10 @@ bool TdbHdf5Connection::tblColTypes(const std::string & tbl, std::vector<Sharemi
                 return false;
             }
 
-            BOOST_SCOPE_EXIT((&m_logger)(&aTId)) {
+            BOOST_SCOPE_EXIT_ALL(this, aTId) {
                 if (H5Tclose(aTId) < 0)
                     m_logger.fullDebug() << "Error while cleaning up dataset type attribute type.";
-            } BOOST_SCOPE_EXIT_END
+            };
 
             const hid_t aSId = H5Aget_space(aId);
             if (aSId < 0) {
@@ -1002,10 +1002,10 @@ bool TdbHdf5Connection::tblColTypes(const std::string & tbl, std::vector<Sharemi
                 return false;
             }
 
-            BOOST_SCOPE_EXIT((&m_logger)(&aSId)) {
+            BOOST_SCOPE_EXIT_ALL(this, aSId) {
                 if (H5Sclose(aSId) < 0)
                     m_logger.fullDebug() << "Error while cleaning up dataset type attribute data space.";
-            } BOOST_SCOPE_EXIT_END
+            };
 
             // Read the type attribute
             SharemindTdbType * const type = new SharemindTdbType;
@@ -1015,11 +1015,11 @@ bool TdbHdf5Connection::tblColTypes(const std::string & tbl, std::vector<Sharemi
                 return false;
             }
 
-            BOOST_SCOPE_EXIT((&m_logger)(&aTId)(&aSId)(&type)) {
+            BOOST_SCOPE_EXIT_ALL(this, aTId, aSId, type) {
                 if (H5Dvlen_reclaim(aTId, aSId, H5P_DEFAULT, type) < 0)
                     m_logger.fullDebug() << "Error while cleaning up dataset type attribute object.";
                 delete type;
-            } BOOST_SCOPE_EXIT_END
+            };
 
             types.push_back(SharemindTdbType_new(type->domain, type->name, type->size));
 
@@ -1041,10 +1041,10 @@ bool TdbHdf5Connection::tblRowCount(const std::string & tbl, size_type & count) 
     // Set the cleanup flag
     bool success = false;
 
-    BOOST_SCOPE_EXIT((&success)(&m_logger)(&tbl)) {
+    BOOST_SCOPE_EXIT_ALL(&success, this, &tbl) {
         if (!success)
             m_logger.error() << "Failed to get row count for table \"" << tbl << "\".";
-    } BOOST_SCOPE_EXIT_END
+    };
 
     if (!validateTableName(tbl))
         return false;
@@ -1074,10 +1074,10 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
     // Set the cleanup flag
     bool success = false;
 
-    BOOST_SCOPE_EXIT((&success)(&m_logger)(&tbl)) {
+    BOOST_SCOPE_EXIT_ALL(&success, this, &tbl) {
         if (!success)
             m_logger.error() << "Failed to insert row(s) into table \"" << tbl << "\".";
-    } BOOST_SCOPE_EXIT_END
+    };
 
     if (valuesBatch.empty()) {
         m_logger.error() << "No values given.";
@@ -1128,7 +1128,7 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
     typedef std::map<SharemindTdbType *, size_type, SharemindTdbTypeLess> TypeCountMap;
     TypeCountMap typeCounts;
 
-    BOOST_SCOPE_EXIT((&m_logger)(&refTypes)) {
+    BOOST_SCOPE_EXIT_ALL(this, &refTypes) {
         std::map<hobj_ref_t, std::pair<SharemindTdbType *, hid_t> >::const_iterator it;
         for (it = refTypes.begin(); it != refTypes.end(); ++it) {
             SharemindTdbType * const type = it->second.first;
@@ -1143,7 +1143,7 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
             delete type;
         }
         refTypes.clear();
-    } BOOST_SCOPE_EXIT_END
+    };
 
     {
         // Create a type for reading the dataset references
@@ -1153,10 +1153,10 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
             return false;
         }
 
-        BOOST_SCOPE_EXIT((&m_logger)(&tId)) {
+        BOOST_SCOPE_EXIT_ALL(this, tId) {
             if (H5Tclose(tId) < 0)
                 m_logger.fullDebug() << "Error while cleaning up column meta info type.";
-        } BOOST_SCOPE_EXIT_END
+        };
 
         if (H5Tinsert(tId, "dataset_ref", 0, H5T_STD_REF_OBJ) < 0) {
             m_logger.error() << "Failed to create column meta info type.";
@@ -1170,10 +1170,10 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
             return false;
         }
 
-        BOOST_SCOPE_EXIT((&m_logger)(&dId)) {
+        BOOST_SCOPE_EXIT_ALL(this, dId) {
             if (H5Dclose(dId) < 0)
                 m_logger.fullDebug() << "Error while cleaning up column meta info dataset.";
-        } BOOST_SCOPE_EXIT_END
+        };
 
         // Read dataset references from the column meta info dataset
         hobj_ref_t * dsetRefs = new hobj_ref_t[colCount];
@@ -1182,9 +1182,9 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
             return false;
         }
 
-        BOOST_SCOPE_EXIT((&dsetRefs)) {
+        BOOST_SCOPE_EXIT_ALL(&dsetRefs) {
             delete[] dsetRefs;
-        } BOOST_SCOPE_EXIT_END
+        };
 
         // Resolve references to types
         for (size_type i = 0; i < colCount; ++i) {
@@ -1287,7 +1287,7 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
     typedef std::map<hobj_ref_t, std::pair<hsize_t, hsize_t> > CleanupMap;
     CleanupMap cleanup;
 
-    BOOST_SCOPE_EXIT((&success)(&m_logger)(&cleanup)(&fileId)) {
+    BOOST_SCOPE_EXIT_ALL(&success, this, &cleanup, fileId) {
         if (!success) {
             std::map<hobj_ref_t, std::pair<hsize_t, hsize_t> >::const_iterator it;
             for (it = cleanup.begin(); it != cleanup.end(); ++it) {
@@ -1317,7 +1317,7 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
 
             cleanup.clear();
         }
-    } BOOST_SCOPE_EXIT_END
+    };
 
     // For each dataset, write the data
     // TODO move to a separate function
@@ -1342,10 +1342,10 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
                 return false;
             }
 
-            BOOST_SCOPE_EXIT((&m_logger)(&oId)) {
+            BOOST_SCOPE_EXIT_ALL(this, oId) {
                 if (H5Oclose(oId) < 0)
                     m_logger.fullDebug() << "Error while cleaning up dataset.";
-            } BOOST_SCOPE_EXIT_END
+            };
 
             // Get dataset type
             const hid_t tId = H5Dget_type(oId);
@@ -1354,10 +1354,10 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
                 return false;
             }
 
-            BOOST_SCOPE_EXIT((&m_logger)(&tId)) {
+            BOOST_SCOPE_EXIT_ALL(this, tId) {
                 if (H5Tclose(tId) < 0)
                     m_logger.fullDebug() << "Error while cleaning up dataset type.";
-            } BOOST_SCOPE_EXIT_END
+            };
 
             // Create a simple memory data space
             const hsize_t mDims[] = { batchCount, dsetCols };
@@ -1367,10 +1367,10 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
                 return false;
             }
 
-            BOOST_SCOPE_EXIT((&m_logger)(&mSId)) {
+            BOOST_SCOPE_EXIT_ALL(this, mSId) {
                 if (H5Sclose(mSId) < 0)
                     m_logger.fullDebug() << "Error while cleaning up memory data space.";
-            } BOOST_SCOPE_EXIT_END
+            };
 
             // Extend the dataset
             const hsize_t dims[] = { rowCount + batchCount, dsetCols };
@@ -1389,10 +1389,10 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
                 return false;
             }
 
-            BOOST_SCOPE_EXIT((&m_logger)(&sId)) {
+            BOOST_SCOPE_EXIT_ALL(this, sId) {
                 if (H5Sclose(sId) < 0)
                     m_logger.fullDebug() << "Error while cleaning up dataset data space.";
-            } BOOST_SCOPE_EXIT_END
+            };
 
             // Select a hyperslab in the data space to write to
             const hsize_t start[] = { rowCount, 0 };
@@ -1447,10 +1447,10 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
 
             assert(buffer);
 
-            BOOST_SCOPE_EXIT((&buffer)(&delBuffer)) {
+            BOOST_SCOPE_EXIT_ALL(&buffer, &delBuffer) {
                 if (delBuffer)
                     ::operator delete(buffer);
-            } BOOST_SCOPE_EXIT_END
+            };
 
             // Write the values
             if (H5Dwrite(oId, tId, mSId, sId, H5P_DEFAULT, buffer) < 0) {
@@ -1482,10 +1482,10 @@ bool TdbHdf5Connection::readColumn(const std::string & tbl, const std::vector<Sh
     // Set the cleanup flag
     bool success = false;
 
-    BOOST_SCOPE_EXIT((&success)(&m_logger)(&tbl)) {
+    BOOST_SCOPE_EXIT_ALL(&success, this, &tbl) {
         if (!success)
             m_logger.error() << "Failed to read column(s) in table \"" << tbl << "\".";
-    } BOOST_SCOPE_EXIT_END
+    };
 
     if (colIdBatch.empty()) {
         m_logger.error() << "Empty batch of parameters given.";
@@ -1525,12 +1525,12 @@ bool TdbHdf5Connection::readColumn(const std::string & tbl, const std::vector<Sh
     if (!tblColNames(tbl, colNames))
         return false;
 
-    BOOST_SCOPE_EXIT((&colNames)) {
+    BOOST_SCOPE_EXIT_ALL(&colNames) {
         std::vector<SharemindTdbString *>::iterator it;
         for (it = colNames.begin(); it != colNames.end(); ++it)
             SharemindTdbString_delete(*it);
         colNames.clear();
-    } BOOST_SCOPE_EXIT_END
+    };
 
     // Sort the table column names
     typedef std::map<SharemindTdbString *, size_t, SharemindTdbStringLess> ColNamesMap;
@@ -1544,12 +1544,12 @@ bool TdbHdf5Connection::readColumn(const std::string & tbl, const std::vector<Sh
     std::vector<SharemindTdbIndex *> colNrBatch;
     colNrBatch.reserve(colIdBatch.size());
 
-    BOOST_SCOPE_EXIT((&colNrBatch)) {
+    BOOST_SCOPE_EXIT_ALL(&colNrBatch) {
         std::vector<SharemindTdbIndex *>::iterator it;
         for (it = colNrBatch.begin(); it != colNrBatch.end(); ++it)
             SharemindTdbIndex_delete(*it);
         colNrBatch.clear();
-    } BOOST_SCOPE_EXIT_END
+    };
 
     {
         std::vector<SharemindTdbString *>::const_iterator it;
@@ -1578,10 +1578,10 @@ bool TdbHdf5Connection::readColumn(const std::string & tbl, const std::vector<Sh
     // Set the cleanup flag
     bool success = false;
 
-    BOOST_SCOPE_EXIT((&success)(&m_logger)(&tbl)) {
+    BOOST_SCOPE_EXIT_ALL(&success, this, &tbl) {
         if (!success)
             m_logger.error() << "Failed to read column(s) in table \"" << tbl << "\".";
-    } BOOST_SCOPE_EXIT_END
+    };
 
     if (colIdBatch.empty()) {
         m_logger.error() << "Empty batch of parameters given.";
@@ -1761,10 +1761,10 @@ bool TdbHdf5Connection::readColumn(const hid_t fileId,
             return false;
         }
 
-        BOOST_SCOPE_EXIT((&m_logger)(&tId)) {
+        BOOST_SCOPE_EXIT_ALL(this, tId) {
             if (H5Tclose(tId) < 0)
                 m_logger.fullDebug() << "Error while cleaning up column meta info type.";
-        } BOOST_SCOPE_EXIT_END
+        };
 
         if (H5Tinsert(tId, "dataset_ref", HOFFSET(PartialColumnIndex, dataset_ref), H5T_STD_REF_OBJ) < 0) {
             m_logger.error() << "Failed to create column meta info type.";
@@ -1784,10 +1784,10 @@ bool TdbHdf5Connection::readColumn(const hid_t fileId,
             return false;
         }
 
-        BOOST_SCOPE_EXIT((&m_logger)(&mSId)) {
+        BOOST_SCOPE_EXIT_ALL(this, mSId) {
             if (H5Sclose(mSId) < 0)
                 m_logger.fullDebug() << "Error while cleaning up column meta info memory data space.";
-        } BOOST_SCOPE_EXIT_END
+        };
 
         // Open the column meta info dataset
         const hid_t dId = H5Dopen(fileId, COL_INDEX_DATASET, H5P_DEFAULT);
@@ -1796,10 +1796,10 @@ bool TdbHdf5Connection::readColumn(const hid_t fileId,
             return false;
         }
 
-        BOOST_SCOPE_EXIT((&m_logger)(&dId)) {
+        BOOST_SCOPE_EXIT_ALL(this, dId) {
             if (H5Dclose(dId) < 0)
                 m_logger.fullDebug() << "Error while cleaning up column meta info dataset.";
-        } BOOST_SCOPE_EXIT_END
+        };
 
         // Open the column meta info data space
         const hid_t sId = H5Dget_space(dId);
@@ -1808,10 +1808,10 @@ bool TdbHdf5Connection::readColumn(const hid_t fileId,
             return false;
         }
 
-        BOOST_SCOPE_EXIT((&m_logger)(&sId)) {
+        BOOST_SCOPE_EXIT_ALL(this, sId) {
             if (H5Sclose(sId) < 0)
                 m_logger.fullDebug() << "Error while cleaning up column meta info data space.";
-        } BOOST_SCOPE_EXIT_END
+        };
 
         // Select points in the data space for reading
         // NOTE: points are read in the order of point selection
@@ -1851,7 +1851,7 @@ bool TdbHdf5Connection::readColumn(const hid_t fileId,
     }
 
     // Register cleanup for valuesBatch, if something goes wrong
-    BOOST_SCOPE_EXIT((&success)(&valuesBatch)) {
+    BOOST_SCOPE_EXIT_ALL(&success, &valuesBatch) {
         if (!success) {
             std::vector<std::vector<SharemindTdbValue *> >::iterator it;
             std::vector<SharemindTdbValue *>::iterator innerIt;
@@ -1861,7 +1861,7 @@ bool TdbHdf5Connection::readColumn(const hid_t fileId,
             }
             valuesBatch.clear();
         }
-    } BOOST_SCOPE_EXIT_END
+    };
 
     // Read the columns
     {
@@ -1889,10 +1889,10 @@ bool TdbHdf5Connection::readDatasetColumn(const hid_t fileId, const hobj_ref_t r
         return false;
     }
 
-    BOOST_SCOPE_EXIT((&m_logger)(&oId)) {
+    BOOST_SCOPE_EXIT_ALL(this, oId) {
         if (H5Oclose(oId) < 0)
             m_logger.fullDebug() << "Error while cleaning up dataset.";
-    } BOOST_SCOPE_EXIT_END
+    };
 
     // Check reference object type
     H5O_type_t rType = H5O_TYPE_UNKNOWN;
@@ -1913,10 +1913,10 @@ bool TdbHdf5Connection::readDatasetColumn(const hid_t fileId, const hobj_ref_t r
         return false;
     }
 
-    BOOST_SCOPE_EXIT((&m_logger)(&sId)) {
+    BOOST_SCOPE_EXIT_ALL(this, sId) {
         if (H5Sclose(sId) < 0)
             m_logger.fullDebug() << "Error while cleaning up dataset data space.";
-    } BOOST_SCOPE_EXIT_END
+    };
 
     // Get data space rank
     const int rank = H5Sget_simple_extent_ndims(sId);
@@ -1958,10 +1958,10 @@ bool TdbHdf5Connection::readDatasetColumn(const hid_t fileId, const hobj_ref_t r
         return false;
     }
 
-    BOOST_SCOPE_EXIT((&m_logger)(&aId)) {
+    BOOST_SCOPE_EXIT_ALL(this, aId) {
         if (H5Aclose(aId) < 0)
             m_logger.fullDebug() << "Error while cleaning up dataset type attribute.";
-    } BOOST_SCOPE_EXIT_END
+    };
 
     // Open type attribute type
     const hid_t aTId = H5Aget_type(aId);
@@ -1970,10 +1970,10 @@ bool TdbHdf5Connection::readDatasetColumn(const hid_t fileId, const hobj_ref_t r
         return false;
     }
 
-    BOOST_SCOPE_EXIT((&m_logger)(&aTId)) {
+    BOOST_SCOPE_EXIT_ALL(this, aTId) {
         if (H5Tclose(aTId) < 0)
             m_logger.fullDebug() << "Error while cleaning up dataset type attribute type.";
-    } BOOST_SCOPE_EXIT_END
+    };
 
     const hid_t aSId = H5Aget_space(aId);
     if (aSId < 0) {
@@ -1981,10 +1981,10 @@ bool TdbHdf5Connection::readDatasetColumn(const hid_t fileId, const hobj_ref_t r
         return false;
     }
 
-    BOOST_SCOPE_EXIT((&m_logger)(&aSId)) {
+    BOOST_SCOPE_EXIT_ALL(this, aSId) {
         if (H5Sclose(aSId) < 0)
             m_logger.fullDebug() << "Error while cleaning up dataset type attribute data space.";
-    } BOOST_SCOPE_EXIT_END
+    };
 
     // Read the type attribute
     SharemindTdbType * const type = new SharemindTdbType;
@@ -1994,11 +1994,11 @@ bool TdbHdf5Connection::readDatasetColumn(const hid_t fileId, const hobj_ref_t r
         return false;
     }
 
-    BOOST_SCOPE_EXIT((&m_logger)(&aTId)(&aSId)(&type)) {
+    BOOST_SCOPE_EXIT_ALL(this, aTId, aSId, type) {
         if (H5Dvlen_reclaim(aTId, aSId, H5P_DEFAULT, type) < 0)
             m_logger.fullDebug() << "Error while cleaning up dataset type attribute object.";
         delete type;
-    } BOOST_SCOPE_EXIT_END
+    };
 
     {
         ParamBatchVector::const_iterator it;
@@ -2037,10 +2037,10 @@ bool TdbHdf5Connection::readDatasetColumn(const hid_t fileId, const hobj_ref_t r
                     return false;
                 }
 
-                BOOST_SCOPE_EXIT((&m_logger)(&tId)) {
+                BOOST_SCOPE_EXIT_ALL(this, tId) {
                     if (H5Tclose(tId) < 0)
                         m_logger.fullDebug() << "Error while cleaning up type for column data";
-                } BOOST_SCOPE_EXIT_END
+                };
 
                 // Create a simple memory data space
                 const hsize_t mDims[] = { dims[0], 1 };
@@ -2050,10 +2050,10 @@ bool TdbHdf5Connection::readDatasetColumn(const hid_t fileId, const hobj_ref_t r
                     return false;
                 }
 
-                BOOST_SCOPE_EXIT((&m_logger)(&mSId)) {
+                BOOST_SCOPE_EXIT_ALL(this, mSId) {
                     if (H5Sclose(mSId) < 0)
                         m_logger.fullDebug() << "Error while cleaning up memory data space for column data.";
-                } BOOST_SCOPE_EXIT_END
+                };
 
                 // Read the dataset data
                 if (H5Dread(oId, tId, mSId, sId, H5P_DEFAULT, buffer) < 0) {
@@ -2104,10 +2104,10 @@ bool TdbHdf5Connection::objRefToType(const hid_t fileId, const hobj_ref_t ref, h
         return false;
     }
 
-    BOOST_SCOPE_EXIT((&m_logger)(&oId)) {
+    BOOST_SCOPE_EXIT_ALL(this, oId) {
         if (H5Oclose(oId) < 0)
             m_logger.fullDebug() << "Error while cleaning up dataset.";
-    } BOOST_SCOPE_EXIT_END
+    };
 
     // Check the reference object type
     H5O_type_t rType = H5O_TYPE_UNKNOWN;
@@ -2130,10 +2130,10 @@ bool TdbHdf5Connection::objRefToType(const hid_t fileId, const hobj_ref_t ref, h
 
     bool closeAttr = true;
 
-    BOOST_SCOPE_EXIT((&closeAttr)(&m_logger)(&aId)) {
+    BOOST_SCOPE_EXIT_ALL(&closeAttr, this, aId) {
         if (closeAttr && H5Aclose(aId) < 0)
             m_logger.fullDebug() << "Error while cleaning up dataset type attribute.";
-    } BOOST_SCOPE_EXIT_END
+    };
 
     // Open the type attribute type
     const hid_t aTId = H5Aget_type(aId);
@@ -2142,10 +2142,10 @@ bool TdbHdf5Connection::objRefToType(const hid_t fileId, const hobj_ref_t ref, h
         return false;
     }
 
-    BOOST_SCOPE_EXIT((&m_logger)(&aTId)) {
+    BOOST_SCOPE_EXIT_ALL(this, aTId) {
         if (H5Tclose(aTId) < 0)
             m_logger.fullDebug() << "Error while cleaning up dataset type attribute type.";
-    } BOOST_SCOPE_EXIT_END
+    };
 
     // Read the type attribute
     if (H5Aread(aId, aTId, &type) < 0) {
@@ -2164,18 +2164,18 @@ bool TdbHdf5Connection::cleanupType(const hid_t aId, SharemindTdbType & type) {
     if (aTId < 0)
         return false;
 
-    BOOST_SCOPE_EXIT((&aTId)) {
+    BOOST_SCOPE_EXIT_ALL(aTId) {
         H5Tclose(aTId);
-    } BOOST_SCOPE_EXIT_END
+    };
 
     // Open the type attribute data space
     const hid_t aSId = H5Aget_space(aId);
     if (aSId < 0)
         return false;
 
-    BOOST_SCOPE_EXIT((&aSId)) {
+    BOOST_SCOPE_EXIT_ALL(aSId) {
         H5Sclose(aSId);
-    } BOOST_SCOPE_EXIT_END
+    };
 
     // Release the memory allocated for the vlen types
     if (H5Dvlen_reclaim(aTId, aSId, H5P_DEFAULT, &type) < 0)
@@ -2192,10 +2192,10 @@ bool TdbHdf5Connection::getColumnCount(const hid_t fileId, hsize_t & ncols) {
         return false;
     }
 
-    BOOST_SCOPE_EXIT((&m_logger)(&dId)) {
+    BOOST_SCOPE_EXIT_ALL(this, dId) {
         if (H5Dclose(dId) < 0)
             m_logger.fullDebug() << "Error while cleaning up column meta info dataset.";
-    } BOOST_SCOPE_EXIT_END
+    };
 
     // Get data space
     const hid_t sId = H5Dget_space(dId);
@@ -2204,10 +2204,10 @@ bool TdbHdf5Connection::getColumnCount(const hid_t fileId, hsize_t & ncols) {
         return false;
     }
 
-    BOOST_SCOPE_EXIT((&m_logger)(&sId)) {
+    BOOST_SCOPE_EXIT_ALL(this, sId) {
         if (H5Sclose(sId) < 0)
             m_logger.fullDebug() << "Error while cleaning up column meta info data space.";
-    } BOOST_SCOPE_EXIT_END
+    };
 
     // Get data space rank
     const int rank = H5Sget_simple_extent_ndims(sId);
@@ -2239,10 +2239,10 @@ bool TdbHdf5Connection::getRowCount(const hid_t fileId, hsize_t & nrows) {
         return false;
     }
 
-    BOOST_SCOPE_EXIT((&m_logger)(&gId)) {
+    BOOST_SCOPE_EXIT_ALL(this, gId) {
         if (H5Gclose(gId) < 0)
             m_logger.fullDebug() << "Error while cleaning up meta info group.";
-    } BOOST_SCOPE_EXIT_END
+    };
 
     // Open the row count attribute
     const hid_t aId = H5Aopen(gId, ROW_COUNT_ATTR, H5P_DEFAULT);
@@ -2251,10 +2251,10 @@ bool TdbHdf5Connection::getRowCount(const hid_t fileId, hsize_t & nrows) {
         return false;
     }
 
-    BOOST_SCOPE_EXIT((&m_logger)(&aId)) {
+    BOOST_SCOPE_EXIT_ALL(this, aId) {
         if (H5Aclose(aId) < 0)
             m_logger.fullDebug() << "Error while cleaning up row meta info.";
-    } BOOST_SCOPE_EXIT_END
+    };
 
     if (H5Aread(aId, H5T_NATIVE_HSIZE, &nrows) < 0) {
         m_logger.error() << "Failed to get row count: Failed to read row meta info attribute.";
@@ -2272,10 +2272,10 @@ bool TdbHdf5Connection::setRowCount(const hid_t fileId, const hsize_t nrows) {
         return false;
     }
 
-    BOOST_SCOPE_EXIT((&m_logger)(&gId)) {
+    BOOST_SCOPE_EXIT_ALL(this, gId) {
         if (H5Gclose(gId) < 0)
             m_logger.fullDebug() << "Error while cleaning up meta info group.";
-    } BOOST_SCOPE_EXIT_END
+    };
 
     // Open the row count attribute
     const hid_t aId = H5Aopen(gId, ROW_COUNT_ATTR, H5P_DEFAULT);
@@ -2284,10 +2284,10 @@ bool TdbHdf5Connection::setRowCount(const hid_t fileId, const hsize_t nrows) {
         return false;
     }
 
-    BOOST_SCOPE_EXIT((&m_logger)(&aId)) {
+    BOOST_SCOPE_EXIT_ALL(this, aId) {
         if (H5Aclose(aId) < 0)
             m_logger.fullDebug() << "Error while cleaning up row meta info.";
-    } BOOST_SCOPE_EXIT_END
+    };
 
     // Write the new row count
     if (H5Awrite(aId, H5T_NATIVE_HSIZE, &nrows) < 0) {

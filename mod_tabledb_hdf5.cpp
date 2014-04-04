@@ -179,12 +179,12 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_create,
         // Set some parameters
         std::vector<SharemindTdbString *> namesVec;
 
-        BOOST_SCOPE_EXIT((&namesVec)) {
+        BOOST_SCOPE_EXIT_ALL(&namesVec) {
             std::vector<SharemindTdbString *>::iterator it;
             for (it = namesVec.begin(); it != namesVec.end(); ++it)
                 SharemindTdbString_delete(*it);
             namesVec.clear();
-        } BOOST_SCOPE_EXIT_END
+        };
 
         std::ostringstream oss;
         for (uint64_t i = 0; i < ncols; ++i) {
@@ -195,9 +195,9 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_create,
 
         SharemindTdbType * const type = SharemindTdbType_new(typeDomain, typeName, typeSize);
 
-        BOOST_SCOPE_EXIT((&type)) {
+        BOOST_SCOPE_EXIT_ALL(type) {
             SharemindTdbType_delete(type);
-        } BOOST_SCOPE_EXIT_END
+        };
 
         const std::vector<SharemindTdbType *> typesVec(ncols, type);
 
@@ -402,14 +402,14 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_col_names,
         // strings
         bool cleanup = true;
 
-        BOOST_SCOPE_EXIT((&cleanup)(&namesVec)) {
+        BOOST_SCOPE_EXIT_ALL(&cleanup, &namesVec) {
             if (cleanup) {
                 std::vector<SharemindTdbString *>::iterator it;
                 for (it = namesVec.begin(); it != namesVec.end(); ++it)
                     SharemindTdbString_delete(*it);
                 namesVec.clear();
             }
-        } BOOST_SCOPE_EXIT_END
+        };
 
         // Get the result map
         uint64_t vmapId = 0;
@@ -418,10 +418,10 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_col_names,
             return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
         // Register cleanup for the result vector map
-        BOOST_SCOPE_EXIT((&cleanup)(&m)(&c)(&vmapId)) {
+        BOOST_SCOPE_EXIT_ALL(&cleanup, m, c, vmapId) {
             if (cleanup && !m->deleteVectorMap(c, vmapId))
                 m->logger().fullDebug() << "Error while cleaning up result vector map.";
-        } BOOST_SCOPE_EXIT_END
+        };
 
         // Make a copy of the string pointers
         SharemindTdbString ** names = new SharemindTdbString * [namesVec.size()];
@@ -488,14 +488,14 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_col_types,
         // types
         bool cleanup = true;
 
-        BOOST_SCOPE_EXIT((&cleanup)(&typesVec)) {
+        BOOST_SCOPE_EXIT_ALL(&cleanup, &typesVec) {
             if (cleanup) {
                 std::vector<SharemindTdbType *>::iterator it;
                 for (it = typesVec.begin(); it != typesVec.end(); ++it)
                     SharemindTdbType_delete(*it);
                 typesVec.clear();
             }
-        } BOOST_SCOPE_EXIT_END
+        };
 
         // Get the result map
         uint64_t vmapId = 0;
@@ -504,10 +504,10 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_col_types,
             return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
         // Register cleanup for the result vector map
-        BOOST_SCOPE_EXIT((&cleanup)(&m)(&c)(&vmapId)) {
+        BOOST_SCOPE_EXIT_ALL(&cleanup, m, c, vmapId) {
             if (cleanup && !m->deleteVectorMap(c, vmapId))
                 m->logger().fullDebug() << "Error while cleaning up result vector map.";
-        } BOOST_SCOPE_EXIT_END
+        };
 
         // Make a copy of the type pointers
         SharemindTdbType ** types = new SharemindTdbType * [typesVec.size()];
@@ -633,9 +633,9 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_insert_row,
 
         val->type = SharemindTdbType_new(typeDomain, typeName, typeSize);
 
-        BOOST_SCOPE_EXIT((&val)) {
+        BOOST_SCOPE_EXIT_ALL(&val) {
             SharemindTdbType_delete(val->type);
-        } BOOST_SCOPE_EXIT_END
+        };
 
         val->buffer = const_cast<void *>(crefs[4u].pData);
         val->size = bufSize;
@@ -701,9 +701,9 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_read_col,
             // Construct some parameters
             SharemindTdbIndex * const idx = SharemindTdbIndex_new(colId);
 
-            BOOST_SCOPE_EXIT((&idx)) {
+            BOOST_SCOPE_EXIT_ALL(idx) {
                 SharemindTdbIndex_delete(idx);
-            } BOOST_SCOPE_EXIT_END
+            };
 
             const std::vector<SharemindTdbIndex *> colIdBatch(1, idx);
 
@@ -725,9 +725,9 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_read_col,
             // Construct some parameters
             SharemindTdbString * const idx = SharemindTdbString_new(colId);
 
-            BOOST_SCOPE_EXIT((&idx)) {
+            BOOST_SCOPE_EXIT_ALL(idx) {
                 SharemindTdbString_delete(idx);
-            } BOOST_SCOPE_EXIT_END
+            };
 
             const std::vector<SharemindTdbString *> colIdBatch(1, idx);
 
@@ -755,7 +755,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_read_col,
         // values
         bool cleanup = true;
 
-        BOOST_SCOPE_EXIT((&cleanup)(&valuesBatch)) {
+        BOOST_SCOPE_EXIT_ALL(&cleanup, &valuesBatch) {
             if (cleanup) {
                 std::vector<std::vector<SharemindTdbValue *> >::iterator it;
                 std::vector<SharemindTdbValue *>::iterator innerIt;
@@ -765,7 +765,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_read_col,
                 }
                 valuesBatch.clear();
             }
-        } BOOST_SCOPE_EXIT_END
+        };
 
         // Get the result map
         uint64_t vmapId = 0;
@@ -774,10 +774,10 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_read_col,
             return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
         // Register cleanup for the result vector map
-        BOOST_SCOPE_EXIT((&cleanup)(&m)(&c)(&vmapId)) {
+        BOOST_SCOPE_EXIT_ALL(&cleanup, m, c, vmapId) {
             if (cleanup && !m->deleteVectorMap(c, vmapId))
                 m->logger().fullDebug() << "Error while cleaning up result vector map.";
-        } BOOST_SCOPE_EXIT_END
+        };
 
         ValuesBatchVector::iterator it;
         for (it = valuesBatch.begin(); it != valuesBatch.end(); it = ++it) {
@@ -1067,7 +1067,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_stmt_exec,
             // values
             bool cleanup = true;
 
-            BOOST_SCOPE_EXIT((&cleanup)(&valuesBatch)) {
+            BOOST_SCOPE_EXIT_ALL(&cleanup, &valuesBatch) {
                 if (cleanup) {
                     std::vector<std::vector<SharemindTdbValue *> >::iterator it;
                     std::vector<SharemindTdbValue *>::iterator innerIt;
@@ -1077,7 +1077,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_stmt_exec,
                     }
                     valuesBatch.clear();
                 }
-            } BOOST_SCOPE_EXIT_END
+            };
 
             // Get the result map
             uint64_t vmapId = 0;
@@ -1086,10 +1086,10 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_stmt_exec,
                 return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
             // Register cleanup for the result vector map
-            BOOST_SCOPE_EXIT((&cleanup)(&m)(&c)(&vmapId)) {
+            BOOST_SCOPE_EXIT_ALL(&cleanup, m, c, vmapId) {
                 if (cleanup && !m->deleteVectorMap(c, vmapId))
                     m->logger().fullDebug() << "Error while cleaning up result vector map.";
-            } BOOST_SCOPE_EXIT_END
+            };
 
             ValuesBatchVector::iterator it;
             for (it = valuesBatch.begin(); it != valuesBatch.end(); ++it) {
