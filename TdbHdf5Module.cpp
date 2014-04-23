@@ -33,11 +33,11 @@ struct TransactionData {
     bool localResult;
 };
 
-uint16_t toId(SharemindDatum * datum) {
+uint16_t toId(const SharemindDatum * datum) {
     return *static_cast<uint16_t *>(datum->data);
 }
 
-bool equivalent(SharemindDatum * proposals, size_t count) {
+bool equivalent(const SharemindDatum * proposals, size_t count) {
     uint16_t a = toId(&proposals[0u]);
 
     for (size_t i = 1u; i < count; i++) {
@@ -48,7 +48,10 @@ bool equivalent(SharemindDatum * proposals, size_t count) {
     return true;
 }
 
-bool execute(SharemindDatum * proposals, size_t count, void * callbackPtr) {
+SharemindConsensusResultType execute(const SharemindDatum * proposals,
+                                     size_t count,
+                                     void * callbackPtr)
+{
     (void) proposals;
     (void) count;
 
@@ -56,14 +59,23 @@ bool execute(SharemindDatum * proposals, size_t count, void * callbackPtr) {
     bool ret = transaction->strategy.execute();
     transaction->localResult = ret;
 
-    return ret;
+    return ret ? 1u : 0u;
 }
 
-void commit(SharemindDatum * proposals, size_t count, void * callbackPtr, bool success) {
+void commit(const SharemindDatum * proposals,
+            size_t count,
+            const SharemindConsensusResultType * results,
+            void * callbackPtr)
+{
     (void) proposals;
     (void) count;
 
     TransactionData * transaction = static_cast<TransactionData *>(callbackPtr);
+
+    bool success = true;
+    for (size_t i = 0; i < count; i++) {
+        success &= results[i] == 1u;
+    }
 
     if (transaction->localResult && !success)
         transaction->strategy.rollback();
@@ -262,27 +274,31 @@ bool TdbHdf5Module::executeTransaction(TdbHdf5Transaction & strategy,
     TransactionData transaction(strategy);
     uint16_t processId = m_processFacility.get_process_id(context);
 
+    SharemindConsensusResultType * results;
+    size_t resultsCount;
+
     SharemindConsensusFacilityError ret =
         m_consensusService.blocking_propose(&m_consensusService,
                                             "TdbHDF5Transaction",
                                             sizeof(uint16_t),
                                             &processId,
+                                            &results,
+                                            &resultsCount,
                                             &transaction);
 
-    switch (ret) {
+    if (ret == SHAREMIND_CONSENSUS_FACILITY_OK) {
+        bool success = true;
+        for (size_t i = 0u; i < resultsCount; i++) {
+            success &= results[i] == 1u;
+        }
 
-    case SHAREMIND_CONSENSUS_FACILITY_OK:
-        return true;
+        delete[] results;
 
-    case SHAREMIND_CONSENSUS_FACILITY_FAIL:
-        return false;
-
-    case SHAREMIND_CONSENSUS_FACILITY_OUT_OF_MEMORY:
+        return success;
+    } else if (ret == SHAREMIND_CONSENSUS_FACILITY_OUT_OF_MEMORY) {
         throw std::bad_alloc();
-
-    default:
+    } else {
         throw std::runtime_error("Unknown ConsensusService exception.");
-
     }
 }
 
