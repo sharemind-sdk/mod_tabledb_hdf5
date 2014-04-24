@@ -30,7 +30,7 @@ struct TransactionData {
         : strategy(strategy_) {}
 
     TdbHdf5Transaction & strategy;
-    bool localResult;
+    bool success;
 };
 
 uint16_t toId(const SharemindDatum * datum) {
@@ -57,7 +57,7 @@ SharemindConsensusResultType execute(const SharemindDatum * proposals,
 
     TransactionData * transaction = static_cast<TransactionData *>(callbackPtr);
     bool ret = transaction->strategy.execute();
-    transaction->localResult = ret;
+    transaction->success = ret;
 
     return ret ? 1u : 0u;
 }
@@ -77,8 +77,11 @@ void commit(const SharemindDatum * proposals,
         success &= results[i] == 1u;
     }
 
-    if (transaction->localResult && !success)
+    // If the operation succeeded locally but not on all miners
+    if (transaction->success && !success)
         transaction->strategy.rollback();
+    else
+        transaction->success = success;
 }
 
 SharemindOperationType databaseOperation = {
@@ -274,27 +277,15 @@ bool TdbHdf5Module::executeTransaction(TdbHdf5Transaction & strategy,
     TransactionData transaction(strategy);
     uint16_t processId = m_processFacility.get_process_id(context);
 
-    SharemindConsensusResultType * results;
-    size_t resultsCount;
-
     SharemindConsensusFacilityError ret =
         m_consensusService.blocking_propose(&m_consensusService,
                                             "TdbHDF5Transaction",
                                             sizeof(uint16_t),
                                             &processId,
-                                            &results,
-                                            &resultsCount,
                                             &transaction);
 
     if (ret == SHAREMIND_CONSENSUS_FACILITY_OK) {
-        bool success = true;
-        for (size_t i = 0u; i < resultsCount; i++) {
-            success &= results[i] == 1u;
-        }
-
-        delete[] results;
-
-        return success;
+        return transaction.success;
     } else if (ret == SHAREMIND_CONSENSUS_FACILITY_OUT_OF_MEMORY) {
         throw std::bad_alloc();
     } else {
