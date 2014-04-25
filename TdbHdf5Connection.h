@@ -16,6 +16,7 @@
 #include <map>
 #include <sharemind/common/Logger/Debug.h>
 #include <sharemind/common/Logger/ILogger.h>
+#include <sharemind/mod_tabledb/tdberror.h>
 #include <sharemind/mod_tabledb/tdbtypes.h>
 #include <string>
 #include <vector>
@@ -76,23 +77,32 @@ public: /* Methods: */
      * General database table functions
      */
 
-    bool tblCreate(const std::string & tbl, const std::vector<SharemindTdbString *> & names, const std::vector<SharemindTdbType *> & types);
-    bool tblDelete(const std::string & tbl);
-    bool tblExists(const std::string & tbl, bool & status);
+    SharemindTdbError tblCreate(const std::string & tbl,
+            const std::vector<SharemindTdbString *> & names,
+            const std::vector<SharemindTdbType *> & types);
+    SharemindTdbError tblDelete(const std::string & tbl);
+    SharemindTdbError tblExists(const std::string & tbl, bool & status);
 
-    bool tblColCount(const std::string & tbl, size_type & count);
-    bool tblColNames(const std::string & tbl, std::vector<SharemindTdbString *> & names);
-    bool tblColTypes(const std::string & tbl, std::vector<SharemindTdbType *> & types);
-    bool tblRowCount(const std::string & tbl, size_type & count);
+    SharemindTdbError tblColCount(const std::string & tbl, size_type & count);
+    SharemindTdbError tblColNames(const std::string & tbl,
+            std::vector<SharemindTdbString *> & names);
+    SharemindTdbError tblColTypes(const std::string & tbl,
+            std::vector<SharemindTdbType *> & types);
+    SharemindTdbError tblRowCount(const std::string & tbl, size_type & count);
 
     /*
      * Table data manipulation functions
      */
 
-    bool insertRow(const std::string & tbl, const std::vector<std::vector<SharemindTdbValue *> > & valuesBatch);
+    SharemindTdbError insertRow(const std::string & tbl,
+            const std::vector<std::vector<SharemindTdbValue *> > & valuesBatch);
 
-    bool readColumn(const std::string & tbl, const std::vector<SharemindTdbString *> & colIdBatch, std::vector<std::vector<SharemindTdbValue *> > & valuesBatch);
-    bool readColumn(const std::string & tbl, const std::vector<SharemindTdbIndex *> & colIdBatch, std::vector<std::vector<SharemindTdbValue *> > & valuesBatch);
+    SharemindTdbError readColumn(const std::string & tbl,
+            const std::vector<SharemindTdbString *> & colIdBatch,
+            std::vector<std::vector<SharemindTdbValue *> > & valuesBatch);
+    SharemindTdbError readColumn(const std::string & tbl,
+            const std::vector<SharemindTdbIndex *> & colIdBatch,
+            std::vector<std::vector<SharemindTdbValue *> > & valuesBatch);
 
 private: /* Methods: */
 
@@ -120,15 +130,17 @@ private: /* Methods: */
      * Database operations
      */
 
-    bool readColumn(const hid_t fileId, const std::vector<SharemindTdbIndex *> & colNrBatch, std::vector<std::vector<SharemindTdbValue *> > & valuesBatch);
-    bool readDatasetColumn(const hid_t fileId, const hobj_ref_t ref,
+    SharemindTdbError readColumn(const hid_t fileId,
+            const std::vector<SharemindTdbIndex *> & colNrBatch,
+            std::vector<std::vector<SharemindTdbValue *> > & valuesBatch);
+    SharemindTdbError readDatasetColumn(const hid_t fileId, const hobj_ref_t ref,
             const std::vector<std::pair<hsize_t, std::vector<SharemindTdbValue *> *> > & paramBatch);
 
-    bool objRefToType(const hid_t fileId, const hobj_ref_t ref, hid_t & aId, SharemindTdbType & type);
+    SharemindTdbError objRefToType(const hid_t fileId, const hobj_ref_t ref, hid_t & aId, SharemindTdbType & type);
 
-    bool getColumnCount(const hid_t fileId, hsize_t & ncols);
-    bool getRowCount(const hid_t fileId, hsize_t & nrows);
-    bool setRowCount(const hid_t fileId, const hsize_t nrows);
+    SharemindTdbError getColumnCount(const hid_t fileId, hsize_t & ncols);
+    SharemindTdbError getRowCount(const hid_t fileId, hsize_t & nrows);
+    SharemindTdbError setRowCount(const hid_t fileId, const hsize_t nrows);
 
     bool closeTableFile(const std::string & tbl);
     hid_t openTableFile(const std::string & tbl);

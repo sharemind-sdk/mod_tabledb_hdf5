@@ -21,6 +21,7 @@
 #include <sharemind/miner/Facilities/datastoreapi.h>
 #include <sharemind/miner/Facilities/libconsensusservice.h>
 #include <sharemind/miner/Facilities/libprocessfacility.h>
+#include <sharemind/mod_tabledb/tdberror.h>
 #include <sharemind/mod_tabledb/tdbvectormapapi.h>
 #include <string>
 
@@ -44,7 +45,7 @@ public: /* Methods: */
                            std::forward<Args>(args) ...))
     { }
 
-    bool execute() {
+    SharemindTdbError execute() {
         return m_exec();
     }
 
@@ -54,7 +55,7 @@ public: /* Methods: */
 
 private: /* Fields: */
 
-    std::function<bool ()> m_exec;
+    std::function<SharemindTdbError ()> m_exec;
 };
 
 class __attribute__ ((visibility("internal"))) TdbHdf5Module {
@@ -71,6 +72,10 @@ public: /* Methods: */
                   SharemindConsensusFacility & consensusService,
                   SharemindProcessFacility & processFacility);
 
+    bool setErrorCode(const SharemindModuleApi0x1SyscallContext * ctx,
+            const std::string & dsName,
+            SharemindTdbError code);
+
     bool openConnection(const SharemindModuleApi0x1SyscallContext * ctx,
                         const std::string & dsName);
     bool closeConnection(const SharemindModuleApi0x1SyscallContext * ctx,
@@ -85,7 +90,7 @@ public: /* Methods: */
     SharemindTdbVectorMap * getVectorMap(const SharemindModuleApi0x1SyscallContext * ctx,
                                          const uint64_t vmapId) const;
 
-    bool executeTransaction(TdbHdf5Transaction & strategy,
+    SharemindTdbError executeTransaction(TdbHdf5Transaction & strategy,
                             const SharemindModuleApi0x1SyscallContext * context);
 
     inline ILogger::Wrapped & logger() { return m_logger; }

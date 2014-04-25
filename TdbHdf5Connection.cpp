@@ -132,7 +132,10 @@ TdbHdf5Connection::~TdbHdf5Connection() {
     m_tableFiles.clear();
 }
 
-bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<SharemindTdbString *> & names, const std::vector<SharemindTdbType *> & types) {
+SharemindTdbError TdbHdf5Connection::tblCreate(const std::string & tbl,
+        const std::vector<SharemindTdbString *> & names,
+        const std::vector<SharemindTdbType *> & types)
+{
     H5Eset_auto(H5E_DEFAULT, err_handler, &m_logger);
 
     // Set the cleanup flag
@@ -146,25 +149,25 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
     // Do some simple checks on the parameters
     if (names.empty()) {
         m_logger.error() << "No column names given.";
-        return false;
+        return SHAREMIND_TDB_INVALID_ARGUMENT;
     }
 
     if (types.empty()) {
         m_logger.error() << "No column types given.";
-        return false;
+        return SHAREMIND_TDB_INVALID_ARGUMENT;
     }
 
     if (names.size() != types.size()) {
         m_logger.error() << "Differing number of column names and column types.";
-        return false;
+        return SHAREMIND_TDB_INVALID_ARGUMENT;
     }
 
     if (!validateTableName(tbl))
-        return false;
+        return SHAREMIND_TDB_INVALID_ARGUMENT;
 
     // Check column names
     if (!validateColumnNames(names))
-        return false;
+        return SHAREMIND_TDB_INVALID_ARGUMENT;
 
     // Check for duplicate column names
     {
@@ -173,7 +176,7 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
         for (nIt = names.begin(); nIt != names.end(); ++nIt) {
             if (!namesSet.insert(*nIt).second) {
                 m_logger.error() << "Given column names must be unique.";
-                return false;
+                return SHAREMIND_TDB_INVALID_ARGUMENT;
             }
         }
     }
@@ -183,11 +186,11 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
     // Check if table file exists
     bool exists = false;
     if (!pathExists(tblPath, exists))
-        return false;
+        return SHAREMIND_TDB_GENERAL_ERROR;
 
     if (exists) {
         m_logger.error() << "Table already exists.";
-        return false;
+        return SHAREMIND_TDB_TABLE_ALREADY_EXISTS;
     }
 
     // Remove dangling file handler, if any (file was deleted while the handler
@@ -199,7 +202,7 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
     const hid_t fileId = H5Fcreate(tblPath.c_str(), H5F_ACC_EXCL, H5P_DEFAULT, H5P_DEFAULT);
     if (fileId < 0) {
         m_logger.error() << "Failed to create table file with path " << tblPath << ".";
-        return false;
+        return SHAREMIND_TDB_IO_ERROR;
     }
 
     // Set cleanup handler for the file
@@ -269,14 +272,14 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
                 tId = H5Tvlen_create(H5T_NATIVE_CHAR);
                 if (tId < 0) {
                     m_logger.error() << "Failed to create dataset type.";
-                    return false;
+                    return SHAREMIND_TDB_GENERAL_ERROR;
                 }
             } else {
                 // Create a fixed length opaque type
                 tId = H5Tcreate(H5T_OPAQUE, type->size);
                 if (tId < 0) {
                     m_logger.error() << "Failed to create dataset type.";
-                    return false;
+                    return SHAREMIND_TDB_GENERAL_ERROR;
                 }
 
                 // Set a type tag
@@ -289,7 +292,7 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
 
                     if (H5Tclose(tId) < 0)
                         m_logger.fullDebug() << "Error while cleaning up dataset type.";
-                    return false;
+                    return SHAREMIND_TDB_GENERAL_ERROR;
                 }
             }
 
@@ -305,7 +308,7 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
         const hid_t gId = H5Gcreate(fileId, META_GROUP, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
         if (gId < 0) {
             m_logger.error() << "Failed to create meta info group.";
-            return false;
+            return SHAREMIND_TDB_GENERAL_ERROR;
         }
 
         BOOST_SCOPE_EXIT_ALL(this, gId) {
@@ -318,7 +321,7 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
         const hid_t aSId = H5Screate_simple(1, &aDims, nullptr);
         if (aSId < 0) {
             m_logger.error() << "Failed to create row count attribute data space.";
-            return false;
+            return SHAREMIND_TDB_GENERAL_ERROR;
         }
 
         // Set cleanup handler for the row count attribute data space
@@ -331,7 +334,7 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
         const hid_t aId = H5Acreate(gId, ROW_COUNT_ATTR, H5T_NATIVE_HSIZE, aSId, H5P_DEFAULT, H5P_DEFAULT);
         if (aId < 0) {
             m_logger.error() << "Failed to create row count attribute.";
-            return false;
+            return SHAREMIND_TDB_GENERAL_ERROR;
         }
 
         // Set cleanup handler for the attribute
@@ -344,7 +347,7 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
         const hsize_t rowCount = 0;
         if (H5Awrite(aId, H5T_NATIVE_HSIZE, &rowCount) < 0) {
             m_logger.error() << "Failed to write row count attribute.";
-            return false;
+            return SHAREMIND_TDB_GENERAL_ERROR;
         }
     }
 
@@ -362,7 +365,7 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
         const hid_t aTId = H5Tcreate(H5T_COMPOUND, sizeof(SharemindTdbType));
         if (aTId < 0) {
             m_logger.error() << "Failed to create dataset type attribute type.";
-            return false;
+            return SHAREMIND_TDB_GENERAL_ERROR;
         }
 
         BOOST_SCOPE_EXIT_ALL(this, aTId) {
@@ -377,7 +380,7 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
 
             if (domainTId >= 0 && H5Tclose(domainTId) < 0)
                 m_logger.fullDebug() << "Error while cleaning up dataset type attribute type.";
-            return false;
+            return SHAREMIND_TDB_GENERAL_ERROR;
         }
 
         BOOST_SCOPE_EXIT_ALL(this, domainTId) {
@@ -387,7 +390,7 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
 
         if (H5Tinsert(aTId, "domain", HOFFSET(SharemindTdbType, domain), domainTId) < 0) {
             m_logger.error() << "Failed to create dataset type attribute data type.";
-            return false;
+            return SHAREMIND_TDB_GENERAL_ERROR;
         }
 
         // const char * name
@@ -397,7 +400,7 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
 
             if (nameTId >= 0 && H5Tclose(nameTId) < 0)
                 m_logger.fullDebug() << "Error while cleaning up dataset type attribute type.";
-            return false;
+            return SHAREMIND_TDB_GENERAL_ERROR;
         }
 
         BOOST_SCOPE_EXIT_ALL(this, nameTId) {
@@ -407,19 +410,19 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
 
         if (H5Tinsert(aTId, "name", HOFFSET(SharemindTdbType, name), nameTId) < 0) {
             m_logger.error() << "Failed to create dataset type attribute data type.";
-            return false;
+            return SHAREMIND_TDB_GENERAL_ERROR;
         }
 
         // hsize_t size
         if (H5Tinsert(aTId, "size", HOFFSET(SharemindTdbType, size), H5T_NATIVE_HSIZE) < 0) {
             m_logger.error() << "Failed to create dataset type attribute data type.";
-            return false;
+            return SHAREMIND_TDB_GENERAL_ERROR;
         }
 
         // Commit the dataset type attribute type
         if (H5Tcommit(fileId, DATASET_TYPE_ATTR_TYPE, aTId, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT) < 0) {
             m_logger.error() << "Failed to commit dataset type attribute type.";
-            return false;
+            return SHAREMIND_TDB_GENERAL_ERROR;
         }
 
         assert(memTypes.size() == ntypes);
@@ -445,7 +448,7 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
             hsize_t dimsChunk[2];
             dimsChunk[0] = chunkSize; dimsChunk[1] = 1; // TODO are vertical chunks OK?
             if (H5Pset_chunk(plistId, 2, dimsChunk) < 0)
-                return false;
+                return SHAREMIND_TDB_GENERAL_ERROR;
 
             // TODO set compression? Probably only useful for some public types
             // (variable length strings cannot be compressed as far as I know).
@@ -459,7 +462,7 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
             const hid_t sId = H5Screate_simple(2, dims, maxdims);
             if (sId < 0) {
                 m_logger.error() << "Failed to create a data space type \"" << tag << "\".";
-                return false;
+                return SHAREMIND_TDB_GENERAL_ERROR;
             }
 
             // Set cleanup handler for the data space
@@ -472,7 +475,7 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
             const hid_t dId = H5Dcreate(fileId, tag.c_str(), tId, sId, H5P_DEFAULT, plistId, H5P_DEFAULT);
             if (dId < 0) {
                 m_logger.error() << "Failed to create dataset type \"" << tag << "\".";
-                return false;
+                return SHAREMIND_TDB_GENERAL_ERROR;
             }
 
             // Set cleanup handler for the dataset
@@ -486,7 +489,7 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
             const hid_t aSId = H5Screate_simple(1, &aDims, nullptr);
             if (aSId < 0) {
                 m_logger.error() << "Failed to create dataset type attribute data space.";
-                return false;
+                return SHAREMIND_TDB_GENERAL_ERROR;
             }
 
             // Set cleanup handler for the type attribute data space
@@ -499,7 +502,7 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
             const hid_t aId = H5Acreate(dId, DATASET_TYPE_ATTR, aTId, aSId, H5P_DEFAULT, H5P_DEFAULT);
             if (aId < 0) {
                 m_logger.error() << "Failed to create dataset type attribute.";
-                return false;
+                return SHAREMIND_TDB_GENERAL_ERROR;
             }
 
             // Set cleanup handler for the attribute
@@ -511,7 +514,7 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
             // Write the type attribute
             if (H5Awrite(aId, aTId, type) < 0) {
                 m_logger.error() << "Failed to write dataset type attribute.";
-                return false;
+                return SHAREMIND_TDB_IO_ERROR;
             }
         }
     }
@@ -531,7 +534,7 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
         const hid_t tId = H5Tcreate(H5T_COMPOUND, sizeof(ColumnIndex));
         if (tId < 0) {
             m_logger.error() << "Failed to create column meta info data type.";
-            return false;
+            return SHAREMIND_TDB_GENERAL_ERROR;
         }
 
         BOOST_SCOPE_EXIT_ALL(this, tId) {
@@ -546,7 +549,7 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
 
             if (nameTId >= 0 && H5Tclose(nameTId) < 0)
                 m_logger.fullDebug() << "Error while cleaning up column meta info type.";
-            return false;
+            return SHAREMIND_TDB_GENERAL_ERROR;
         }
 
         BOOST_SCOPE_EXIT_ALL(this, nameTId) {
@@ -556,19 +559,19 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
 
         if (H5Tinsert(tId, "name", HOFFSET(ColumnIndex, name), nameTId) < 0) {
             m_logger.error() << "Failed to create column meta info data type.";
-            return false;
+            return SHAREMIND_TDB_GENERAL_ERROR;
         }
 
         // hobj_ref_t dataset_ref
         if (H5Tinsert(tId, "dataset_ref", HOFFSET(ColumnIndex, dataset_ref), H5T_STD_REF_OBJ) < 0) {
             m_logger.error() << "Failed to create column meta info data type.";
-            return false;
+            return SHAREMIND_TDB_GENERAL_ERROR;
         }
 
         // hsize_t dataset_column
         if (H5Tinsert(tId, "dataset_column", HOFFSET(ColumnIndex, dataset_column), H5T_NATIVE_HSIZE) < 0) {
             m_logger.error() << "Failed to create column meta info data type.";
-            return false;
+            return SHAREMIND_TDB_GENERAL_ERROR;
         }
 
         // Create the 1 dimensional data space
@@ -577,7 +580,7 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
         const hid_t sId = H5Screate_simple(1, &dims, &maxdims);
         if (sId < 0) {
             m_logger.error() << "Failed to create column meta info data space creation property list.";
-            return false;
+            return SHAREMIND_TDB_GENERAL_ERROR;
         }
 
         BOOST_SCOPE_EXIT_ALL(this, sId) {
@@ -588,14 +591,14 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
         // Commit the column meta info data type
         if (H5Tcommit(fileId, COL_INDEX_TYPE, tId, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT) < 0) {
             m_logger.error() << "Failed to commit column meta info data type.";
-            return false;
+            return SHAREMIND_TDB_GENERAL_ERROR;
         }
 
         // Create the dataset creation property list
         const hid_t plistId = H5Pcreate(H5P_DATASET_CREATE);
         if (plistId < 0) {
             m_logger.error() << "Failed to create column meta info dataset creation property list.";
-            return false;
+            return SHAREMIND_TDB_GENERAL_ERROR;
         }
 
         BOOST_SCOPE_EXIT_ALL(this, plistId) {
@@ -606,14 +609,14 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
         const hsize_t dimsChunk = CHUNK_SIZE / (sizeof(hobj_ref_t) + sizeof(hvl_t) + sizeof(size_type));
         if (H5Pset_chunk(plistId, 1, &dimsChunk) < 0) {
             m_logger.error() << "Failed to set column meta info dataset creation property list info.";
-            return false;
+            return SHAREMIND_TDB_GENERAL_ERROR;
         }
 
         // Create the dataset
         const hid_t dId = H5Dcreate(fileId, COL_INDEX_DATASET, tId, sId, H5P_DEFAULT, plistId, H5P_DEFAULT);
         if (dId < 0) {
             m_logger.error() << "Failed to create column meta info dataset.";
-            return false;
+            return SHAREMIND_TDB_GENERAL_ERROR;
         }
 
         BOOST_SCOPE_EXIT_ALL(this, dId) {
@@ -635,14 +638,14 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
 
                 if (H5Rcreate(&colIdx[i].dataset_ref, fileId, mIt->first.c_str(), H5R_OBJECT, -1) < 0) {
                     m_logger.error() << "Failed to create column meta info type reference.";
-                    return false;
+                    return SHAREMIND_TDB_GENERAL_ERROR;
                 }
             }
 
             // Write the column index data
             if (H5Dwrite(dId, tId, H5S_ALL, H5S_ALL, H5P_DEFAULT, colIdx) < 0) {
                 m_logger.error() << "Failed to write column meta info dataset.";
-                return false;
+                return SHAREMIND_TDB_IO_ERROR;
             }
         }
     }
@@ -657,14 +660,14 @@ bool TdbHdf5Connection::tblCreate(const std::string & tbl, const std::vector<Sha
 
     success = true;
 
-    return true;
+    return SHAREMIND_TDB_OK;
 }
 
-bool TdbHdf5Connection::tblDelete(const std::string & tbl) {
+SharemindTdbError TdbHdf5Connection::tblDelete(const std::string & tbl) {
     H5Eset_auto(H5E_DEFAULT, err_handler, &m_logger);
 
     if (!validateTableName(tbl))
-        return false;
+        return SHAREMIND_TDB_INVALID_ARGUMENT;
 
     // Get table path
     const fs::path tblPath = nameToPath(tbl);
@@ -673,39 +676,39 @@ bool TdbHdf5Connection::tblDelete(const std::string & tbl) {
     try {
         if (!remove(tblPath)) {
             m_logger.error() << "Table \"" << tbl << "\" does not exist.";
-            return false;
+            return SHAREMIND_TDB_TABLE_NOT_FOUND;
         }
     } catch (const fs::filesystem_error & e) {
         m_logger.error() << "Error while deleting table \"" << tbl << "\" file " << tblPath << ": " << e.what() << ".";
-        return false;
+        return SHAREMIND_TDB_IO_ERROR;
     }
 
-    return true;
+    return SHAREMIND_TDB_OK;
 }
 
-bool TdbHdf5Connection::tblExists(const std::string & tbl, bool & status) {
+SharemindTdbError TdbHdf5Connection::tblExists(const std::string & tbl, bool & status) {
     H5Eset_auto(H5E_DEFAULT, err_handler, &m_logger);
 
     if (!validateTableName(tbl))
-        return false;
+        return SHAREMIND_TDB_INVALID_ARGUMENT;
 
     // Get table path
     const fs::path tblPath = nameToPath(tbl);
 
     // Check if the file exists
     if (!pathExists(tblPath, status))
-        return false;
+        return SHAREMIND_TDB_GENERAL_ERROR;
 
     // Check if the file has the right format
     if (status && !pathIsHdf5(tblPath)) {
         m_logger.error() << "Table \"" << tbl << "\" file " << tblPath << " is not a valid table file.";
-        return false;
+        return SHAREMIND_TDB_GENERAL_ERROR;
     }
 
-    return true;
+    return SHAREMIND_TDB_OK;
 }
 
-bool TdbHdf5Connection::tblColCount(const std::string & tbl, size_type & count) {
+SharemindTdbError TdbHdf5Connection::tblColCount(const std::string & tbl, size_type & count) {
     H5Eset_auto(H5E_DEFAULT, err_handler, &m_logger);
 
     // Set the cleanup flag
@@ -717,28 +720,44 @@ bool TdbHdf5Connection::tblColCount(const std::string & tbl, size_type & count) 
     };
 
     if (!validateTableName(tbl))
-        return false;
+        return SHAREMIND_TDB_INVALID_ARGUMENT;
+
+    // Check if table exists
+    {
+        bool exists = false;
+        const SharemindTdbError ecode = tblExists(tbl, exists);
+        if (ecode != SHAREMIND_TDB_OK)
+            return ecode;
+
+        if (!exists) {
+            m_logger.error() << "Table \"" << tbl << "\" does not exist.";
+            return SHAREMIND_TDB_TABLE_NOT_FOUND;
+        }
+    }
 
     // Open the table file
     const hid_t fileId = openTableFile(tbl);
     if (fileId < 0) {
         m_logger.error() << "Failed to open table file.";
-        return false;
+        return SHAREMIND_TDB_IO_ERROR;
     }
 
     // Read column meta info
     hsize_t ncols = 0;
-    if (!getColumnCount(fileId, ncols))
-        return false;
+    {
+        const SharemindTdbError ecode = getColumnCount(fileId, ncols);
+        if (ecode != SHAREMIND_TDB_OK)
+            return ecode;
+    }
 
     count = ncols;
 
     success = true;
 
-    return true;
+    return SHAREMIND_TDB_OK;
 }
 
-bool TdbHdf5Connection::tblColNames(const std::string & tbl, std::vector<SharemindTdbString *> & names) {
+SharemindTdbError TdbHdf5Connection::tblColNames(const std::string & tbl, std::vector<SharemindTdbString *> & names) {
     H5Eset_auto(H5E_DEFAULT, err_handler, &m_logger);
 
     // Set the cleanup flag
@@ -751,19 +770,35 @@ bool TdbHdf5Connection::tblColNames(const std::string & tbl, std::vector<Sharemi
 
     // Do some simple checks on the parameters
     if (!validateTableName(tbl))
-        return false;
+        return SHAREMIND_TDB_INVALID_ARGUMENT;
+
+    // Check if table exists
+    {
+        bool exists = false;
+        const SharemindTdbError ecode = tblExists(tbl, exists);
+        if (ecode != SHAREMIND_TDB_OK)
+            return ecode;
+
+        if (!exists) {
+            m_logger.error() << "Table \"" << tbl << "\" does not exist.";
+            return SHAREMIND_TDB_TABLE_NOT_FOUND;
+        }
+    }
 
     // Open the table file
     const hid_t fileId = openTableFile(tbl);
     if (fileId < 0) {
         m_logger.error() << "Failed to open table file.";
-        return false;
+        return SHAREMIND_TDB_IO_ERROR;
     }
 
     // Get table column count
     hsize_t colCount = 0;
-    if (!getColumnCount(fileId, colCount))
-        return false;
+    {
+        const SharemindTdbError ecode = getColumnCount(fileId, colCount);
+        if (ecode != SHAREMIND_TDB_OK)
+            return ecode;
+    }
 
     // Declare a partial column index type
     struct PartialColumnIndex {
@@ -774,7 +809,7 @@ bool TdbHdf5Connection::tblColNames(const std::string & tbl, std::vector<Sharemi
     const hid_t tId = H5Tcreate(H5T_COMPOUND, sizeof(PartialColumnIndex));
     if (tId < 0) {
         m_logger.error() << "Failed to create column meta info type.";
-        return false;
+        return SHAREMIND_TDB_GENERAL_ERROR;
     }
 
     BOOST_SCOPE_EXIT_ALL(this, tId) {
@@ -789,7 +824,7 @@ bool TdbHdf5Connection::tblColNames(const std::string & tbl, std::vector<Sharemi
 
         if (nameTId >= 0 && H5Tclose(nameTId) < 0)
             m_logger.fullDebug() << "Error while cleaning up column meta info type.";
-        return false;
+        return SHAREMIND_TDB_GENERAL_ERROR;
     }
 
     BOOST_SCOPE_EXIT_ALL(this, nameTId) {
@@ -799,7 +834,7 @@ bool TdbHdf5Connection::tblColNames(const std::string & tbl, std::vector<Sharemi
 
     if (H5Tinsert(tId, "name", HOFFSET(ColumnIndex, name), nameTId) < 0) {
         m_logger.error() << "Failed to create column meta info data type.";
-        return false;
+        return SHAREMIND_TDB_GENERAL_ERROR;
     }
 
     // Create a simple memory data space
@@ -807,7 +842,7 @@ bool TdbHdf5Connection::tblColNames(const std::string & tbl, std::vector<Sharemi
     const hid_t mSId = H5Screate_simple(1, &mDims, nullptr);
     if (mSId < 0) {
         m_logger.error() << "Failed to create column meta info memory data space.";
-        return false;
+        return SHAREMIND_TDB_GENERAL_ERROR;
     }
 
     BOOST_SCOPE_EXIT_ALL(this, mSId) {
@@ -819,7 +854,7 @@ bool TdbHdf5Connection::tblColNames(const std::string & tbl, std::vector<Sharemi
     const hid_t dId = H5Dopen(fileId, COL_INDEX_DATASET, H5P_DEFAULT);
     if (dId < 0) {
         m_logger.error() << "Failed to open column meta info dataset.";
-        return false;
+        return SHAREMIND_TDB_GENERAL_ERROR;
     }
 
     BOOST_SCOPE_EXIT_ALL(this, dId) {
@@ -836,7 +871,7 @@ bool TdbHdf5Connection::tblColNames(const std::string & tbl, std::vector<Sharemi
     // Read column meta info from the dataset
     if (H5Dread(dId, tId, mSId, H5S_ALL, H5P_DEFAULT, buffer) < 0) {
         m_logger.error() << "Failed to read column meta info dataset.";
-        return false;
+        return SHAREMIND_TDB_IO_ERROR;
     }
 
     BOOST_SCOPE_EXIT_ALL(this, tId, mSId, &buffer) {
@@ -863,10 +898,10 @@ bool TdbHdf5Connection::tblColNames(const std::string & tbl, std::vector<Sharemi
 
     success = true;
 
-    return true;
+    return SHAREMIND_TDB_OK;
 }
 
-bool TdbHdf5Connection::tblColTypes(const std::string & tbl, std::vector<SharemindTdbType *> & types) {
+SharemindTdbError TdbHdf5Connection::tblColTypes(const std::string & tbl, std::vector<SharemindTdbType *> & types) {
     H5Eset_auto(H5E_DEFAULT, err_handler, &m_logger);
 
     // Set the cleanup flag
@@ -879,19 +914,35 @@ bool TdbHdf5Connection::tblColTypes(const std::string & tbl, std::vector<Sharemi
 
     // Do some simple checks on the parameters
     if (!validateTableName(tbl))
-        return false;
+        return SHAREMIND_TDB_INVALID_ARGUMENT;
+
+    // Check if table exists
+    {
+        bool exists = false;
+        const SharemindTdbError ecode = tblExists(tbl, exists);
+        if (ecode != SHAREMIND_TDB_OK)
+            return ecode;
+
+        if (!exists) {
+            m_logger.error() << "Table \"" << tbl << "\" does not exist.";
+            return SHAREMIND_TDB_TABLE_NOT_FOUND;
+        }
+    }
 
     // Open the table file
     const hid_t fileId = openTableFile(tbl);
     if (fileId < 0) {
         m_logger.error() << "Failed to open table file.";
-        return false;
+        return SHAREMIND_TDB_IO_ERROR;
     }
 
     // Get table column count
     hsize_t colCount = 0;
-    if (!getColumnCount(fileId, colCount))
-        return false;
+    {
+        const SharemindTdbError ecode = getColumnCount(fileId, colCount);
+        if (ecode != SHAREMIND_TDB_OK)
+            return ecode;
+    }
 
     // Declare a partial column index type
     struct PartialColumnIndex {
@@ -902,7 +953,7 @@ bool TdbHdf5Connection::tblColTypes(const std::string & tbl, std::vector<Sharemi
     const hid_t tId = H5Tcreate(H5T_COMPOUND, sizeof(PartialColumnIndex));
     if (tId < 0) {
         m_logger.error() << "Failed to create column meta info type.";
-        return false;
+        return SHAREMIND_TDB_GENERAL_ERROR;
     }
 
     BOOST_SCOPE_EXIT_ALL(this, tId) {
@@ -912,14 +963,14 @@ bool TdbHdf5Connection::tblColTypes(const std::string & tbl, std::vector<Sharemi
 
     if (H5Tinsert(tId, "dataset_ref", HOFFSET(PartialColumnIndex, dataset_ref), H5T_STD_REF_OBJ) < 0) {
         m_logger.error() << "Failed to create column meta info type.";
-        return false;
+        return SHAREMIND_TDB_GENERAL_ERROR;
     }
 
     // Open the column meta info dataset
     const hid_t dId = H5Dopen(fileId, COL_INDEX_DATASET, H5P_DEFAULT);
     if (dId < 0) {
         m_logger.error() << "Failed to open column meta info dataset.";
-        return false;
+        return SHAREMIND_TDB_GENERAL_ERROR;
     }
 
     BOOST_SCOPE_EXIT_ALL(this, dId) {
@@ -936,7 +987,7 @@ bool TdbHdf5Connection::tblColTypes(const std::string & tbl, std::vector<Sharemi
     // Read column meta info from the dataset
     if (H5Dread(dId, tId, H5S_ALL, H5S_ALL, H5P_DEFAULT, indices) < 0) {
         m_logger.error() << "Failed to read column meta info dataset.";
-        return false;
+        return SHAREMIND_TDB_IO_ERROR;
     }
 
     // Resolve the dataset references to dataset types
@@ -964,7 +1015,7 @@ bool TdbHdf5Connection::tblColTypes(const std::string & tbl, std::vector<Sharemi
             const hid_t oId = H5Rdereference(fileId, H5R_OBJECT, &indices[i].dataset_ref);
             if (oId < 0) {
                 m_logger.error() << "Failed to dereference object.";
-                return false;
+                return SHAREMIND_TDB_GENERAL_ERROR;
             }
 
             BOOST_SCOPE_EXIT_ALL(this, oId) {
@@ -976,7 +1027,7 @@ bool TdbHdf5Connection::tblColTypes(const std::string & tbl, std::vector<Sharemi
             const hid_t aId = H5Aopen(oId, DATASET_TYPE_ATTR, H5P_DEFAULT);
             if (aId < 0) {
                 m_logger.error() << "Failed to open dataset type attribute.";
-                return false;
+                return SHAREMIND_TDB_GENERAL_ERROR;
             }
 
             BOOST_SCOPE_EXIT_ALL(this, aId) {
@@ -988,7 +1039,7 @@ bool TdbHdf5Connection::tblColTypes(const std::string & tbl, std::vector<Sharemi
             const hid_t aTId = H5Aget_type(aId);
             if (aTId < 0) {
                 m_logger.error() << "Failed to get dataset type attribute type.";
-                return false;
+                return SHAREMIND_TDB_GENERAL_ERROR;
             }
 
             BOOST_SCOPE_EXIT_ALL(this, aTId) {
@@ -999,7 +1050,7 @@ bool TdbHdf5Connection::tblColTypes(const std::string & tbl, std::vector<Sharemi
             const hid_t aSId = H5Aget_space(aId);
             if (aSId < 0) {
                 m_logger.error() << "Failed to get dataset type attribute data space.";
-                return false;
+                return SHAREMIND_TDB_GENERAL_ERROR;
             }
 
             BOOST_SCOPE_EXIT_ALL(this, aSId) {
@@ -1012,7 +1063,7 @@ bool TdbHdf5Connection::tblColTypes(const std::string & tbl, std::vector<Sharemi
             if (H5Aread(aId, aTId, type) < 0) {
                 m_logger.error() << "Failed to read dataset type attribute.";
                 delete type;
-                return false;
+                return SHAREMIND_TDB_IO_ERROR;
             }
 
             BOOST_SCOPE_EXIT_ALL(this, aTId, aSId, type) {
@@ -1032,10 +1083,10 @@ bool TdbHdf5Connection::tblColTypes(const std::string & tbl, std::vector<Sharemi
 
     success = true;
 
-    return true;
+    return SHAREMIND_TDB_OK;
 }
 
-bool TdbHdf5Connection::tblRowCount(const std::string & tbl, size_type & count) {
+SharemindTdbError TdbHdf5Connection::tblRowCount(const std::string & tbl, size_type & count) {
     H5Eset_auto(H5E_DEFAULT, err_handler, &m_logger);
 
     // Set the cleanup flag
@@ -1047,28 +1098,46 @@ bool TdbHdf5Connection::tblRowCount(const std::string & tbl, size_type & count) 
     };
 
     if (!validateTableName(tbl))
-        return false;
+        return SHAREMIND_TDB_INVALID_ARGUMENT;
+
+    // Check if table exists
+    {
+        bool exists = false;
+        const SharemindTdbError ecode = tblExists(tbl, exists);
+        if (ecode != SHAREMIND_TDB_OK)
+            return ecode;
+
+        if (!exists) {
+            m_logger.error() << "Table \"" << tbl << "\" does not exist.";
+            return SHAREMIND_TDB_TABLE_NOT_FOUND;
+        }
+    }
 
     // Open the table file
     const hid_t fileId = openTableFile(tbl);
     if (fileId < 0) {
         m_logger.error() << "Failed to open table file.";
-        return false;
+        return SHAREMIND_TDB_IO_ERROR;
     }
 
     // Read row meta info
     hsize_t nrows = 0;
-    if (!getRowCount(fileId, nrows))
-        return false;
+    {
+        const SharemindTdbError ecode = getRowCount(fileId, nrows);
+        if (ecode != SHAREMIND_TDB_OK)
+            return ecode;
+    }
 
     count = nrows;
 
     success = true;
 
-    return true;
+    return SHAREMIND_TDB_OK;
 }
 
-bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std::vector<SharemindTdbValue *> > & valuesBatch) {
+SharemindTdbError TdbHdf5Connection::insertRow(const std::string & tbl,
+        const std::vector<std::vector<SharemindTdbValue *> > & valuesBatch)
+{
     H5Eset_auto(H5E_DEFAULT, err_handler, &m_logger);
 
     // Set the cleanup flag
@@ -1081,14 +1150,14 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
 
     if (valuesBatch.empty()) {
         m_logger.error() << "No values given.";
-        return false;
+        return SHAREMIND_TDB_INVALID_ARGUMENT;
     }
 
     size_t batchCount = valuesBatch.size();
 
     // Do some simple checks on the parameters
     if (!validateTableName(tbl))
-        return false;
+        return SHAREMIND_TDB_INVALID_ARGUMENT;
 
     typedef std::vector<std::vector<SharemindTdbValue *> > ValuesBatchVector;
     {
@@ -1096,11 +1165,24 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
         for (it = valuesBatch.begin(); it != valuesBatch.end(); ++it) {
             if (it->empty()) {
                 m_logger.error() << "Empty batch of values given.";
-                return false;
+                return SHAREMIND_TDB_INVALID_ARGUMENT;
             }
 
             if (!validateValues(*it))
-                return false;
+                return SHAREMIND_TDB_INVALID_ARGUMENT;
+        }
+    }
+
+    // Check if table exists
+    {
+        bool exists = false;
+        const SharemindTdbError ecode = tblExists(tbl, exists);
+        if (ecode != SHAREMIND_TDB_OK)
+            return ecode;
+
+        if (!exists) {
+            m_logger.error() << "Table \"" << tbl << "\" does not exist.";
+            return SHAREMIND_TDB_TABLE_NOT_FOUND;
         }
     }
 
@@ -1108,18 +1190,24 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
     const hid_t fileId = openTableFile(tbl);
     if (fileId < 0) {
         m_logger.error() << "Failed to open table file.";
-        return false;
+        return SHAREMIND_TDB_IO_ERROR;
     }
 
     // Get table row count
     hsize_t rowCount = 0;
-    if (!getRowCount(fileId, rowCount))
-        return false;
+    {
+        const SharemindTdbError ecode = getRowCount(fileId, rowCount);
+        if (ecode != SHAREMIND_TDB_OK)
+            return ecode;
+    }
 
     // Get table column count
     hsize_t colCount = 0;
-    if (!getColumnCount(fileId, colCount))
-        return false;
+    {
+        const SharemindTdbError ecode = getColumnCount(fileId, colCount);
+        if (ecode != SHAREMIND_TDB_OK)
+            return ecode;
+    }
 
     // Get column types
     typedef std::map<hobj_ref_t, std::pair<SharemindTdbType *, hid_t> > RefTypeMap;
@@ -1150,7 +1238,7 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
         const hid_t tId = H5Tcreate(H5T_COMPOUND, sizeof(hobj_ref_t));
         if (tId < 0) {
             m_logger.error() << "Failed to create column meta info type.";
-            return false;
+            return SHAREMIND_TDB_GENERAL_ERROR;
         }
 
         BOOST_SCOPE_EXIT_ALL(this, tId) {
@@ -1160,14 +1248,14 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
 
         if (H5Tinsert(tId, "dataset_ref", 0, H5T_STD_REF_OBJ) < 0) {
             m_logger.error() << "Failed to create column meta info type.";
-            return false;
+            return SHAREMIND_TDB_GENERAL_ERROR;
         }
 
         // Open the column meta info dataset
         const hid_t dId = H5Dopen(fileId, COL_INDEX_DATASET, H5P_DEFAULT);
         if (dId < 0) {
             m_logger.fullDebug() << "Failed to open column meta info dataset.";
-            return false;
+            return SHAREMIND_TDB_GENERAL_ERROR;
         }
 
         BOOST_SCOPE_EXIT_ALL(this, dId) {
@@ -1179,7 +1267,7 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
         hobj_ref_t * dsetRefs = new hobj_ref_t[colCount];
         if (H5Dread(dId, tId, H5S_ALL, H5S_ALL, H5P_DEFAULT, dsetRefs) < 0) {
             m_logger.fullDebug() << "Failed to read column meta info dataset.";
-            return false;
+            return SHAREMIND_TDB_IO_ERROR;
         }
 
         BOOST_SCOPE_EXIT_ALL(&dsetRefs) {
@@ -1194,10 +1282,11 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
 
                 // Read the type attribute
                 SharemindTdbType * const type = new SharemindTdbType;
-                if (!objRefToType(fileId, dsetRefs[i], aId, *type)) {
+                const SharemindTdbError ecode = objRefToType(fileId, dsetRefs[i], aId, *type);
+                if (ecode != SHAREMIND_TDB_OK) {
                     m_logger.error() << "Failed to get type info from dataset reference.";
                     delete type;
-                    return false;
+                    return ecode;
                 }
 
                 const bool r = refTypes.insert(RefTypeMap::value_type(dsetRefs[i], RefTypeMap::mapped_type(type, aId))).second;
@@ -1236,7 +1325,7 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
                 TypeCountMap::const_iterator tIt = typeCounts.find(type);
                 if (tIt == typeCounts.end()) {
                     m_logger.error() << "Given values do not match the table schema.";
-                    return false;
+                    return SHAREMIND_TDB_INVALID_ARGUMENT;
                 }
 
                 if (isVariableLengthType(type)) {
@@ -1246,7 +1335,7 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
                 } else {
                     if (type->size != tIt->first->size) {
                         m_logger.error() << "Given values do not match the table schema.";
-                        return false;
+                        return SHAREMIND_TDB_INVALID_ARGUMENT;
                     }
 
                     assert(val->size % type->size == 0);
@@ -1261,7 +1350,7 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
         // Check if we have values for all the columns
         if (batchColCount != colCount) {
             m_logger.error() << "Given number of values differs from the number of columns.";
-            return false;
+            return SHAREMIND_TDB_INVALID_ARGUMENT;
         }
 
         // Check the if we have the correct number of values for each type
@@ -1277,7 +1366,7 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
                 if (count != tIt->second) {
                     m_logger.error() << "Invalid number of values for type \""
                         << type->domain << "::" << type->name << "\".";
-                    return false;
+                    return SHAREMIND_TDB_INVALID_ARGUMENT;
                 }
             }
         }
@@ -1339,7 +1428,7 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
             const hid_t oId = H5Rdereference(fileId, H5R_OBJECT, &dsetRef);
             if (oId < 0) {
                 m_logger.error() << "Failed to get dataset from dataset reference.";
-                return false;
+                return SHAREMIND_TDB_GENERAL_ERROR;
             }
 
             BOOST_SCOPE_EXIT_ALL(this, oId) {
@@ -1351,7 +1440,7 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
             const hid_t tId = H5Dget_type(oId);
             if (tId < 0) {
                 m_logger.error() << "Failed to get dataset type for type \"" << type->domain << "::" << type->name << "\".";
-                return false;
+                return SHAREMIND_TDB_GENERAL_ERROR;
             }
 
             BOOST_SCOPE_EXIT_ALL(this, tId) {
@@ -1364,7 +1453,7 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
             const hid_t mSId = H5Screate_simple(2, mDims, nullptr);
             if (mSId < 0) {
                 m_logger.error() << "Failed to create memory data space for type \"" << type->domain << "::" << type->name << "\".";
-                return false;
+                return SHAREMIND_TDB_GENERAL_ERROR;
             }
 
             BOOST_SCOPE_EXIT_ALL(this, mSId) {
@@ -1376,7 +1465,7 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
             const hsize_t dims[] = { rowCount + batchCount, dsetCols };
             if (H5Dset_extent(oId, dims) < 0) {
                 m_logger.error() << "Failed to extend dataset for type \"" << type->domain << "::" << type->name << "\".";
-                return false;
+                return SHAREMIND_TDB_GENERAL_ERROR;
             }
 
             // Register this dataset for cleanup
@@ -1386,7 +1475,7 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
             const hid_t sId = H5Dget_space(oId);
             if (tId < 0) {
                 m_logger.error() << "Failed to get dataset data space for type \"" << type->domain << "::" << type->name << "\".";
-                return false;
+                return SHAREMIND_TDB_GENERAL_ERROR;
             }
 
             BOOST_SCOPE_EXIT_ALL(this, sId) {
@@ -1399,7 +1488,7 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
             const hsize_t count[] = { batchCount, dsetCols };
             if (H5Sselect_hyperslab(sId, H5S_SELECT_SET, start, nullptr, count, nullptr) < 0) {
                 m_logger.error() << "Failed to do selection in data space for type \"" << type->domain << "::" << type->name << "\".";
-                return false;
+                return SHAREMIND_TDB_GENERAL_ERROR;
             }
 
             // Serialize the values
@@ -1456,15 +1545,16 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
             if (H5Dwrite(oId, tId, mSId, sId, H5P_DEFAULT, buffer) < 0) {
                 m_logger.error() << "Failed to write values for type \""
                     << type->domain << "::" << type->name << "\".";
-                return false;
+                return SHAREMIND_TDB_IO_ERROR;
             }
         }
     }
 
     // Update row count
-    if (!setRowCount(fileId, rowCount + batchCount)) {
-        m_logger.error() << "Failed to update row count.";
-        return false;
+    {
+        const SharemindTdbError ecode = setRowCount(fileId, rowCount + batchCount);
+        if (ecode != SHAREMIND_TDB_OK)
+            return ecode;
     }
 
     // Flush the buffers to reduce the chance of file corruption
@@ -1473,10 +1563,13 @@ bool TdbHdf5Connection::insertRow(const std::string & tbl, const std::vector<std
 
     success = true;
 
-    return true;
+    return SHAREMIND_TDB_OK;
 }
 
-bool TdbHdf5Connection::readColumn(const std::string & tbl, const std::vector<SharemindTdbString *> & colIdBatch, std::vector<std::vector<SharemindTdbValue *> > & valuesBatch) {
+SharemindTdbError TdbHdf5Connection::readColumn(const std::string & tbl,
+        const std::vector<SharemindTdbString *> & colIdBatch,
+        std::vector<std::vector<SharemindTdbValue *> > & valuesBatch)
+{
     H5Eset_auto(H5E_DEFAULT, err_handler, &m_logger);
 
     // Set the cleanup flag
@@ -1489,23 +1582,36 @@ bool TdbHdf5Connection::readColumn(const std::string & tbl, const std::vector<Sh
 
     if (colIdBatch.empty()) {
         m_logger.error() << "Empty batch of parameters given.";
-        return false;
+        return SHAREMIND_TDB_INVALID_ARGUMENT;
     }
 
     // Do some simple checks on the parameters
     if (!validateTableName(tbl))
-        return false;
+        return SHAREMIND_TDB_INVALID_ARGUMENT;
+
+    // Check if table exists
+    {
+        bool exists = false;
+        const SharemindTdbError ecode = tblExists(tbl, exists);
+        if (ecode != SHAREMIND_TDB_OK)
+            return ecode;
+
+        if (!exists) {
+            m_logger.error() << "Table \"" << tbl << "\" does not exist.";
+            return SHAREMIND_TDB_TABLE_NOT_FOUND;
+        }
+    }
 
     // Open the table file
     const hid_t fileId = openTableFile(tbl);
     if (fileId < 0) {
         m_logger.error() << "Failed to open table file.";
-        return false;
+        return SHAREMIND_TDB_IO_ERROR;
     }
 
     // Check the column names
     if (!validateColumnNames(colIdBatch))
-        return false;
+        return SHAREMIND_TDB_INVALID_ARGUMENT;
 
     // Check for duplicates
     {
@@ -1515,15 +1621,18 @@ bool TdbHdf5Connection::readColumn(const std::string & tbl, const std::vector<Sh
         for (it = colIdBatch.begin(); it != colIdBatch.end(); ++it) {
             if (!colIdSet.insert(*it).second) {
                 m_logger.error() << "Duplicate column names given.";
-                return false;
+                return SHAREMIND_TDB_INVALID_ARGUMENT;
             }
         }
     }
 
     // Get the table column names
     std::vector<SharemindTdbString *> colNames;
-    if (!tblColNames(tbl, colNames))
-        return false;
+    {
+        const SharemindTdbError ecode = tblColNames(tbl, colNames);
+        if (ecode != SHAREMIND_TDB_OK)
+            return ecode;
+    }
 
     BOOST_SCOPE_EXIT_ALL(&colNames) {
         std::vector<SharemindTdbString *>::iterator it;
@@ -1557,22 +1666,28 @@ bool TdbHdf5Connection::readColumn(const std::string & tbl, const std::vector<Sh
             ColNamesMap::const_iterator nIt = colNamesMap.find(*it);
             if (nIt == colNamesMap.end()) {
                 m_logger.error() << "Table \"" << tbl << "\" does not contain column \"" << (*it)->str << "\".";
-                return false;
+                return SHAREMIND_TDB_INVALID_ARGUMENT;
             }
 
             colNrBatch.push_back(SharemindTdbIndex_new(nIt->second));
         }
     }
 
-    if (!readColumn(fileId, colNrBatch, valuesBatch))
-        return false;
+    {
+        const SharemindTdbError ecode = readColumn(fileId, colNrBatch, valuesBatch);
+        if (ecode != SHAREMIND_TDB_OK)
+            return ecode;
+    }
 
     success = true;
 
-    return true;
+    return SHAREMIND_TDB_OK;
 }
 
-bool TdbHdf5Connection::readColumn(const std::string & tbl, const std::vector<SharemindTdbIndex *> & colIdBatch, std::vector<std::vector<SharemindTdbValue *> > & valuesBatch) {
+SharemindTdbError TdbHdf5Connection::readColumn(const std::string & tbl,
+        const std::vector<SharemindTdbIndex *> & colIdBatch,
+        std::vector<std::vector<SharemindTdbValue *> > & valuesBatch)
+{
     H5Eset_auto(H5E_DEFAULT, err_handler, &m_logger);
 
     // Set the cleanup flag
@@ -1585,24 +1700,40 @@ bool TdbHdf5Connection::readColumn(const std::string & tbl, const std::vector<Sh
 
     if (colIdBatch.empty()) {
         m_logger.error() << "Empty batch of parameters given.";
-        return false;
+        return SHAREMIND_TDB_INVALID_ARGUMENT;
     }
 
     // Do some simple checks on the parameters
     if (!validateTableName(tbl))
-        return false;
+        return SHAREMIND_TDB_INVALID_ARGUMENT;
+
+    // Check if table exists
+    {
+        bool exists = false;
+        const SharemindTdbError ecode = tblExists(tbl, exists);
+        if (ecode != SHAREMIND_TDB_OK)
+            return ecode;
+
+        if (!exists) {
+            m_logger.error() << "Table \"" << tbl << "\" does not exist.";
+            return SHAREMIND_TDB_TABLE_NOT_FOUND;
+        }
+    }
 
     // Open the table file
     const hid_t fileId = openTableFile(tbl);
     if (fileId < 0) {
         m_logger.error() << "Failed to open table file.";
-        return false;
+        return SHAREMIND_TDB_IO_ERROR;
     }
 
     // Get table column count
     hsize_t colCount = 0;
-    if (!getColumnCount(fileId, colCount))
-        return false;
+    {
+        const SharemindTdbError ecode = getColumnCount(fileId, colCount);
+        if (ecode != SHAREMIND_TDB_OK)
+            return ecode;
+    }
 
     // Check if column numbers are valid
     {
@@ -1614,21 +1745,24 @@ bool TdbHdf5Connection::readColumn(const std::string & tbl, const std::vector<Sh
 
             if (colId->idx >= colCount) {
                 m_logger.error() << "Column number out of range.";
-                return false;
+                return SHAREMIND_TDB_INVALID_ARGUMENT;
             }
             if (!uniqueColumns.insert(colId->idx).second) {
                 m_logger.error() << "Duplicate column numbers given.";
-                return false;
+                return SHAREMIND_TDB_INVALID_ARGUMENT;
             }
         }
     }
 
-    if (!readColumn(fileId, colIdBatch, valuesBatch))
-        return false;
+    {
+        const SharemindTdbError ecode = readColumn(fileId, colIdBatch, valuesBatch);
+        if (ecode != SHAREMIND_TDB_OK)
+            return ecode;
+    }
 
     success = true;
 
-    return true;
+    return SHAREMIND_TDB_OK;
 }
 
 bool TdbHdf5Connection::isVariableLengthType(SharemindTdbType * const type) {
@@ -1732,7 +1866,7 @@ boost::filesystem::path TdbHdf5Connection::nameToPath(const std::string & tbl) {
     return p;
 }
 
-bool TdbHdf5Connection::readColumn(const hid_t fileId,
+SharemindTdbError TdbHdf5Connection::readColumn(const hid_t fileId,
                                    const std::vector<SharemindTdbIndex *> & colNrBatch,
                                    std::vector<std::vector<SharemindTdbValue *> > & valuesBatch)
 {
@@ -1741,8 +1875,11 @@ bool TdbHdf5Connection::readColumn(const hid_t fileId,
 
     // Get table row count
     hsize_t rowCount = 0;
-    if (!getRowCount(fileId, rowCount))
-        return false;
+    {
+        const SharemindTdbError ecode = getRowCount(fileId, rowCount);
+        if (ecode != SHAREMIND_TDB_OK)
+            return ecode;
+    }
 
     // Declare a partial column index type
     struct PartialColumnIndex {
@@ -1758,7 +1895,7 @@ bool TdbHdf5Connection::readColumn(const hid_t fileId,
         const hid_t tId = H5Tcreate(H5T_COMPOUND, sizeof(PartialColumnIndex));
         if (tId < 0) {
             m_logger.error() << "Failed to create column meta info type.";
-            return false;
+            return SHAREMIND_TDB_GENERAL_ERROR;
         }
 
         BOOST_SCOPE_EXIT_ALL(this, tId) {
@@ -1768,12 +1905,12 @@ bool TdbHdf5Connection::readColumn(const hid_t fileId,
 
         if (H5Tinsert(tId, "dataset_ref", HOFFSET(PartialColumnIndex, dataset_ref), H5T_STD_REF_OBJ) < 0) {
             m_logger.error() << "Failed to create column meta info type.";
-            return false;
+            return SHAREMIND_TDB_GENERAL_ERROR;
         }
 
         if (H5Tinsert(tId, "dataset_column", HOFFSET(PartialColumnIndex, dataset_column), H5T_NATIVE_HSIZE) < 0) {
             m_logger.error() << "Failed to create column meta info type.";
-            return false;
+            return SHAREMIND_TDB_GENERAL_ERROR;
         }
 
         // Create a simple memory data space
@@ -1781,7 +1918,7 @@ bool TdbHdf5Connection::readColumn(const hid_t fileId,
         const hid_t mSId = H5Screate_simple(1, &mDims, nullptr);
         if (mSId < 0) {
             m_logger.error() << "Failed to create column meta info memory data space.";
-            return false;
+            return SHAREMIND_TDB_GENERAL_ERROR;
         }
 
         BOOST_SCOPE_EXIT_ALL(this, mSId) {
@@ -1793,7 +1930,7 @@ bool TdbHdf5Connection::readColumn(const hid_t fileId,
         const hid_t dId = H5Dopen(fileId, COL_INDEX_DATASET, H5P_DEFAULT);
         if (dId < 0) {
             m_logger.error() << "Failed to open column meta info dataset.";
-            return false;
+            return SHAREMIND_TDB_GENERAL_ERROR;
         }
 
         BOOST_SCOPE_EXIT_ALL(this, dId) {
@@ -1805,7 +1942,7 @@ bool TdbHdf5Connection::readColumn(const hid_t fileId,
         const hid_t sId = H5Dget_space(dId);
         if (sId < 0) {
             m_logger.error() << "Failed to get column meta info data space.";
-            return false;
+            return SHAREMIND_TDB_GENERAL_ERROR;
         }
 
         BOOST_SCOPE_EXIT_ALL(this, sId) {
@@ -1824,7 +1961,7 @@ bool TdbHdf5Connection::readColumn(const hid_t fileId,
 
         if (H5Sselect_elements(sId, H5S_SELECT_SET, coords.size(), &coords.front()) < 0) {
             m_logger.error() << "Failed to do selection in column meta info data space.";
-            return false;
+            return SHAREMIND_TDB_GENERAL_ERROR;
         }
 
         indices.resize(colNrBatch.size());
@@ -1832,7 +1969,7 @@ bool TdbHdf5Connection::readColumn(const hid_t fileId,
         // Read column meta info from the dataset
         if (H5Dread(dId, tId, mSId, sId, H5P_DEFAULT, &indices.front()) < 0) {
             m_logger.error() << "Failed to read column meta info dataset.";
-            return false;
+            return SHAREMIND_TDB_IO_ERROR;
         }
     }
 
@@ -1867,17 +2004,18 @@ bool TdbHdf5Connection::readColumn(const hid_t fileId,
     {
         DatasetBatchMap::iterator it;
         for (it = dsetBatch.begin(); it != dsetBatch.end(); ++it) {
-            if (!readDatasetColumn(fileId, it->first, it->second))
-                return false;
+            const SharemindTdbError ecode = readDatasetColumn(fileId, it->first, it->second);
+            if (ecode != SHAREMIND_TDB_OK)
+                return ecode;
         }
     }
 
     success = true;
 
-    return true;
+    return SHAREMIND_TDB_OK;
 }
 
-bool TdbHdf5Connection::readDatasetColumn(const hid_t fileId, const hobj_ref_t ref,
+SharemindTdbError TdbHdf5Connection::readDatasetColumn(const hid_t fileId, const hobj_ref_t ref,
         const std::vector<std::pair<hsize_t, std::vector<SharemindTdbValue *> *> > & paramBatch) {
     typedef std::vector<std::pair<hsize_t, std::vector<SharemindTdbValue *> *> > ParamBatchVector;
     assert(paramBatch.size());
@@ -1886,7 +2024,7 @@ bool TdbHdf5Connection::readDatasetColumn(const hid_t fileId, const hobj_ref_t r
     const hid_t oId = H5Rdereference(fileId, H5R_OBJECT, &ref);
     if (oId < 0) {
         m_logger.error() << "Failed to dereference object.";
-        return false;
+        return SHAREMIND_TDB_GENERAL_ERROR;
     }
 
     BOOST_SCOPE_EXIT_ALL(this, oId) {
@@ -1898,19 +2036,19 @@ bool TdbHdf5Connection::readDatasetColumn(const hid_t fileId, const hobj_ref_t r
     H5O_type_t rType = H5O_TYPE_UNKNOWN;
     if (H5Rget_obj_type(oId, H5R_OBJECT, &ref, &rType) < 0) {
         m_logger.error() << "Failed to get reference object type.";
-        return false;
+        return SHAREMIND_TDB_GENERAL_ERROR;
     }
 
     if (rType != H5O_TYPE_DATASET) {
         m_logger.error() << "Invalid dataset reference object.";
-        return false;
+        return SHAREMIND_TDB_GENERAL_ERROR;
     }
 
     // Get data space
     const hid_t sId = H5Dget_space(oId);
     if (sId < 0) {
         m_logger.error() << "Failed to get dataset data space.";
-        return false;
+        return SHAREMIND_TDB_GENERAL_ERROR;
     }
 
     BOOST_SCOPE_EXIT_ALL(this, sId) {
@@ -1922,20 +2060,20 @@ bool TdbHdf5Connection::readDatasetColumn(const hid_t fileId, const hobj_ref_t r
     const int rank = H5Sget_simple_extent_ndims(sId);
     if (rank < 0) {
         m_logger.error() << "Failed to get dataset data space rank.";
-        return false;
+        return SHAREMIND_TDB_GENERAL_ERROR;
     }
 
     // Check data space rank
     if (rank != 2) {
         m_logger.error() << "Invalid rank for dataset data space.";
-        return false;
+        return SHAREMIND_TDB_GENERAL_ERROR;
     }
 
     // Get size of data space
     hsize_t dims[2];
     if (H5Sget_simple_extent_dims(sId, dims, nullptr) < 0) {
         m_logger.error() << "Failed to get dataset data space size.";
-        return false;
+        return SHAREMIND_TDB_GENERAL_ERROR;
     }
 
     // TODO check dims[0] against row count attribute?
@@ -1946,7 +2084,7 @@ bool TdbHdf5Connection::readDatasetColumn(const hid_t fileId, const hobj_ref_t r
         for (it = paramBatch.begin(); it != paramBatch.end(); ++it) {
             if (it->first >= dims[1]) {
                 m_logger.error() << "Invalid dataset column number: out of range.";
-                return false;
+                return SHAREMIND_TDB_INVALID_ARGUMENT;
             }
         }
     }
@@ -1955,7 +2093,7 @@ bool TdbHdf5Connection::readDatasetColumn(const hid_t fileId, const hobj_ref_t r
     const hid_t aId = H5Aopen(oId, DATASET_TYPE_ATTR, H5P_DEFAULT);
     if (aId < 0) {
         m_logger.error() << "Failed to open dataset type attribute.";
-        return false;
+        return SHAREMIND_TDB_GENERAL_ERROR;
     }
 
     BOOST_SCOPE_EXIT_ALL(this, aId) {
@@ -1967,7 +2105,7 @@ bool TdbHdf5Connection::readDatasetColumn(const hid_t fileId, const hobj_ref_t r
     const hid_t aTId = H5Aget_type(aId);
     if (aTId < 0) {
         m_logger.error() << "Failed to get dataset type attribute type.";
-        return false;
+        return SHAREMIND_TDB_GENERAL_ERROR;
     }
 
     BOOST_SCOPE_EXIT_ALL(this, aTId) {
@@ -1978,7 +2116,7 @@ bool TdbHdf5Connection::readDatasetColumn(const hid_t fileId, const hobj_ref_t r
     const hid_t aSId = H5Aget_space(aId);
     if (aSId < 0) {
         m_logger.error() << "Failed to get dataset type attribute data space.";
-        return false;
+        return SHAREMIND_TDB_GENERAL_ERROR;
     }
 
     BOOST_SCOPE_EXIT_ALL(this, aSId) {
@@ -1991,7 +2129,7 @@ bool TdbHdf5Connection::readDatasetColumn(const hid_t fileId, const hobj_ref_t r
     if (H5Aread(aId, aTId, type) < 0) {
         m_logger.error() << "Failed to read dataset type attribute.";
         delete type;
-        return false;
+        return SHAREMIND_TDB_IO_ERROR;
     }
 
     BOOST_SCOPE_EXIT_ALL(this, aTId, aSId, type) {
@@ -2027,14 +2165,14 @@ bool TdbHdf5Connection::readDatasetColumn(const hid_t fileId, const hobj_ref_t r
                 const hsize_t count[] = { dims[0], 1 };
                 if (H5Sselect_hyperslab(sId, H5S_SELECT_SET, start, nullptr, count, nullptr) < 0) {
                     m_logger.error() << "Failed to do selection in dataset data space.";
-                    return false;
+                    return SHAREMIND_TDB_GENERAL_ERROR;
                 }
 
                 // Get dataset type
                 const hid_t tId = H5Dget_type(oId);
                 if (tId < 0) {
                     m_logger.error() << "Failed to get dataset type.";
-                    return false;
+                    return SHAREMIND_TDB_GENERAL_ERROR;
                 }
 
                 BOOST_SCOPE_EXIT_ALL(this, tId) {
@@ -2047,7 +2185,7 @@ bool TdbHdf5Connection::readDatasetColumn(const hid_t fileId, const hobj_ref_t r
                 const hid_t mSId = H5Screate_simple(2, mDims, nullptr);
                 if (mSId < 0) {
                     m_logger.error() << "Failed to create memory data space for column data.";
-                    return false;
+                    return SHAREMIND_TDB_GENERAL_ERROR;
                 }
 
                 BOOST_SCOPE_EXIT_ALL(this, mSId) {
@@ -2058,7 +2196,7 @@ bool TdbHdf5Connection::readDatasetColumn(const hid_t fileId, const hobj_ref_t r
                 // Read the dataset data
                 if (H5Dread(oId, tId, mSId, sId, H5P_DEFAULT, buffer) < 0) {
                     m_logger.error() << "Failed to read the dataset.";
-                    return false;
+                    return SHAREMIND_TDB_IO_ERROR;
                 }
 
                 if (isVariableLengthType(type)) {
@@ -2093,15 +2231,15 @@ bool TdbHdf5Connection::readDatasetColumn(const hid_t fileId, const hobj_ref_t r
         }
     }
 
-    return true;
+    return SHAREMIND_TDB_OK;
 }
 
-bool TdbHdf5Connection::objRefToType(const hid_t fileId, const hobj_ref_t ref, hid_t & aId, SharemindTdbType & type) {
+SharemindTdbError TdbHdf5Connection::objRefToType(const hid_t fileId, const hobj_ref_t ref, hid_t & aId, SharemindTdbType & type) {
     // Get the dataset from the reference
     const hid_t oId = H5Rdereference(fileId, H5R_OBJECT, &ref);
     if (oId < 0) {
         m_logger.error() << "Failed to dereference object.";
-        return false;
+        return SHAREMIND_TDB_GENERAL_ERROR;
     }
 
     BOOST_SCOPE_EXIT_ALL(this, oId) {
@@ -2113,19 +2251,19 @@ bool TdbHdf5Connection::objRefToType(const hid_t fileId, const hobj_ref_t ref, h
     H5O_type_t rType = H5O_TYPE_UNKNOWN;
     if (H5Rget_obj_type(oId, H5R_OBJECT, &ref, &rType) < 0) {
         m_logger.error() << "Failed to get reference object type.";
-        return false;
+        return SHAREMIND_TDB_GENERAL_ERROR;
     }
 
     if (rType != H5O_TYPE_DATASET) {
         m_logger.error() << "Invalid dataset reference object.";
-        return false;
+        return SHAREMIND_TDB_GENERAL_ERROR;
     }
 
     // Open the type attribute
     aId = H5Aopen(oId, DATASET_TYPE_ATTR, H5P_DEFAULT);
     if (aId < 0) {
         m_logger.error() << "Failed to open dataset type attribute.";
-        return false;
+        return SHAREMIND_TDB_GENERAL_ERROR;
     }
 
     bool closeAttr = true;
@@ -2139,7 +2277,7 @@ bool TdbHdf5Connection::objRefToType(const hid_t fileId, const hobj_ref_t ref, h
     const hid_t aTId = H5Aget_type(aId);
     if (aTId < 0) {
         m_logger.error() << "Failed to get dataset type attribute type.";
-        return false;
+        return SHAREMIND_TDB_GENERAL_ERROR;
     }
 
     BOOST_SCOPE_EXIT_ALL(this, aTId) {
@@ -2150,12 +2288,12 @@ bool TdbHdf5Connection::objRefToType(const hid_t fileId, const hobj_ref_t ref, h
     // Read the type attribute
     if (H5Aread(aId, aTId, &type) < 0) {
         m_logger.error() << "Failed to read dataset type attribute type.";
-        return false;
+        return SHAREMIND_TDB_IO_ERROR;
     }
 
     closeAttr = false;
 
-    return true;
+    return SHAREMIND_TDB_OK;
 }
 
 bool TdbHdf5Connection::cleanupType(const hid_t aId, SharemindTdbType & type) {
@@ -2184,12 +2322,12 @@ bool TdbHdf5Connection::cleanupType(const hid_t aId, SharemindTdbType & type) {
     return true;
 }
 
-bool TdbHdf5Connection::getColumnCount(const hid_t fileId, hsize_t & ncols) {
+SharemindTdbError TdbHdf5Connection::getColumnCount(const hid_t fileId, hsize_t & ncols) {
     // Get dataset
     const hid_t dId = H5Dopen(fileId, COL_INDEX_DATASET, H5P_DEFAULT);
     if (dId < 0) {
         m_logger.error() << "Failed to open column meta info dataset.";
-        return false;
+        return SHAREMIND_TDB_GENERAL_ERROR;
     }
 
     BOOST_SCOPE_EXIT_ALL(this, dId) {
@@ -2201,7 +2339,7 @@ bool TdbHdf5Connection::getColumnCount(const hid_t fileId, hsize_t & ncols) {
     const hid_t sId = H5Dget_space(dId);
     if (sId < 0) {
         m_logger.error() << "Failed to open column meta info data space.";
-        return false;
+        return SHAREMIND_TDB_GENERAL_ERROR;
     }
 
     BOOST_SCOPE_EXIT_ALL(this, sId) {
@@ -2213,30 +2351,30 @@ bool TdbHdf5Connection::getColumnCount(const hid_t fileId, hsize_t & ncols) {
     const int rank = H5Sget_simple_extent_ndims(sId);
     if (rank < 0) {
         m_logger.error() << "Failed to get column meta info data space rank.";
-        return false;
+        return SHAREMIND_TDB_GENERAL_ERROR;
     }
 
     // Check data space rank
     if (rank != 1) {
         m_logger.error() << "Invalid rank for column meta info data space.";
-        return false;
+        return SHAREMIND_TDB_GENERAL_ERROR;
     }
 
     // Get size of data space
     if (H5Sget_simple_extent_dims(sId, &ncols, nullptr) < 0) {
         m_logger.error() << "Failed to get column count from column meta info.";
-        return false;
+        return SHAREMIND_TDB_GENERAL_ERROR;
     }
 
-    return true;
+    return SHAREMIND_TDB_OK;
 }
 
-bool TdbHdf5Connection::getRowCount(const hid_t fileId, hsize_t & nrows) {
+SharemindTdbError TdbHdf5Connection::getRowCount(const hid_t fileId, hsize_t & nrows) {
     // Open meta info group
     const hid_t gId = H5Gopen(fileId, META_GROUP, H5P_DEFAULT);
     if (gId < 0) {
         m_logger.error() << "Failed to get row count: Failed to open meta info group.";
-        return false;
+        return SHAREMIND_TDB_GENERAL_ERROR;
     }
 
     BOOST_SCOPE_EXIT_ALL(this, gId) {
@@ -2248,7 +2386,7 @@ bool TdbHdf5Connection::getRowCount(const hid_t fileId, hsize_t & nrows) {
     const hid_t aId = H5Aopen(gId, ROW_COUNT_ATTR, H5P_DEFAULT);
     if (aId < 0) {
         m_logger.error() << "Failed to get row count: Failed to open row meta info attribute.";
-        return false;
+        return SHAREMIND_TDB_GENERAL_ERROR;
     }
 
     BOOST_SCOPE_EXIT_ALL(this, aId) {
@@ -2258,18 +2396,18 @@ bool TdbHdf5Connection::getRowCount(const hid_t fileId, hsize_t & nrows) {
 
     if (H5Aread(aId, H5T_NATIVE_HSIZE, &nrows) < 0) {
         m_logger.error() << "Failed to get row count: Failed to read row meta info attribute.";
-        return false;
+        return SHAREMIND_TDB_IO_ERROR;
     }
 
-    return true;
+    return SHAREMIND_TDB_OK;
 }
 
-bool TdbHdf5Connection::setRowCount(const hid_t fileId, const hsize_t nrows) {
+SharemindTdbError TdbHdf5Connection::setRowCount(const hid_t fileId, const hsize_t nrows) {
     // Open meta info group
     const hid_t gId = H5Gopen(fileId, META_GROUP, H5P_DEFAULT);
     if (gId < 0) {
         m_logger.error() << "Failed to set row count: Failed to open meta info group.";
-        return false;
+        return SHAREMIND_TDB_GENERAL_ERROR;
     }
 
     BOOST_SCOPE_EXIT_ALL(this, gId) {
@@ -2281,7 +2419,7 @@ bool TdbHdf5Connection::setRowCount(const hid_t fileId, const hsize_t nrows) {
     const hid_t aId = H5Aopen(gId, ROW_COUNT_ATTR, H5P_DEFAULT);
     if (aId < 0) {
         m_logger.error() << "Failed to set row count: Failed to open row meta info attribute.";
-        return false;
+        return SHAREMIND_TDB_GENERAL_ERROR;
     }
 
     BOOST_SCOPE_EXIT_ALL(this, aId) {
@@ -2292,10 +2430,10 @@ bool TdbHdf5Connection::setRowCount(const hid_t fileId, const hsize_t nrows) {
     // Write the new row count
     if (H5Awrite(aId, H5T_NATIVE_HSIZE, &nrows) < 0) {
         m_logger.error() << "Failed to set row count: Failed to write row count attribute.";
-        return false;
+        return SHAREMIND_TDB_IO_ERROR;
     }
 
-    return true;
+    return SHAREMIND_TDB_OK;
 }
 
 bool TdbHdf5Connection::closeTableFile(const std::string & tbl) {
