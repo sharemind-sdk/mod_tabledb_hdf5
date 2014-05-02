@@ -655,7 +655,10 @@ SharemindTdbError TdbHdf5Connection::tblCreate(const std::string & tbl,
         m_logger.fullDebug() << "Error while flushing buffers.";
 
     // Add the file handler to the map
-    const bool r = m_tableFiles.insert(TableFileMap::value_type(tbl, fileId)).second;
+    #ifndef NDEBUG
+    const bool r =
+    #endif
+            m_tableFiles.insert(TableFileMap::value_type(tbl, fileId)).second;
     assert(r);
 
     success = true;
@@ -1074,7 +1077,10 @@ SharemindTdbError TdbHdf5Connection::tblColTypes(const std::string & tbl, std::v
 
             types.push_back(SharemindTdbType_new(type->domain, type->name, type->size));
 
-            std::pair<TypesMap::iterator, bool> rv = typesMap.insert(std::pair<hobj_ref_t, SharemindTdbType *>(indices[i].dataset_ref, types.back()));
+            #ifndef NDEBUG
+            std::pair<TypesMap::iterator, bool> rv =
+            #endif
+                    typesMap.insert(std::pair<hobj_ref_t, SharemindTdbType *>(indices[i].dataset_ref, types.back()));
             assert(rv.second);
         } else {
             types.push_back(SharemindTdbType_new(it->second->domain, it->second->name, it->second->size));
@@ -1289,9 +1295,15 @@ SharemindTdbError TdbHdf5Connection::insertRow(const std::string & tbl,
                     return ecode;
                 }
 
-                const bool r = refTypes.insert(RefTypeMap::value_type(dsetRefs[i], RefTypeMap::mapped_type(type, aId))).second;
+                #ifndef NDEBUG
+                const bool r =
+                #endif
+                        refTypes.insert(RefTypeMap::value_type(dsetRefs[i], RefTypeMap::mapped_type(type, aId))).second;
                 assert(r);
-                const bool r2 = typeCounts.insert(TypeCountMap::value_type(type, 1)).second;
+                #ifndef NDEBUG
+                const bool r2 =
+                #endif
+                        typeCounts.insert(TypeCountMap::value_type(type, 1)).second;
                 assert(r2);
             } else {
                 SharemindTdbType * const type = it->second.first;
