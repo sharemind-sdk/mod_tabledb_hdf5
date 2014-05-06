@@ -205,10 +205,18 @@ bool TdbHdf5Module::openConnection(const SharemindModuleApi0x1SyscallContext * c
     if (!conn.get())
         return false;
 
-    return connections->set(connections,
-                            dsName.c_str(),
-                            new std::shared_ptr<TdbHdf5Connection>(conn),
-                            &destroy<std::shared_ptr<TdbHdf5Connection> >);
+    // Store the connection
+    std::shared_ptr<TdbHdf5Connection> * connPtr = new std::shared_ptr<TdbHdf5Connection>(conn);
+    if (!connections->set(connections,
+                          dsName.c_str(),
+                          connPtr,
+                          &destroy<std::shared_ptr<TdbHdf5Connection> >))
+    {
+        delete connPtr;
+        return false;
+    }
+
+    return true;
 }
 
 bool TdbHdf5Module::closeConnection(const SharemindModuleApi0x1SyscallContext * ctx,
