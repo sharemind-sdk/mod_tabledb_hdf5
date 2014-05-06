@@ -158,6 +158,23 @@ bool TdbHdf5Module::setErrorCode(const SharemindModuleApi0x1SyscallContext * ctx
 bool TdbHdf5Module::openConnection(const SharemindModuleApi0x1SyscallContext * ctx,
                                    const std::string & dsName)
 {
+    // Get connection store
+    SharemindDataStore * const connections = m_dataStoreManager.get_datastore(
+                                                 &m_dataStoreManager,
+                                                 ctx,
+                                                 "mod_tabledb_hdf5/connections");
+    if (!connections) {
+        m_logger.error() << "Failed to get process data store.";
+        return false;
+    }
+
+    // Check if we already have the connection
+    if (static_cast<std::shared_ptr<TdbHdf5Connection> *>(
+                connections->get(connections, dsName.c_str())))
+    {
+        return true;
+    }
+
     TdbHdf5ConnectionConf * cfg = nullptr;
 
     {
@@ -188,16 +205,6 @@ bool TdbHdf5Module::openConnection(const SharemindModuleApi0x1SyscallContext * c
         } else {
             cfg = it->second;
         }
-    }
-
-    // Get connection store
-    SharemindDataStore * const connections = m_dataStoreManager.get_datastore(
-                                                 &m_dataStoreManager,
-                                                 ctx,
-                                                 "mod_tabledb_hdf5/connections");
-    if (!connections) {
-        m_logger.error() << "Failed to get process data store.";
-        return false;
     }
 
     // Open the connection
