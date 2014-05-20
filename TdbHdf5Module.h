@@ -24,12 +24,12 @@
 #include <sharemind/mod_tabledb/tdberror.h>
 #include <sharemind/mod_tabledb/tdbvectormapapi.h>
 #include <string>
+#include "TdbHdf5ConnectionConf.h"
 
 
 namespace sharemind  {
 
 class TdbHdf5Connection;
-class TdbHdf5ConnectionConf;
 class TdbHdf5Manager;
 
 class TdbHdf5Transaction {
