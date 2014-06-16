@@ -21,7 +21,7 @@ namespace fs = boost::filesystem;
 namespace sharemind {
 
 TdbHdf5Manager::TdbHdf5Manager(ILogger & logger)
-    : m_logger(logger.wrap("[TdbHdf5Manager] "))
+    : m_logger(logger, "[TdbHdf5Manager]")
     , m_loggerRef(logger)
 {
     // Intentionally empty

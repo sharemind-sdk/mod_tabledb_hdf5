@@ -97,7 +97,7 @@ namespace sharemind {
 BOOST_STATIC_ASSERT(sizeof(TdbHdf5Connection::size_type) == sizeof(hsize_t));
 
 TdbHdf5Connection::TdbHdf5Connection(ILogger & logger, const fs::path & path)
-    : m_logger(logger.wrap("[TdbHdf5Connection] "))
+    : m_logger(logger, "[TdbHdf5Connection]")
     , m_path(path)
 {
     // TODO Needs some refactoring. It is getting unreadable.

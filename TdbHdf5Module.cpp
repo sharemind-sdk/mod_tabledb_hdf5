@@ -114,7 +114,7 @@ TdbHdf5Module::TdbHdf5Module(ILogger & logger,
                              SharemindTdbVectorMapUtil & mapUtil,
                              SharemindConsensusFacility & consensusService,
                              SharemindProcessFacility & processFacility)
-    : m_logger(logger.wrap("[TdbHdf5Module] "))
+    : m_logger(logger, "[TdbHdf5Module]")
     , m_dataStoreManager(dataStoreManager)
     , m_dataSourceManager(dataSourceManager)
     , m_mapUtil(mapUtil)
