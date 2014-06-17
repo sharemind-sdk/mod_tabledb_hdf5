@@ -12,7 +12,6 @@
 #include <sstream>
 #include <string>
 #include <boost/scope_exit.hpp>
-#include <sharemind/common/Logger/Debug.h>
 #include <sharemind/libmodapi/api_0x1.h>
 #include <sharemind/dbcommon/datasourceapi.h>
 #include <sharemind/miner/Facilities/datastoreapi.h>

@@ -17,7 +17,6 @@
 #include <boost/filesystem/path.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <sharemind/common/KeyValueCache.h>
-#include <sharemind/common/Logger/Debug.h>
 #include <sharemind/common/Logger/ILogger.h>
 
 

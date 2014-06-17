@@ -13,7 +13,6 @@
 #include <functional>
 #include <memory>
 #include <mutex>
-#include <sharemind/common/Logger/Debug.h>
 #include <sharemind/common/Logger/ILogger.h>
 #include <sharemind/common/ScopedObjectMap.h>
 #include <sharemind/dbcommon/datasourceapi.h>

@@ -14,7 +14,6 @@
 #include <H5Rpublic.h>
 #include <H5Ipublic.h>
 #include <map>
-#include <sharemind/common/Logger/Debug.h>
 #include <sharemind/common/Logger/ILogger.h>
 #include <sharemind/mod_tabledb/tdberror.h>
 #include <sharemind/mod_tabledb/tdbtypes.h>
