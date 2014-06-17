@@ -1357,7 +1357,8 @@ SHAREMIND_MODULE_API_0x1_DEINITIALIZER(c) {
     } catch (...) {
         const SharemindModuleApi0x1Facility * flog = c->getModuleFacility(c, "Logger");
         if (flog && flog->facility) {
-            sharemind::ILogger * logger = static_cast<sharemind::ILogger *>(flog->facility);
+            sharemind::ILogger::Wrapped * logger =
+                    static_cast<sharemind::ILogger::Wrapped *>(flog->facility);
             logger->warning() << "Exception was caught during \"mod_tabledb_hdf5\" module deinitialization";
         }
     }
