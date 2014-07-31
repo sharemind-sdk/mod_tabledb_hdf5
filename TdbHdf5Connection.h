@@ -14,7 +14,7 @@
 #include <H5Rpublic.h>
 #include <H5Ipublic.h>
 #include <map>
-#include <sharemind/common/Logger/ILogger.h>
+#include <sharemind/common/Logger/Logger.h>
 #include <sharemind/mod_tabledb/tdberror.h>
 #include <sharemind/mod_tabledb/tdbtypes.h>
 #include <string>
@@ -69,7 +69,8 @@ private: /* Types: */
 
 public: /* Methods: */
 
-    TdbHdf5Connection(ILogger & logger, const boost::filesystem::path & path);
+    TdbHdf5Connection(const Logger & logger,
+                      const boost::filesystem::path & path);
     ~TdbHdf5Connection();
 
     /*
@@ -146,7 +147,7 @@ private: /* Methods: */
 
 private: /* Fields: */
 
-    mutable ILogger::Wrapped m_logger;
+    const Logger m_logger;
 
     boost::filesystem::path m_path;
 

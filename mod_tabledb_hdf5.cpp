@@ -1324,7 +1324,8 @@ SHAREMIND_MODULE_API_0x1_INITIALIZER(c) {
     if (!fprocess || !fprocess->facility)
         return SHAREMIND_MODULE_API_0x1_MISSING_FACILITY;
 
-    sharemind::ILogger * logger = static_cast<sharemind::ILogger *>(flog->facility);
+    const sharemind::Logger & logger =
+            *static_cast<const sharemind::Logger *>(flog->facility);
     SharemindDataStoreManager * dataStoreManager = static_cast<SharemindDataStoreManager *>(fstorem->facility);
     SharemindDataSourceManager * dataSourceManager = static_cast<SharemindDataSourceManager *>(fsourcem->facility);
     SharemindTdbVectorMapUtil * mapUtil = static_cast<SharemindTdbVectorMapUtil *>(fvmaputil->facility);
@@ -1337,7 +1338,7 @@ SHAREMIND_MODULE_API_0x1_INITIALIZER(c) {
      * Initialize the module handle
      */
     try {
-        c->moduleHandle = new sharemind::TdbHdf5Module(*logger, *dataStoreManager, *dataSourceManager, *mapUtil, *consensusService, *processFacility);
+        c->moduleHandle = new sharemind::TdbHdf5Module(logger, *dataStoreManager, *dataSourceManager, *mapUtil, *consensusService, *processFacility);
 
         return SHAREMIND_MODULE_API_0x1_OK;
     } catch (const std::bad_alloc &) {
@@ -1357,9 +1358,9 @@ SHAREMIND_MODULE_API_0x1_DEINITIALIZER(c) {
     } catch (...) {
         const SharemindModuleApi0x1Facility * flog = c->getModuleFacility(c, "Logger");
         if (flog && flog->facility) {
-            sharemind::ILogger::Wrapped * logger =
-                    static_cast<sharemind::ILogger::Wrapped *>(flog->facility);
-            logger->warning() << "Exception was caught during \"mod_tabledb_hdf5\" module deinitialization";
+            const sharemind::Logger & logger =
+                    *static_cast<const sharemind::Logger *>(flog->facility);
+            logger.warning() << "Exception was caught during \"mod_tabledb_hdf5\" module deinitialization";
         }
     }
 

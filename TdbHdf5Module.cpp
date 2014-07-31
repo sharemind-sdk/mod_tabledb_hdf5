@@ -108,7 +108,7 @@ SharemindOperationType databaseOperation = {
 
 } /* namespace { */
 
-TdbHdf5Module::TdbHdf5Module(ILogger & logger,
+TdbHdf5Module::TdbHdf5Module(const Logger & logger,
                              SharemindDataStoreManager & dataStoreManager,
                              SharemindDataSourceManager & dataSourceManager,
                              SharemindTdbVectorMapUtil & mapUtil,

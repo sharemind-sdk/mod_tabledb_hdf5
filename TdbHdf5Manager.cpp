@@ -20,13 +20,6 @@ namespace fs = boost::filesystem;
 
 namespace sharemind {
 
-TdbHdf5Manager::TdbHdf5Manager(ILogger & logger)
-    : m_logger(logger, "[TdbHdf5Manager]")
-    , m_loggerRef(logger)
-{
-    // Intentionally empty
-}
-
 std::shared_ptr<TdbHdf5Connection> TdbHdf5Manager::openConnection(const TdbHdf5ConnectionConf & config) {
     // Get the canonical path for the connection
     // TODO workaround for older boost filesystem versions?
@@ -70,7 +63,7 @@ std::shared_ptr<TdbHdf5Connection> TdbHdf5Manager::openConnection(const TdbHdf5C
 
 TdbHdf5Connection * TdbHdf5Manager::alloc(const boost::filesystem::path & key) const {
     try {
-        return new TdbHdf5Connection(m_loggerRef, key);
+        return new TdbHdf5Connection(m_previousLogger, key);
     } catch (...) {
         return nullptr;
     }

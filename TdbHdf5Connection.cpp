@@ -44,7 +44,8 @@ static herr_t err_walk_cb(unsigned n, const H5E_error_t * err_desc, void * clien
     assert(err_desc);
     assert(client_data);
 
-    sharemind::ILogger::Wrapped * logger = static_cast<sharemind::ILogger::Wrapped *>(client_data);
+    const sharemind::Logger & logger =
+            *static_cast<const sharemind::Logger *>(client_data);
 
     char maj_msg[ERR_MSG_SIZE_MAX];
     if (H5Eget_msg(err_desc->maj_num, nullptr, maj_msg, ERR_MSG_SIZE_MAX) < 0)
@@ -54,7 +55,8 @@ static herr_t err_walk_cb(unsigned n, const H5E_error_t * err_desc, void * clien
     if (H5Eget_msg(err_desc->min_num, nullptr, min_msg, ERR_MSG_SIZE_MAX) < 0)
         return -1;
 
-    logger->fullDebug() << "HDF5 Error[" << n << "]:" << err_desc->func_name << " - " << maj_msg << ": " << min_msg;
+    logger.fullDebug() << "HDF5 Error[" << n << "]:" << err_desc->func_name
+                       << " - " << maj_msg << ": " << min_msg;
 
     return 0;
 }
@@ -96,7 +98,8 @@ namespace sharemind {
 
 BOOST_STATIC_ASSERT(sizeof(TdbHdf5Connection::size_type) == sizeof(hsize_t));
 
-TdbHdf5Connection::TdbHdf5Connection(ILogger & logger, const fs::path & path)
+TdbHdf5Connection::TdbHdf5Connection(const Logger & logger,
+                                     const fs::path & path)
     : m_logger(logger, "[TdbHdf5Connection]")
     , m_path(path)
 {
@@ -115,7 +118,10 @@ TdbHdf5Connection::TdbHdf5Connection(ILogger & logger, const fs::path & path)
     // TODO Need to refactor the huge functions into smaller ones.
 
     // Register a custom log handler
-    if (H5Eset_auto(H5E_DEFAULT, err_handler, &m_logger) < 0) {
+    if (H5Eset_auto(H5E_DEFAULT,
+                    err_handler,
+                    &const_cast<Logger &>(m_logger)) < 0)
+    {
         m_logger.error() << "Failed to set HDF5 logging handler.";
         throw InitializationException("Failed to set HDF5 logging handler.");
     }
@@ -136,7 +142,7 @@ SharemindTdbError TdbHdf5Connection::tblCreate(const std::string & tbl,
         const std::vector<SharemindTdbString *> & names,
         const std::vector<SharemindTdbType *> & types)
 {
-    H5Eset_auto(H5E_DEFAULT, err_handler, &m_logger);
+    H5Eset_auto(H5E_DEFAULT, err_handler, &const_cast<Logger &>(m_logger));
 
     // Set the cleanup flag
     bool success = false;
@@ -667,7 +673,7 @@ SharemindTdbError TdbHdf5Connection::tblCreate(const std::string & tbl,
 }
 
 SharemindTdbError TdbHdf5Connection::tblDelete(const std::string & tbl) {
-    H5Eset_auto(H5E_DEFAULT, err_handler, &m_logger);
+    H5Eset_auto(H5E_DEFAULT, err_handler, &const_cast<Logger &>(m_logger));
 
     if (!validateTableName(tbl))
         return SHAREMIND_TDB_INVALID_ARGUMENT;
@@ -690,7 +696,7 @@ SharemindTdbError TdbHdf5Connection::tblDelete(const std::string & tbl) {
 }
 
 SharemindTdbError TdbHdf5Connection::tblExists(const std::string & tbl, bool & status) {
-    H5Eset_auto(H5E_DEFAULT, err_handler, &m_logger);
+    H5Eset_auto(H5E_DEFAULT, err_handler, &const_cast<Logger &>(m_logger));
 
     if (!validateTableName(tbl))
         return SHAREMIND_TDB_INVALID_ARGUMENT;
@@ -712,7 +718,7 @@ SharemindTdbError TdbHdf5Connection::tblExists(const std::string & tbl, bool & s
 }
 
 SharemindTdbError TdbHdf5Connection::tblColCount(const std::string & tbl, size_type & count) {
-    H5Eset_auto(H5E_DEFAULT, err_handler, &m_logger);
+    H5Eset_auto(H5E_DEFAULT, err_handler, &const_cast<Logger &>(m_logger));
 
     // Set the cleanup flag
     bool success = false;
@@ -761,7 +767,7 @@ SharemindTdbError TdbHdf5Connection::tblColCount(const std::string & tbl, size_t
 }
 
 SharemindTdbError TdbHdf5Connection::tblColNames(const std::string & tbl, std::vector<SharemindTdbString *> & names) {
-    H5Eset_auto(H5E_DEFAULT, err_handler, &m_logger);
+    H5Eset_auto(H5E_DEFAULT, err_handler, &const_cast<Logger &>(m_logger));
 
     // Set the cleanup flag
     bool success = false;
@@ -905,7 +911,7 @@ SharemindTdbError TdbHdf5Connection::tblColNames(const std::string & tbl, std::v
 }
 
 SharemindTdbError TdbHdf5Connection::tblColTypes(const std::string & tbl, std::vector<SharemindTdbType *> & types) {
-    H5Eset_auto(H5E_DEFAULT, err_handler, &m_logger);
+    H5Eset_auto(H5E_DEFAULT, err_handler, &const_cast<Logger &>(m_logger));
 
     // Set the cleanup flag
     bool success = false;
@@ -1093,7 +1099,7 @@ SharemindTdbError TdbHdf5Connection::tblColTypes(const std::string & tbl, std::v
 }
 
 SharemindTdbError TdbHdf5Connection::tblRowCount(const std::string & tbl, size_type & count) {
-    H5Eset_auto(H5E_DEFAULT, err_handler, &m_logger);
+    H5Eset_auto(H5E_DEFAULT, err_handler, &const_cast<Logger &>(m_logger));
 
     // Set the cleanup flag
     bool success = false;
@@ -1144,7 +1150,7 @@ SharemindTdbError TdbHdf5Connection::tblRowCount(const std::string & tbl, size_t
 SharemindTdbError TdbHdf5Connection::insertRow(const std::string & tbl,
         const std::vector<std::vector<SharemindTdbValue *> > & valuesBatch)
 {
-    H5Eset_auto(H5E_DEFAULT, err_handler, &m_logger);
+    H5Eset_auto(H5E_DEFAULT, err_handler, &const_cast<Logger &>(m_logger));
 
     // Set the cleanup flag
     bool success = false;
@@ -1582,7 +1588,7 @@ SharemindTdbError TdbHdf5Connection::readColumn(const std::string & tbl,
         const std::vector<SharemindTdbString *> & colIdBatch,
         std::vector<std::vector<SharemindTdbValue *> > & valuesBatch)
 {
-    H5Eset_auto(H5E_DEFAULT, err_handler, &m_logger);
+    H5Eset_auto(H5E_DEFAULT, err_handler, &const_cast<Logger &>(m_logger));
 
     // Set the cleanup flag
     bool success = false;
@@ -1700,7 +1706,7 @@ SharemindTdbError TdbHdf5Connection::readColumn(const std::string & tbl,
         const std::vector<SharemindTdbIndex *> & colIdBatch,
         std::vector<std::vector<SharemindTdbValue *> > & valuesBatch)
 {
-    H5Eset_auto(H5E_DEFAULT, err_handler, &m_logger);
+    H5Eset_auto(H5E_DEFAULT, err_handler, &const_cast<Logger &>(m_logger));
 
     // Set the cleanup flag
     bool success = false;

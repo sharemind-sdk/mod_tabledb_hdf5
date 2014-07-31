@@ -10,14 +10,14 @@
 #ifndef SHAREMIND_MOD_TABLEDB_HDF5_TDBHDF5MANAGER_H
 #define SHAREMIND_MOD_TABLEDB_HDF5_TDBHDF5MANAGER_H
 
+#include <boost/filesystem/path.hpp>
+#include <boost/property_tree/ptree.hpp>
 #include <map>
 #include <memory>
 #include <set>
-#include <string>
-#include <boost/filesystem/path.hpp>
-#include <boost/property_tree/ptree.hpp>
 #include <sharemind/common/KeyValueCache.h>
-#include <sharemind/common/Logger/ILogger.h>
+#include <sharemind/common/Logger/Logger.h>
+#include <string>
 
 
 namespace sharemind {
@@ -29,7 +29,10 @@ class __attribute__ ((visibility("internal"))) TdbHdf5Manager
     : public KeyValueCache<boost::filesystem::path, TdbHdf5Connection> {
 public: /* Methods: */
 
-    TdbHdf5Manager(ILogger & logger);
+    TdbHdf5Manager(const Logger & logger)
+        : m_logger(logger, "[TdbHdf5Manager]")
+        , m_previousLogger(logger)
+    {}
 
     std::shared_ptr<TdbHdf5Connection> openConnection(const TdbHdf5ConnectionConf & config);
 
@@ -39,9 +42,8 @@ private: /* Methods: */
 
 private: /* Fields: */
 
-    mutable ILogger::Wrapped m_logger;
-
-    ILogger & m_loggerRef;
+    const Logger m_logger;
+    const Logger m_previousLogger;
 
 }; /* class TdbHdf5Manager { */
 

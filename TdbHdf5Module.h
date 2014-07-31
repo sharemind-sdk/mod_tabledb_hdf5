@@ -13,7 +13,7 @@
 #include <functional>
 #include <memory>
 #include <mutex>
-#include <sharemind/common/Logger/ILogger.h>
+#include <sharemind/common/Logger/Logger.h>
 #include <sharemind/common/ScopedObjectMap.h>
 #include <sharemind/dbcommon/datasourceapi.h>
 #include <sharemind/libmodapi/api_0x1.h>
@@ -64,7 +64,7 @@ private: /* Types: */
 
 public: /* Methods: */
 
-    TdbHdf5Module(ILogger & logger,
+    TdbHdf5Module(const Logger & logger,
                   SharemindDataStoreManager & dataStoreManager,
                   SharemindDataSourceManager & dsManager,
                   SharemindTdbVectorMapUtil & mapUtil,
@@ -92,8 +92,7 @@ public: /* Methods: */
     SharemindTdbError executeTransaction(TdbHdf5Transaction & strategy,
                             const SharemindModuleApi0x1SyscallContext * context);
 
-    inline ILogger::Wrapped & logger() { return m_logger; }
-    inline const ILogger::Wrapped & logger() const { return m_logger; }
+    inline const Logger & logger() const noexcept { return m_logger; }
 
     inline SharemindDataStoreManager & dataStoreManager() { return m_dataStoreManager; }
     inline const SharemindDataStoreManager & dataStoreManager() const { return m_dataStoreManager; }
@@ -103,7 +102,7 @@ public: /* Methods: */
 
 private: /* Fields: */
 
-    mutable ILogger::Wrapped m_logger;
+    const Logger m_logger;
 
     /* Cached references: */
     SharemindDataStoreManager & m_dataStoreManager;
