@@ -132,7 +132,7 @@ TdbHdf5Connection::~TdbHdf5Connection() {
     for (it = m_tableFiles.begin(); it != m_tableFiles.end(); ++it) {
         if (H5Fclose(it->second) < 0)
             m_logger.warning() << "Error while closing handle to table file \""
-                << nameToPath(it->first) << "\".";
+                               << nameToPath(it->first).string() << "\".";
     }
 
     m_tableFiles.clear();
@@ -207,7 +207,8 @@ SharemindTdbError TdbHdf5Connection::tblCreate(const std::string & tbl,
     // H5F_ACC_EXCL - Fail if file already exists.
     const hid_t fileId = H5Fcreate(tblPath.c_str(), H5F_ACC_EXCL, H5P_DEFAULT, H5P_DEFAULT);
     if (fileId < 0) {
-        m_logger.error() << "Failed to create table file with path " << tblPath << ".";
+        m_logger.error() << "Failed to create table file with path "
+                         << tblPath.string() << '.';
         return SHAREMIND_TDB_IO_ERROR;
     }
 
@@ -688,7 +689,8 @@ SharemindTdbError TdbHdf5Connection::tblDelete(const std::string & tbl) {
             return SHAREMIND_TDB_TABLE_NOT_FOUND;
         }
     } catch (const fs::filesystem_error & e) {
-        m_logger.error() << "Error while deleting table \"" << tbl << "\" file " << tblPath << ": " << e.what() << ".";
+        m_logger.error() << "Error while deleting table \"" << tbl << "\" file "
+                         << tblPath.string() << ": " << e.what() << ".";
         return SHAREMIND_TDB_IO_ERROR;
     }
 
@@ -710,7 +712,8 @@ SharemindTdbError TdbHdf5Connection::tblExists(const std::string & tbl, bool & s
 
     // Check if the file has the right format
     if (status && !pathIsHdf5(tblPath)) {
-        m_logger.error() << "Table \"" << tbl << "\" file " << tblPath << " is not a valid table file.";
+        m_logger.error() << "Table \"" << tbl << "\" file " << tblPath.string()
+                         << " is not a valid table file.";
         return SHAREMIND_TDB_GENERAL_ERROR;
     }
 
@@ -1791,7 +1794,8 @@ bool TdbHdf5Connection::pathExists(const fs::path & path, bool & status) {
     try {
         status = exists(path);
     } catch (const fs::filesystem_error & e) {
-        m_logger.error() << "Error while checking if file " << path << " exists: " << e.what();
+        m_logger.error() << "Error while checking if file " << path.string()
+                         << " exists: " << e.what();
         return false;
     }
 
@@ -1802,7 +1806,8 @@ bool TdbHdf5Connection::pathIsHdf5(const fs::path & path) {
     // Check if the file has the right format
     htri_t isHdf5 = H5Fis_hdf5(path.c_str());
     if (isHdf5 < 0) {
-        m_logger.error() << "Error while checking file " << path << " format.";
+        m_logger.error() << "Error while checking file " << path.string()
+                         << " format.";
         return false;
     }
 

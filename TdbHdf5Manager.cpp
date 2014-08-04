@@ -34,7 +34,7 @@ std::shared_ptr<TdbHdf5Connection> TdbHdf5Manager::openConnection(const TdbHdf5C
 
             // Check if the given path is a directory
             if (!fs::is_directory(canonicalPath)) {
-                m_logger.error() << "Database path " << dbPath
+                m_logger.error() << "Database path " << dbPath.string()
                     << " exists, but is not a directory.";
                 return std::shared_ptr<TdbHdf5Connection>();
             }
@@ -44,7 +44,8 @@ std::shared_ptr<TdbHdf5Connection> TdbHdf5Manager::openConnection(const TdbHdf5C
                 << dbPath << ".";
 
             if (!create_directories(dbPath)) {
-                m_logger.error() << "Failed to create path " << dbPath << ".";
+                m_logger.error() << "Failed to create path " << dbPath.string()
+                                 << '.';
                 return std::shared_ptr<TdbHdf5Connection>();
             }
 
