@@ -41,7 +41,7 @@ std::shared_ptr<TdbHdf5Connection> TdbHdf5Manager::openConnection(const TdbHdf5C
         } else {
             // Create the path to the data source
             m_logger.fullDebug() << "Database path does not exist. Creating path "
-                << dbPath << ".";
+                                 << dbPath.string() << ".";
 
             if (!create_directories(dbPath)) {
                 m_logger.error() << "Failed to create path " << dbPath.string()
