@@ -68,8 +68,7 @@ public: /* Methods: */
                   SharemindDataStoreManager & dataStoreManager,
                   SharemindDataSourceManager & dsManager,
                   SharemindTdbVectorMapUtil & mapUtil,
-                  SharemindConsensusFacility & consensusService,
-                  SharemindProcessFacility & processFacility);
+                  SharemindConsensusFacility & consensusService);
 
     bool setErrorCode(const SharemindModuleApi0x1SyscallContext * ctx,
             const std::string & dsName,
@@ -89,8 +88,9 @@ public: /* Methods: */
     SharemindTdbVectorMap * getVectorMap(const SharemindModuleApi0x1SyscallContext * ctx,
                                          const uint64_t vmapId) const;
 
-    SharemindTdbError executeTransaction(TdbHdf5Transaction & strategy,
-                            const SharemindModuleApi0x1SyscallContext * context);
+    SharemindTdbError executeTransaction(
+                TdbHdf5Transaction & strategy,
+                const SharemindModuleApi0x1SyscallContext * context);
 
     inline const Logger & logger() const noexcept { return m_logger; }
 
@@ -109,7 +109,6 @@ private: /* Fields: */
     SharemindDataSourceManager & m_dataSourceManager;
     SharemindTdbVectorMapUtil & m_mapUtil;
     SharemindConsensusFacility & m_consensusService;
-    SharemindProcessFacility & m_processFacility;
 
     std::shared_ptr<TdbHdf5Manager> m_dbManager;
 

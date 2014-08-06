@@ -1320,10 +1320,6 @@ SHAREMIND_MODULE_API_0x1_INITIALIZER(c) {
     if (!fconsensus || !fconsensus->facility)
         return SHAREMIND_MODULE_API_0x1_MISSING_FACILITY;
 
-    const SharemindModuleApi0x1Facility * fprocess = c->getModuleFacility(c, "ProcessFacility");
-    if (!fprocess || !fprocess->facility)
-        return SHAREMIND_MODULE_API_0x1_MISSING_FACILITY;
-
     const sharemind::Logger & logger =
             *static_cast<const sharemind::Logger *>(flog->facility);
     SharemindDataStoreManager * dataStoreManager = static_cast<SharemindDataStoreManager *>(fstorem->facility);
@@ -1331,15 +1327,16 @@ SHAREMIND_MODULE_API_0x1_INITIALIZER(c) {
     SharemindTdbVectorMapUtil * mapUtil = static_cast<SharemindTdbVectorMapUtil *>(fvmaputil->facility);
     SharemindConsensusFacility * consensusService =
         static_cast<SharemindConsensusFacility *>(fconsensus->facility);
-    SharemindProcessFacility * processFacility =
-        static_cast<SharemindProcessFacility *>(fprocess->facility);
 
     /*
      * Initialize the module handle
      */
     try {
-        c->moduleHandle = new sharemind::TdbHdf5Module(logger, *dataStoreManager, *dataSourceManager, *mapUtil, *consensusService, *processFacility);
-
+        c->moduleHandle = new sharemind::TdbHdf5Module(logger,
+                                                       *dataStoreManager,
+                                                       *dataSourceManager,
+                                                       *mapUtil,
+                                                       *consensusService);
         return SHAREMIND_MODULE_API_0x1_OK;
     } catch (const std::bad_alloc &) {
         return SHAREMIND_MODULE_API_0x1_OUT_OF_MEMORY;

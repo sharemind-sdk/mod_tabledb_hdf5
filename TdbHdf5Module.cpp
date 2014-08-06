@@ -112,14 +112,12 @@ TdbHdf5Module::TdbHdf5Module(const Logger & logger,
                              SharemindDataStoreManager & dataStoreManager,
                              SharemindDataSourceManager & dataSourceManager,
                              SharemindTdbVectorMapUtil & mapUtil,
-                             SharemindConsensusFacility & consensusService,
-                             SharemindProcessFacility & processFacility)
+                             SharemindConsensusFacility & consensusService)
     : m_logger(logger, "[TdbHdf5Module]")
     , m_dataStoreManager(dataStoreManager)
     , m_dataSourceManager(dataSourceManager)
     , m_mapUtil(mapUtil)
     , m_consensusService(consensusService)
-    , m_processFacility(processFacility)
     , m_dbManager(new TdbHdf5Manager(logger))
 {
     m_consensusService.add_operation_type(&m_consensusService, &databaseOperation);
@@ -334,11 +332,16 @@ SharemindTdbVectorMap * TdbHdf5Module::getVectorMap(const SharemindModuleApi0x1S
     return map;
 }
 
-SharemindTdbError TdbHdf5Module::executeTransaction(TdbHdf5Transaction & strategy,
-        const SharemindModuleApi0x1SyscallContext * context)
+SharemindTdbError TdbHdf5Module::executeTransaction(
+        TdbHdf5Transaction & strategy,
+        const SharemindModuleApi0x1SyscallContext * c)
 {
     TransactionData transaction(strategy);
-    uint16_t processId = m_processFacility.get_process_id(context);
+    assert(c);
+    assert(c->process_internal);
+    typedef SharemindProcessFacility CPF;
+    const CPF & pf = *static_cast<const CPF *>(c->process_internal);
+    uint16_t processId = pf.get_process_id(&pf);
 
     SharemindConsensusFacilityError ret =
         m_consensusService.blocking_propose(&m_consensusService,
