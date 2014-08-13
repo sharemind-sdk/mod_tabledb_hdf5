@@ -37,12 +37,12 @@ struct TransactionData {
     SharemindTdbError globalResult;
 };
 
-uint16_t toId(const SharemindDatum * datum) {
-    return *static_cast<uint16_t *>(datum->data);
+SharemindProcessId toId(const SharemindDatum * datum) {
+    return *static_cast<SharemindProcessId *>(datum->data);
 }
 
 bool equivalent(const SharemindDatum * proposals, size_t count) {
-    uint16_t a = toId(&proposals[0u]);
+    SharemindProcessId a = toId(&proposals[0u]);
 
     for (size_t i = 1u; i < count; i++) {
         if (a != toId(&proposals[i]))
@@ -341,12 +341,12 @@ SharemindTdbError TdbHdf5Module::executeTransaction(
     assert(c->process_internal);
     typedef SharemindProcessFacility CPF;
     const CPF & pf = *static_cast<const CPF *>(c->process_internal);
-    uint16_t processId = pf.get_process_id(&pf);
+    const SharemindProcessId processId = pf.get_process_id(&pf);
 
     SharemindConsensusFacilityError ret =
         m_consensusService.blocking_propose(&m_consensusService,
                                             "TdbHDF5Transaction",
-                                            sizeof(uint16_t),
+                                            sizeof(processId),
                                             &processId,
                                             &transaction);
 
