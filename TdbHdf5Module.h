@@ -11,9 +11,9 @@
 #define SHAREMIND_MOD_TABLEDB_HDF5_TDBHDF5MODULE_H
 
 #include <functional>
+#include <LogHard/Logger.h>
 #include <memory>
 #include <mutex>
-#include <sharemind/common/Logger/Logger.h>
 #include <sharemind/common/ScopedObjectMap.h>
 #include <sharemind/dbcommon/datasourceapi.h>
 #include <sharemind/libmodapi/api_0x1.h>
@@ -64,7 +64,7 @@ private: /* Types: */
 
 public: /* Methods: */
 
-    TdbHdf5Module(const Logger & logger,
+    TdbHdf5Module(const LogHard::Logger & logger,
                   SharemindDataStoreManager & dataStoreManager,
                   SharemindDataSourceManager & dsManager,
                   SharemindTdbVectorMapUtil & mapUtil,
@@ -92,7 +92,7 @@ public: /* Methods: */
                 TdbHdf5Transaction & strategy,
                 const SharemindModuleApi0x1SyscallContext * context);
 
-    inline const Logger & logger() const noexcept { return m_logger; }
+    inline const LogHard::Logger & logger() const noexcept { return m_logger; }
 
     inline SharemindDataStoreManager & dataStoreManager() { return m_dataStoreManager; }
     inline const SharemindDataStoreManager & dataStoreManager() const { return m_dataStoreManager; }
@@ -102,7 +102,7 @@ public: /* Methods: */
 
 private: /* Fields: */
 
-    const Logger m_logger;
+    const LogHard::Logger m_logger;
 
     /* Cached references: */
     SharemindDataStoreManager & m_dataStoreManager;

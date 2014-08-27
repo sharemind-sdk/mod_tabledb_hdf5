@@ -12,11 +12,11 @@
 
 #include <boost/filesystem/path.hpp>
 #include <boost/property_tree/ptree.hpp>
+#include <LogHard/Logger.h>
 #include <map>
 #include <memory>
 #include <set>
 #include <sharemind/common/KeyValueCache.h>
-#include <sharemind/common/Logger/Logger.h>
 #include <string>
 
 
@@ -29,7 +29,7 @@ class __attribute__ ((visibility("internal"))) TdbHdf5Manager
     : public KeyValueCache<boost::filesystem::path, TdbHdf5Connection> {
 public: /* Methods: */
 
-    TdbHdf5Manager(const Logger & logger)
+    TdbHdf5Manager(const LogHard::Logger & logger)
         : m_logger(logger, "[TdbHdf5Manager]")
         , m_previousLogger(logger)
     {}
@@ -42,8 +42,8 @@ private: /* Methods: */
 
 private: /* Fields: */
 
-    const Logger m_logger;
-    const Logger m_previousLogger;
+    const LogHard::Logger m_logger;
+    const LogHard::Logger m_previousLogger;
 
 }; /* class TdbHdf5Manager { */
 

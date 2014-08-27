@@ -13,8 +13,8 @@
 #include <boost/filesystem/path.hpp>
 #include <H5Rpublic.h>
 #include <H5Ipublic.h>
+#include <LogHard/Logger.h>
 #include <map>
-#include <sharemind/common/Logger/Logger.h>
 #include <sharemind/mod_tabledb/tdberror.h>
 #include <sharemind/mod_tabledb/tdbtypes.h>
 #include <string>
@@ -69,7 +69,7 @@ private: /* Types: */
 
 public: /* Methods: */
 
-    TdbHdf5Connection(const Logger & logger,
+    TdbHdf5Connection(const LogHard::Logger & logger,
                       const boost::filesystem::path & path);
     ~TdbHdf5Connection();
 
@@ -147,7 +147,7 @@ private: /* Methods: */
 
 private: /* Fields: */
 
-    const Logger m_logger;
+    const LogHard::Logger m_logger;
 
     boost::filesystem::path m_path;
 

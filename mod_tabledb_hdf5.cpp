@@ -1320,8 +1320,8 @@ SHAREMIND_MODULE_API_0x1_INITIALIZER(c) {
     if (!fconsensus || !fconsensus->facility)
         return SHAREMIND_MODULE_API_0x1_MISSING_FACILITY;
 
-    const sharemind::Logger & logger =
-            *static_cast<const sharemind::Logger *>(flog->facility);
+    const LogHard::Logger & logger =
+            *static_cast<const LogHard::Logger *>(flog->facility);
     SharemindDataStoreManager * dataStoreManager = static_cast<SharemindDataStoreManager *>(fstorem->facility);
     SharemindDataSourceManager * dataSourceManager = static_cast<SharemindDataSourceManager *>(fsourcem->facility);
     SharemindTdbVectorMapUtil * mapUtil = static_cast<SharemindTdbVectorMapUtil *>(fvmaputil->facility);
@@ -1355,8 +1355,8 @@ SHAREMIND_MODULE_API_0x1_DEINITIALIZER(c) {
     } catch (...) {
         const SharemindModuleApi0x1Facility * flog = c->getModuleFacility(c, "Logger");
         if (flog && flog->facility) {
-            const sharemind::Logger & logger =
-                    *static_cast<const sharemind::Logger *>(flog->facility);
+            const LogHard::Logger & logger =
+                    *static_cast<const LogHard::Logger *>(flog->facility);
             logger.warning() << "Exception was caught during \"mod_tabledb_hdf5\" module deinitialization";
         }
     }
