@@ -39,20 +39,8 @@ ADD_DEFINITIONS(
     ${SharemindLibmodapi_DEFINITIONS}
 )
 
-SET(TABLEDB_HDF5_SOURCES
-    TdbHdf5Connection.cpp
-    TdbHdf5ConnectionConf.cpp
-    TdbHdf5Manager.cpp
-    TdbHdf5Module.cpp
-    mod_tabledb_hdf5.cpp
-)
-
-SET(TABLEDB_HDF5_HEADERS
-    TdbHdf5Connection.h
-    TdbHdf5ConnectionConf.h
-    TdbHdf5Manager.h
-    TdbHdf5Module.h
-)
+FILE(GLOB_RECURSE TABLEDB_HDF5_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
+FILE(GLOB_RECURSE TABLEDB_HDF5_HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/*.h")
 
 ADD_LIBRARY(sharemind_mod_tabledb_hdf5 MODULE ${TABLEDB_HDF5_SOURCES} ${TABLEDB_HDF5_HEADERS})
 TARGET_LINK_LIBRARIES(sharemind_mod_tabledb_hdf5

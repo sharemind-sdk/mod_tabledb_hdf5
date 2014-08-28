@@ -16,8 +16,8 @@
 #include <map>
 #include <memory>
 #include <set>
-#include <sharemind/common/KeyValueCache.h>
 #include <string>
+#include "KeyValueCache.h"
 
 
 namespace sharemind {
