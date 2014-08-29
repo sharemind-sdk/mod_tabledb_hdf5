@@ -451,7 +451,7 @@ SharemindTdbError TdbHdf5Connection::tblCreate(const std::string & tbl,
             // TODO take CHUNK_SIZE from configuration?
             // TODO what about the chunk shape?
             // Set chunk size
-            const hsize_t chunkSize = CHUNK_SIZE / size;
+            const hsize_t chunkSize = std::max(CHUNK_SIZE / size, static_cast<size_t>(1u));
             hsize_t dimsChunk[2];
             dimsChunk[0] = chunkSize; dimsChunk[1] = 1; // TODO are vertical chunks OK?
             if (H5Pset_chunk(plistId, 2, dimsChunk) < 0)
