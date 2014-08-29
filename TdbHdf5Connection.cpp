@@ -9,6 +9,7 @@
 
 #include "TdbHdf5Connection.h"
 
+#include <algorithm>
 #include <set>
 #include <sstream>
 #include <boost/filesystem.hpp>
@@ -75,6 +76,34 @@ static herr_t err_handler(hid_t, void * client_data) {
 } /* extern "C" { */
 
 namespace {
+
+/*
+ * http://en.wikipedia.org/wiki/In-place_matrix_transposition
+ * http://stackoverflow.com/questions/9227747/in-place-transposition-of-a-matrix
+ */
+void transposeBlock(char * const first,
+        char * const last,
+        const size_t m,
+        const size_t vsize)
+{
+    assert((last - first) % vsize == 0);
+
+    const size_t mn1 = (last - first) / vsize - 1u;
+    const size_t n = (last - first) / (m * vsize);
+    std::vector<bool> visited(n * m);
+    char * cycle = first;
+    while (cycle + vsize < last) {
+        cycle += vsize;
+        if (visited[(cycle - first) / vsize])
+            continue;
+        size_t a = (cycle - first) / vsize;
+        do {
+            a = a == mn1 ? mn1 : (n * a) % mn1;
+            std::swap_ranges(first + a * vsize, first + a * vsize + vsize, cycle);
+            visited[a] = true;
+        } while ((first + a * vsize) != cycle);
+    }
+}
 
 struct SharemindTdbStringLess {
     bool operator() (SharemindTdbString * const lhs, SharemindTdbString * const rhs) const {
@@ -1151,7 +1180,8 @@ SharemindTdbError TdbHdf5Connection::tblRowCount(const std::string & tbl, size_t
 }
 
 SharemindTdbError TdbHdf5Connection::insertRow(const std::string & tbl,
-        const std::vector<std::vector<SharemindTdbValue *> > & valuesBatch)
+        const std::vector<std::vector<SharemindTdbValue *> > & valuesBatch,
+        const std::vector<bool> & valueAsColumnBatch)
 {
     H5Eset_auto(H5E_DEFAULT, err_handler, &const_cast<LogHard::Logger &>(m_logger));
 
@@ -1168,22 +1198,23 @@ SharemindTdbError TdbHdf5Connection::insertRow(const std::string & tbl,
         return SHAREMIND_TDB_INVALID_ARGUMENT;
     }
 
-    size_t batchCount = valuesBatch.size();
+    if (valuesBatch.size() != valueAsColumnBatch.size()) {
+        m_logger.error() << "Incomplete arguments given.";
+        return SHAREMIND_TDB_INVALID_ARGUMENT;
+    }
 
     // Do some simple checks on the parameters
     if (!validateTableName(tbl))
         return SHAREMIND_TDB_INVALID_ARGUMENT;
 
-    typedef std::vector<std::vector<SharemindTdbValue *> > ValuesBatchVector;
     {
-        ValuesBatchVector::const_iterator it;
-        for (it = valuesBatch.begin(); it != valuesBatch.end(); ++it) {
-            if (it->empty()) {
+        for (const std::vector<SharemindTdbValue *> & values : valuesBatch) {
+            if (values.empty()) {
                 m_logger.error() << "Empty batch of values given.";
                 return SHAREMIND_TDB_INVALID_ARGUMENT;
             }
 
-            if (!validateValues(*it))
+            if (!validateValues(values))
                 return SHAREMIND_TDB_INVALID_ARGUMENT;
         }
     }
@@ -1209,7 +1240,7 @@ SharemindTdbError TdbHdf5Connection::insertRow(const std::string & tbl,
     }
 
     // Get table row count
-    hsize_t rowCount = 0;
+    hsize_t rowCount = 0u;
     {
         const SharemindTdbError ecode = getRowCount(fileId, rowCount);
         if (ecode != SHAREMIND_TDB_OK)
@@ -1217,7 +1248,7 @@ SharemindTdbError TdbHdf5Connection::insertRow(const std::string & tbl,
     }
 
     // Get table column count
-    hsize_t colCount = 0;
+    hsize_t colCount = 0u;
     {
         const SharemindTdbError ecode = getColumnCount(fileId, colCount);
         if (ecode != SHAREMIND_TDB_OK)
@@ -1232,10 +1263,9 @@ SharemindTdbError TdbHdf5Connection::insertRow(const std::string & tbl,
     TypeCountMap typeCounts;
 
     BOOST_SCOPE_EXIT_ALL(this, &refTypes) {
-        std::map<hobj_ref_t, std::pair<SharemindTdbType *, hid_t> >::const_iterator it;
-        for (it = refTypes.begin(); it != refTypes.end(); ++it) {
-            SharemindTdbType * const type = it->second.first;
-            const hid_t aId = it->second.second;
+        for (auto & pair : refTypes) {
+            SharemindTdbType * const type = pair.second.first;
+            const hid_t aId = pair.second.second;
 
             if (!cleanupType(aId, *type))
                 m_logger.fullDebug() << "Error while cleaning up dataset type attribute object.";
@@ -1261,7 +1291,7 @@ SharemindTdbError TdbHdf5Connection::insertRow(const std::string & tbl,
                 m_logger.fullDebug() << "Error while cleaning up column meta info type.";
         };
 
-        if (H5Tinsert(tId, "dataset_ref", 0, H5T_STD_REF_OBJ) < 0) {
+        if (H5Tinsert(tId, "dataset_ref", 0u, H5T_STD_REF_OBJ) < 0) {
             m_logger.error() << "Failed to create column meta info type.";
             return SHAREMIND_TDB_GENERAL_ERROR;
         }
@@ -1290,7 +1320,7 @@ SharemindTdbError TdbHdf5Connection::insertRow(const std::string & tbl,
         };
 
         // Resolve references to types
-        for (size_type i = 0; i < colCount; ++i) {
+        for (size_type i = 0u; i < colCount; ++i) {
             RefTypeMap::const_iterator it = refTypes.find(dsetRefs[i]);
             if (it == refTypes.end()) {
                 hid_t aId = H5I_INVALID_HID;
@@ -1322,25 +1352,42 @@ SharemindTdbError TdbHdf5Connection::insertRow(const std::string & tbl,
     }
 
     // Aggregate the values by the value types
+    struct ValuesInfo {
+        std::vector<SharemindTdbValue *> values;
+        std::vector<bool> valueAsColumn;
+    };
+
     typedef std::vector<SharemindTdbValue *> ValuesVector;
-    typedef std::map<SharemindTdbType *, ValuesVector, SharemindTdbTypeLess> TypeValueMap;
+    typedef std::map<SharemindTdbType *, ValuesInfo, SharemindTdbTypeLess> TypeValueMap;
     TypeValueMap typeValues;
 
-    ValuesBatchVector::const_iterator valIt;
-    for (valIt = valuesBatch.begin(); valIt != valuesBatch.end(); ++valIt) {
-        const ValuesVector & values = *valIt;
+    size_type insertedRowCount = 0u;
 
-        size_type batchColCount = 0;
+    std::vector<bool>::const_iterator vacIt = valueAsColumnBatch.begin();
+    for (const ValuesVector & values : valuesBatch) {
+        size_type batchColCount = 0u;
+
+        // Get the row count for this batch
+        const size_type batchRowCount =
+            !*vacIt || isVariableLengthType(values.front()->type) ?
+            1u : values.front()->size / values.front()->type->size;
 
         typedef std::map<SharemindTdbType *, size_t, SharemindTdbTypeLess> BatchTypeCountMap;
         BatchTypeCountMap batchTypeCount;
 
-        {
-            std::vector<SharemindTdbValue *>::const_iterator it;
-            for (it = values.begin(); it != values.end(); ++it) {
-                SharemindTdbValue * const val = *it;
-                SharemindTdbType * const type = val->type;
+        for (SharemindTdbValue * const val : values) {
+            SharemindTdbType * const type = val->type;
 
+            if (isVariableLengthType(type)) {
+                if (*vacIt && batchRowCount != 1u) {
+                    m_logger.error() << "Inconsistent row count for a value batch.";
+                    return SHAREMIND_TDB_INVALID_ARGUMENT;
+                }
+
+                // For variable length types we do not support arrays
+                batchColCount += 1u;
+                batchTypeCount[type] += 1u;
+            } else {
                 assert(val->size);
 
                 TypeCountMap::const_iterator tIt = typeCounts.find(type);
@@ -1349,23 +1396,30 @@ SharemindTdbError TdbHdf5Connection::insertRow(const std::string & tbl,
                     return SHAREMIND_TDB_INVALID_ARGUMENT;
                 }
 
-                if (isVariableLengthType(type)) {
-                    // For variable length types we do not support arrays
-                    batchColCount += 1;
-                    batchTypeCount[type] += 1;
-                } else {
-                    if (type->size != tIt->first->size) {
-                        m_logger.error() << "Given values do not match the table schema.";
+                if (type->size != tIt->first->size) {
+                    m_logger.error() << "Given values do not match the table schema.";
+                    return SHAREMIND_TDB_INVALID_ARGUMENT;
+                }
+
+                assert(val->size % type->size == 0u);
+
+                if (*vacIt) {
+                    if (val->size / type->size != batchRowCount) {
+                        m_logger.error() << "Inconsistent row count for a value batch.";
                         return SHAREMIND_TDB_INVALID_ARGUMENT;
                     }
 
-                    assert(val->size % type->size == 0);
+                    batchColCount += 1u;
+                    batchTypeCount[type] += 1u;
+                } else {
                     batchColCount += val->size / type->size;
                     batchTypeCount[type] += val->size / type->size;
                 }
-
-                typeValues[type].push_back(val);
             }
+
+            ValuesInfo & valInfo = typeValues[type];
+            valInfo.values.push_back(val);
+            valInfo.valueAsColumn.push_back(*vacIt);
         }
 
         // Check if we have values for all the columns
@@ -1375,25 +1429,25 @@ SharemindTdbError TdbHdf5Connection::insertRow(const std::string & tbl,
         }
 
         // Check the if we have the correct number of values for each type
-        {
-            BatchTypeCountMap::const_iterator it;
-            for (it = batchTypeCount.begin(); it != batchTypeCount.end(); ++it) {
-                SharemindTdbType * const type = it->first;
-                const size_t count = it->second;
+        for (auto & pair : batchTypeCount) {
+            SharemindTdbType * const type = pair.first;
+            const size_t count = pair.second;
 
-                TypeCountMap::const_iterator tIt = typeCounts.find(type);
-                assert(tIt != typeCounts.end());
+            TypeCountMap::const_iterator tIt = typeCounts.find(type);
+            assert(tIt != typeCounts.end());
 
-                if (count != tIt->second) {
-                    m_logger.error() << "Invalid number of values for type \""
-                        << type->domain << "::" << type->name << "\".";
-                    return SHAREMIND_TDB_INVALID_ARGUMENT;
-                }
+            if (count != tIt->second) {
+                m_logger.error() << "Invalid number of values for type \""
+                    << type->domain << "::" << type->name << "\".";
+                return SHAREMIND_TDB_INVALID_ARGUMENT;
             }
         }
+
+        insertedRowCount += batchRowCount;
+        ++vacIt;
     }
 
-    // Set cleanup handler to restore the initial state if when something goes wrong
+    // Set cleanup handler to restore the initial state if something goes wrong
     typedef std::map<hobj_ref_t, std::pair<hsize_t, hsize_t> > CleanupMap;
     CleanupMap cleanup;
 
@@ -1432,10 +1486,9 @@ SharemindTdbError TdbHdf5Connection::insertRow(const std::string & tbl,
     // For each dataset, write the data
     // TODO move to a separate function
     {
-        RefTypeMap::const_iterator it;
-        for (it = refTypes.begin(); it != refTypes.end(); ++it) {
-            const hobj_ref_t dsetRef = it->first;
-            SharemindTdbType * const type = it->second.first;
+        for (auto & pair : refTypes) {
+            const hobj_ref_t dsetRef = pair.first;
+            SharemindTdbType * const type = pair.second.first;
 
             // Get the number of columns for this type
             TypeCountMap::const_iterator tIt = typeCounts.find(type);
@@ -1470,7 +1523,7 @@ SharemindTdbError TdbHdf5Connection::insertRow(const std::string & tbl,
             };
 
             // Create a simple memory data space
-            const hsize_t mDims[] = { batchCount, dsetCols };
+            const hsize_t mDims[] = { insertedRowCount, dsetCols };
             const hid_t mSId = H5Screate_simple(2, mDims, nullptr);
             if (mSId < 0) {
                 m_logger.error() << "Failed to create memory data space for type \"" << type->domain << "::" << type->name << "\".";
@@ -1483,7 +1536,7 @@ SharemindTdbError TdbHdf5Connection::insertRow(const std::string & tbl,
             };
 
             // Extend the dataset
-            const hsize_t dims[] = { rowCount + batchCount, dsetCols };
+            const hsize_t dims[] = { rowCount + insertedRowCount, dsetCols };
             if (H5Dset_extent(oId, dims) < 0) {
                 m_logger.error() << "Failed to extend dataset for type \"" << type->domain << "::" << type->name << "\".";
                 return SHAREMIND_TDB_GENERAL_ERROR;
@@ -1506,7 +1559,7 @@ SharemindTdbError TdbHdf5Connection::insertRow(const std::string & tbl,
 
             // Select a hyperslab in the data space to write to
             const hsize_t start[] = { rowCount, 0 };
-            const hsize_t count[] = { batchCount, dsetCols };
+            const hsize_t count[] = { insertedRowCount, dsetCols };
             if (H5Sselect_hyperslab(sId, H5S_SELECT_SET, start, nullptr, count, nullptr) < 0) {
                 m_logger.error() << "Failed to do selection in data space for type \"" << type->domain << "::" << type->name << "\".";
                 return SHAREMIND_TDB_GENERAL_ERROR;
@@ -1515,42 +1568,75 @@ SharemindTdbError TdbHdf5Connection::insertRow(const std::string & tbl,
             // Serialize the values
             TypeValueMap::const_iterator tvIt = typeValues.find(type);
             assert(tvIt != typeValues.end());
-            const std::vector<SharemindTdbValue *> & values = tvIt->second;
+            const std::vector<SharemindTdbValue *> & values = tvIt->second.values;
+            const std::vector<bool> & vac = tvIt->second.valueAsColumn;
 
             // Aggregate the values into a single buffer
             void * buffer = nullptr;
             bool delBuffer = false;
 
             if (isVariableLengthType(type)) {
-                assert(batchCount * dsetCols == values.size());
+                assert(insertedRowCount * dsetCols == values.size());
 
-                buffer = ::operator new(batchCount * dsetCols * sizeof(hvl_t));
+                buffer = ::operator new(insertedRowCount * dsetCols * sizeof(hvl_t));
                 delBuffer = true;
 
                 hvl_t * cursor = static_cast<hvl_t *>(buffer);
-                std::vector<SharemindTdbValue *>::const_iterator vIt;
-                for (vIt = values.begin(); vIt != values.end(); ++vIt) {
-                    SharemindTdbValue * const val = *vIt;
+                for (SharemindTdbValue * const val : values) {
                     cursor->len = val->size;
                     cursor->p = val->buffer;
                     ++cursor;
                 }
             } else {
-                if (batchCount == 1 && values.size() == 1) {
+                if (values.size() == 1u) {
                     // Since we don't have to aggregate anything, we can use the
                     // existing buffer.
                     buffer = values.back()->buffer;
                 } else {
                     // Copy the values into a continuous buffer
-                    buffer = ::operator new(batchCount * dsetCols * type->size);
+                    buffer = ::operator new(insertedRowCount * dsetCols * type->size);
                     delBuffer = true;
 
-                    size_t offset = 0;
-                    std::vector<SharemindTdbValue *>::const_iterator vIt;
-                    for (vIt = values.begin(); vIt != values.end(); ++vIt) {
-                        SharemindTdbValue * const val = *vIt;
-                        memcpy(static_cast<char *>(buffer) + offset, val->buffer, val->size);
-                        offset += val->size;
+                    if (dsetCols > 1u) {
+                        size_t offset = 0u;
+                        size_t transposeOffset = 0u;
+
+                        bool lastAsColumn = false;
+                        std::vector<bool>::const_iterator vacIt = vac.begin();
+
+                        for (SharemindTdbValue * const val : values) {
+                            const bool asColumn = *vacIt++;
+                            memcpy(static_cast<char *>(buffer) + offset, val->buffer, val->size);
+
+                            // Check if we are at the beginning of a transposed
+                            // block
+                            if (!lastAsColumn && asColumn)
+                                transposeOffset = offset;
+
+                            // Check if we are at the end of a transposed block
+                            if (lastAsColumn && !asColumn)
+                                transposeBlock(static_cast<char *>(buffer) + transposeOffset,
+                                        static_cast<char *>(buffer) + offset,
+                                        insertedRowCount,
+                                        type->size);
+
+                            offset += val->size;
+                            lastAsColumn = asColumn;
+                        }
+
+                        // Check if we still need to transpose the last block
+                        if (lastAsColumn)
+                            transposeBlock(static_cast<char *>(buffer) + transposeOffset,
+                                    static_cast<char *>(buffer) + offset,
+                                    insertedRowCount,
+                                    type->size);
+                    } else {
+                        size_t offset = 0u;
+
+                        for (SharemindTdbValue * const val : values) {
+                            memcpy(static_cast<char *>(buffer) + offset, val->buffer, val->size);
+                            offset += val->size;
+                        }
                     }
                 }
             }
@@ -1573,7 +1659,7 @@ SharemindTdbError TdbHdf5Connection::insertRow(const std::string & tbl,
 
     // Update row count
     {
-        const SharemindTdbError ecode = setRowCount(fileId, rowCount + batchCount);
+        const SharemindTdbError ecode = setRowCount(fileId, rowCount + insertedRowCount);
         if (ecode != SHAREMIND_TDB_OK)
             return ecode;
     }

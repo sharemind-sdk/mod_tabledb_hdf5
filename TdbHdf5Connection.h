@@ -95,7 +95,8 @@ public: /* Methods: */
      */
 
     SharemindTdbError insertRow(const std::string & tbl,
-            const std::vector<std::vector<SharemindTdbValue *> > & valuesBatch);
+            const std::vector<std::vector<SharemindTdbValue *> > & valuesBatch,
+            const std::vector<bool> & valuesAsColumnBatch);
 
     SharemindTdbError readColumn(const std::string & tbl,
             const std::vector<SharemindTdbString *> & colIdBatch,

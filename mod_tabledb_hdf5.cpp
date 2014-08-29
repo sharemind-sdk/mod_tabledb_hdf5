@@ -676,7 +676,9 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_insert_row,
                           returnValue, c)
 {
     if (!SyscallArgs<1u, false, 0u, 5u>::check(args, num_args, refs, crefs, returnValue) &&
-            !SyscallArgs<1u, false, 1u, 5u>::check(args, num_args, refs, crefs, returnValue)) {
+            !SyscallArgs<1u, false, 1u, 5u>::check(args, num_args, refs, crefs, returnValue) &&
+            !SyscallArgs<2u, false, 0u, 5u>::check(args, num_args, refs, crefs, returnValue) &&
+            !SyscallArgs<2u, false, 1u, 5u>::check(args, num_args, refs, crefs, returnValue)) {
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
     }
 
@@ -704,6 +706,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_insert_row,
         const std::string typeName(static_cast<const char *>(crefs[3u].pData), crefs[3u].size - 1u);
 
         const uint64_t typeSize = args[0u].uint64[0u];
+        const bool valueAsColumn = num_args == 2u ? args[1u].uint64[0u] : false;
 
         uint64_t bufSize = 0;
         // If the buffer size equal the type size, we assume it is a scalar
@@ -736,12 +739,14 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_insert_row,
         val->size = bufSize;
 
         const std::vector<std::vector<SharemindTdbValue *> > valuesBatch { {  val.get () } };
+        const std::vector<bool> valueAsColumnBatch { valueAsColumn };
 
         // Execute the transaction
         TdbHdf5Transaction transaction(*conn,
                                        &TdbHdf5Connection::insertRow,
                                        std::cref(tblName),
-                                       std::cref(valuesBatch));
+                                       std::cref(valuesBatch),
+                                       std::cref(valueAsColumnBatch));
         const SharemindTdbError ecode = m->executeTransaction(transaction, c);
 
         if (!m->setErrorCode(c, dsName, ecode))
@@ -1034,6 +1039,8 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_stmt_exec,
             // Aggregate the parameters
             typedef std::vector<std::vector<SharemindTdbValue *> > ValuesBatchVector;
             ValuesBatchVector valuesBatch(batchCount);
+            std::vector<bool> valueAsColumnBatch;
+            valueAsColumnBatch.reserve(batchCount);
 
             // Process each parameter batch
             for (size_t i = 0; i < batchCount; ++i) {
@@ -1055,6 +1062,29 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_stmt_exec,
                 std::vector<SharemindTdbValue *> & valuesVec = valuesBatch[i];
                 valuesVec.reserve(size);
                 valuesVec.insert(valuesVec.begin(), values, values + size);
+
+                // Check if the optional parameter "valueAsColumn" is set
+                bool rv = false;
+                if (pmap->is_index_vector(pmap, "valueAsColumn", &rv) == TDB_VECTOR_MAP_OK && rv) {
+                    // Parse the "valueAsColumn" parameter
+                    SharemindTdbIndex ** valueAsColumn;
+                    if (pmap->get_index_vector(pmap, "valueAsColumn", &valueAsColumn, &size) != TDB_VECTOR_MAP_OK) {
+                        m->logger().error() << "Failed to execute \"" << stmtType
+                            << "\" statement: Failed to get \"valueAsColumn\" index vector parameter.";
+                        return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
+                    }
+
+                    if (size < 1) {
+                        m->logger().error() << "Failed to execute \"" << stmtType
+                            << "\" statement: Empty \"valueAsColumn\" index vector parameter.";
+                        return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
+                    }
+
+                    valueAsColumnBatch.push_back((*valueAsColumn)->idx);
+                } else {
+                    // Set the default value
+                    valueAsColumnBatch.push_back(false);
+                }
             }
 
             // Get the connection
@@ -1066,7 +1096,8 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_stmt_exec,
             TdbHdf5Transaction transaction(*conn,
                                            &TdbHdf5Connection::insertRow,
                                            std::cref(tblName),
-                                           std::cref(valuesBatch));
+                                           std::cref(valuesBatch),
+                                           std::cref(valueAsColumnBatch));
             const SharemindTdbError ecode = m->executeTransaction(transaction, c);
 
             if (!m->setErrorCode(c, dsName, ecode))
