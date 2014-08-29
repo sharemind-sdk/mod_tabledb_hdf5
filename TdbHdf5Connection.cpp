@@ -86,10 +86,14 @@ void transposeBlock(char * const first,
         const size_t m,
         const size_t vsize)
 {
-    assert((last - first) % vsize == 0);
+    assert(m > 0u);
+    assert(vsize > 0u);
+    assert((last - first) % m == 0u);
+    assert((last - first) % vsize == 0u);
 
     const size_t mn1 = (last - first) / vsize - 1u;
     const size_t n = (last - first) / (m * vsize);
+    assert(n > 0u);
     std::vector<bool> visited(n * m);
     char * cycle = first;
     while (cycle + vsize < last) {
@@ -1617,7 +1621,7 @@ SharemindTdbError TdbHdf5Connection::insertRow(const std::string & tbl,
                             if (lastAsColumn && !asColumn)
                                 transposeBlock(static_cast<char *>(buffer) + transposeOffset,
                                         static_cast<char *>(buffer) + offset,
-                                        insertedRowCount,
+                                        (offset - transposeOffset) / (type->size * dsetCols),
                                         type->size);
 
                             offset += val->size;
@@ -1628,7 +1632,7 @@ SharemindTdbError TdbHdf5Connection::insertRow(const std::string & tbl,
                         if (lastAsColumn)
                             transposeBlock(static_cast<char *>(buffer) + transposeOffset,
                                     static_cast<char *>(buffer) + offset,
-                                    insertedRowCount,
+                                    (offset - transposeOffset) / (type->size * dsetCols),
                                     type->size);
                     } else {
                         size_t offset = 0u;
