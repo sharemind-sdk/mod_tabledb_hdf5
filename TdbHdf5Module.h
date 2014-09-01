@@ -14,7 +14,6 @@
 #include <LogHard/Logger.h>
 #include <memory>
 #include <mutex>
-#include <sharemind/common/ScopedObjectMap.h>
 #include <sharemind/dbcommon/datasourceapi.h>
 #include <sharemind/libmodapi/api_0x1.h>
 #include <sharemind/miner/Facilities/datastoreapi.h>
@@ -22,6 +21,7 @@
 #include <sharemind/miner/Facilities/libprocessfacility.h>
 #include <sharemind/mod_tabledb/tdberror.h>
 #include <sharemind/mod_tabledb/tdbvectormapapi.h>
+#include <sharemind/ScopedObjectMap.h>
 #include <string>
 #include "TdbHdf5ConnectionConf.h"
 

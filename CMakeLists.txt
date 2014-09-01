@@ -21,11 +21,13 @@ SET(Boost_USE_STATIC_RUNTIME OFF)
 FIND_PACKAGE(Boost COMPONENTS filesystem system thread REQUIRED)
 FIND_PACKAGE(HDF5 REQUIRED)
 FIND_PACKAGE(LogHard REQUIRED)
+FIND_PACKAGE(SharemindCxxHeaders REQUIRED)
 FIND_PACKAGE(SharemindLibmodapi REQUIRED)
 INCLUDE_DIRECTORIES(
     ${Boost_INCLUDE_DIRS}
     ${HDF5_INCLUDE_DIRS}
     ${LogHard_INCLUDE_DIRS}
+    ${SharemindCxxHeaders_INCLUDE_DIRS}
     ${SharemindLibmodapi_INCLUDE_DIRS}
 )
 INCLUDE_DIRECTORIES(BEFORE "${CMAKE_CURRENT_SOURCE_DIR}/../../")
@@ -36,6 +38,7 @@ ADD_DEFINITIONS(
     "-D__STDC_CONSTANT_MACROS"
     "-D__STDC_FORMAT_MACROS"
     ${LogHard_DEFINITIONS}
+    ${SharemindCxxHeaders_DEFINITIONS}
     ${SharemindLibmodapi_DEFINITIONS}
 )
 
@@ -47,6 +50,7 @@ TARGET_LINK_LIBRARIES(sharemind_mod_tabledb_hdf5
     ${HDF5_LIBRARIES}
     ${Boost_LIBRARIES}
     ${LogHard_LIBRARIES}
+    ${SharemindCxxHeaders_LIBRARIES}
 )
 
 INSTALL(TARGETS sharemind_mod_tabledb_hdf5 LIBRARY DESTINATION "lib")
