@@ -9,6 +9,13 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12)
 PROJECT(SHAREMIND_MOD_TABLEDB_HDF5)
 
+IF(DEFINED SHAREMIND_APPSERV_REPO_SOURCE_DIR)
+    INCLUDE("${SHAREMIND_APPSERV_REPO_SOURCE_DIR}/config.local" OPTIONAL)
+    INCLUDE("${SHAREMIND_APPSERV_REPO_BINARY_DIR}/config.local" OPTIONAL)
+ENDIF()
+INCLUDE("${CMAKE_CURRENT_SOURCE_DIR}/config.local" OPTIONAL)
+INCLUDE("${CMAKE_CURRENT_BINARY_DIR}/config.local" OPTIONAL)
+
 ADD_COMPILE_OPTIONS(
   "-std=c++11" "-Wall" "-Wextra" "-O2" "-fPIC"
   "$<$<NOT:$<STREQUAL:$<CONFIGURATION>,Release>>:-ggdb>"
@@ -22,15 +29,22 @@ FIND_PACKAGE(Boost COMPONENTS filesystem system thread REQUIRED)
 FIND_PACKAGE(HDF5 REQUIRED)
 FIND_PACKAGE(LogHard REQUIRED)
 FIND_PACKAGE(SharemindCxxHeaders REQUIRED)
+FIND_PACKAGE(SharemindLibDbCommon REQUIRED)
 FIND_PACKAGE(SharemindLibmodapi REQUIRED)
+FIND_PACKAGE(SharemindMiner REQUIRED)
+FIND_PACKAGE(SharemindModTableDb REQUIRED)
 INCLUDE_DIRECTORIES(
     ${Boost_INCLUDE_DIRS}
     ${HDF5_INCLUDE_DIRS}
     ${LogHard_INCLUDE_DIRS}
     ${SharemindCxxHeaders_INCLUDE_DIRS}
+    ${SharemindLibDbCommon_INCLUDE_DIRS}
     ${SharemindLibmodapi_INCLUDE_DIRS}
+    ${SharemindMiner_Dsa_INCLUDE_DIRS}
+    ${SharemindMiner_LibConsensusService_INCLUDE_DIRS}
+    ${SharemindMiner_LibProcessFacility_INCLUDE_DIRS}
+    ${SharemindModTableDb_INCLUDE_DIRS}
 )
-INCLUDE_DIRECTORIES(BEFORE "${CMAKE_CURRENT_SOURCE_DIR}/../../")
 
 ADD_DEFINITIONS(
     "-DSHAREMIND_LOGLEVEL_${SHAREMIND_LOGLEVEL}"
@@ -39,7 +53,12 @@ ADD_DEFINITIONS(
     "-D__STDC_FORMAT_MACROS"
     ${LogHard_DEFINITIONS}
     ${SharemindCxxHeaders_DEFINITIONS}
+    ${SharemindLibDbCommon_DEFINITIONS}
     ${SharemindLibmodapi_DEFINITIONS}
+    ${SharemindMiner_Dsa_DEFINITIONS}
+    ${SharemindMiner_LibConsensusService_DEFINITIONS}
+    ${SharemindMiner_LibProcessFacility_DEFINITIONS}
+    ${SharemindModTableDb_DEFINITIONS}
 )
 
 FILE(GLOB_RECURSE TABLEDB_HDF5_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
@@ -51,6 +70,10 @@ TARGET_LINK_LIBRARIES(sharemind_mod_tabledb_hdf5
     ${Boost_LIBRARIES}
     ${LogHard_LIBRARIES}
     ${SharemindCxxHeaders_LIBRARIES}
+    ${SharemindMiner_Dsa_LIBRARIES}
+    ${SharemindMiner_LibConsensusService_LIBRARIES}
+    ${SharemindMiner_LibProcessFacility_LIBRARIES}
+    ${SharemindModTableDb_LIBRARIES}
 )
 
 INSTALL(TARGETS sharemind_mod_tabledb_hdf5 LIBRARY DESTINATION "lib")
