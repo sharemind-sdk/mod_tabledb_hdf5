@@ -667,7 +667,7 @@ SharemindTdbError TdbHdf5Connection::tblCreate(const std::string & tbl,
         // Write column index data
         if (size > 0) {
             // Serialize the column index data
-            ColumnIndex colIdx[size];
+            std::unique_ptr<ColumnIndex[]> colIdx(new ColumnIndex[size]);
 
             std::vector<SharemindTdbString *>::const_iterator nameIt = names.begin();
             ColInfoVector::const_iterator mIt = colInfoVector.begin();
@@ -683,7 +683,7 @@ SharemindTdbError TdbHdf5Connection::tblCreate(const std::string & tbl,
             }
 
             // Write the column index data
-            if (H5Dwrite(dId, tId, H5S_ALL, H5S_ALL, H5P_DEFAULT, colIdx) < 0) {
+            if (H5Dwrite(dId, tId, H5S_ALL, H5S_ALL, H5P_DEFAULT, colIdx.get()) < 0) {
                 m_logger.error() << "Failed to write column meta info dataset.";
                 return SHAREMIND_TDB_IO_ERROR;
             }
@@ -908,20 +908,17 @@ SharemindTdbError TdbHdf5Connection::tblColNames(const std::string & tbl, std::v
     };
 
     // Allocate a buffer for reading
-    PartialColumnIndex * buffer = new PartialColumnIndex[colCount];
-    BOOST_SCOPE_EXIT_ALL(&buffer) {
-        delete[] buffer;
-    };
+    std::unique_ptr<PartialColumnIndex[]> buffer(new PartialColumnIndex[colCount]);
 
     // Read column meta info from the dataset
-    if (H5Dread(dId, tId, mSId, H5S_ALL, H5P_DEFAULT, buffer) < 0) {
+    if (H5Dread(dId, tId, mSId, H5S_ALL, H5P_DEFAULT, buffer.get()) < 0) {
         m_logger.error() << "Failed to read column meta info dataset.";
         return SHAREMIND_TDB_IO_ERROR;
     }
 
     BOOST_SCOPE_EXIT_ALL(this, tId, mSId, &buffer) {
         // Release the memory allocated for the variable length types
-        if (H5Dvlen_reclaim(tId, mSId, H5P_DEFAULT, buffer) < 0)
+        if (H5Dvlen_reclaim(tId, mSId, H5P_DEFAULT, buffer.get()) < 0)
             m_logger.fullDebug() << "Error while cleaning up column meta data.";
     };
 
@@ -1024,13 +1021,10 @@ SharemindTdbError TdbHdf5Connection::tblColTypes(const std::string & tbl, std::v
     };
 
     // Allocate a buffer for reading
-    PartialColumnIndex * indices = new PartialColumnIndex[colCount];
-    BOOST_SCOPE_EXIT_ALL(&indices) {
-        delete[] indices;
-    };
+    std::unique_ptr<PartialColumnIndex[]> indices(new PartialColumnIndex[colCount]);
 
     // Read column meta info from the dataset
-    if (H5Dread(dId, tId, H5S_ALL, H5S_ALL, H5P_DEFAULT, indices) < 0) {
+    if (H5Dread(dId, tId, H5S_ALL, H5S_ALL, H5P_DEFAULT, indices.get()) < 0) {
         m_logger.error() << "Failed to read column meta info dataset.";
         return SHAREMIND_TDB_IO_ERROR;
     }
@@ -1104,17 +1098,15 @@ SharemindTdbError TdbHdf5Connection::tblColTypes(const std::string & tbl, std::v
             };
 
             // Read the type attribute
-            SharemindTdbType * const type = new SharemindTdbType;
-            if (H5Aread(aId, aTId, type) < 0) {
+            std::unique_ptr<SharemindTdbType> type(new SharemindTdbType);
+            if (H5Aread(aId, aTId, type.get()) < 0) {
                 m_logger.error() << "Failed to read dataset type attribute.";
-                delete type;
                 return SHAREMIND_TDB_IO_ERROR;
             }
 
-            BOOST_SCOPE_EXIT_ALL(this, aTId, aSId, type) {
-                if (H5Dvlen_reclaim(aTId, aSId, H5P_DEFAULT, type) < 0)
+            BOOST_SCOPE_EXIT_ALL(this, aTId, aSId, &type) {
+                if (H5Dvlen_reclaim(aTId, aSId, H5P_DEFAULT, type.get()) < 0)
                     m_logger.fullDebug() << "Error while cleaning up dataset type attribute object.";
-                delete type;
             };
 
             types.push_back(SharemindTdbType_new(type->domain, type->name, type->size));
@@ -1313,15 +1305,11 @@ SharemindTdbError TdbHdf5Connection::insertRow(const std::string & tbl,
         };
 
         // Read dataset references from the column meta info dataset
-        hobj_ref_t * dsetRefs = new hobj_ref_t[colCount];
-        if (H5Dread(dId, tId, H5S_ALL, H5S_ALL, H5P_DEFAULT, dsetRefs) < 0) {
+        std::unique_ptr<hobj_ref_t[]> dsetRefs(new hobj_ref_t[colCount]);
+        if (H5Dread(dId, tId, H5S_ALL, H5S_ALL, H5P_DEFAULT, dsetRefs.get()) < 0) {
             m_logger.fullDebug() << "Failed to read column meta info dataset.";
             return SHAREMIND_TDB_IO_ERROR;
         }
-
-        BOOST_SCOPE_EXIT_ALL(&dsetRefs) {
-            delete[] dsetRefs;
-        };
 
         // Resolve references to types
         for (size_type i = 0u; i < colCount; ++i) {
@@ -1330,23 +1318,22 @@ SharemindTdbError TdbHdf5Connection::insertRow(const std::string & tbl,
                 hid_t aId = H5I_INVALID_HID;
 
                 // Read the type attribute
-                SharemindTdbType * const type = new SharemindTdbType;
+                std::unique_ptr<SharemindTdbType> type(new SharemindTdbType);
                 const SharemindTdbError ecode = objRefToType(fileId, dsetRefs[i], aId, *type);
                 if (ecode != SHAREMIND_TDB_OK) {
                     m_logger.error() << "Failed to get type info from dataset reference.";
-                    delete type;
                     return ecode;
                 }
 
                 #ifndef NDEBUG
                 const bool r =
                 #endif
-                        refTypes.insert(RefTypeMap::value_type(dsetRefs[i], RefTypeMap::mapped_type(type, aId))).second;
+                        typeCounts.insert(TypeCountMap::value_type(type.get(), 1)).second;
                 assert(r);
                 #ifndef NDEBUG
                 const bool r2 =
                 #endif
-                        typeCounts.insert(TypeCountMap::value_type(type, 1)).second;
+                        refTypes.insert(RefTypeMap::value_type(dsetRefs[i], RefTypeMap::mapped_type(type.release(), aId))).second;
                 assert(r2);
             } else {
                 SharemindTdbType * const type = it->second.first;
@@ -2238,17 +2225,15 @@ SharemindTdbError TdbHdf5Connection::readDatasetColumn(const hid_t fileId, const
     };
 
     // Read the type attribute
-    SharemindTdbType * const type = new SharemindTdbType;
-    if (H5Aread(aId, aTId, type) < 0) {
+    std::unique_ptr<SharemindTdbType> type(new SharemindTdbType);
+    if (H5Aread(aId, aTId, type.get()) < 0) {
         m_logger.error() << "Failed to read dataset type attribute.";
-        delete type;
         return SHAREMIND_TDB_IO_ERROR;
     }
 
-    BOOST_SCOPE_EXIT_ALL(this, aTId, aSId, type) {
-        if (H5Dvlen_reclaim(aTId, aSId, H5P_DEFAULT, type) < 0)
+    BOOST_SCOPE_EXIT_ALL(this, aTId, aSId, &type) {
+        if (H5Dvlen_reclaim(aTId, aSId, H5P_DEFAULT, type.get()) < 0)
             m_logger.fullDebug() << "Error while cleaning up dataset type attribute object.";
-        delete type;
     };
 
     {
@@ -2264,7 +2249,7 @@ SharemindTdbError TdbHdf5Connection::readDatasetColumn(const hid_t fileId, const
                 size_type bufferSize = 0;
 
                 // Read the column data
-                if (isVariableLengthType(type)) {
+                if (isVariableLengthType(type.get())) {
                     buffer = ::operator new(dims[0] * sizeof(hvl_t));
                 } else {
                     bufferSize = dims[0] * type->size;
@@ -2312,18 +2297,18 @@ SharemindTdbError TdbHdf5Connection::readDatasetColumn(const hid_t fileId, const
                     return SHAREMIND_TDB_IO_ERROR;
                 }
 
-                if (isVariableLengthType(type)) {
+                if (isVariableLengthType(type.get())) {
                     hvl_t * const hvlBuffer = static_cast<hvl_t *>(buffer);
 
                     for (hsize_t i = 0; i < dims[0]; ++i) {
-                        SharemindTdbValue * const val = new SharemindTdbValue;
+                        std::unique_ptr<SharemindTdbValue> val(new SharemindTdbValue);
                         val->type = SharemindTdbType_new(type->domain, type->name, type->size);
                         bufferSize = hvlBuffer[i].len;
                         val->buffer = ::operator new(bufferSize);
                         memcpy(val->buffer, hvlBuffer[i].p, bufferSize);
                         val->size = bufferSize;
 
-                        it->second->push_back(val);
+                        it->second->push_back(val.release());
                     }
 
                     // Release the memory allocated for the variable length types
@@ -2333,12 +2318,12 @@ SharemindTdbError TdbHdf5Connection::readDatasetColumn(const hid_t fileId, const
                     // Free the variable length type array
                     ::operator delete(buffer);
                 } else {
-                    SharemindTdbValue * const val = new SharemindTdbValue;
+                    std::unique_ptr<SharemindTdbValue> val(new SharemindTdbValue);
                     val->type = SharemindTdbType_new(type->domain, type->name, type->size);
                     val->buffer = buffer;
                     val->size = bufferSize;
 
-                    it->second->push_back(val);
+                    it->second->push_back(val.release());
                 }
             }
         }
