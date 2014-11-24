@@ -98,7 +98,7 @@ void commit(const SharemindConsensusDatum * proposals,
     }
 }
 
-SharemindOperationType databaseOperation = {
+SharemindOperationType const databaseOperation = {
     &equivalent,
     &execute,
     &commit,
