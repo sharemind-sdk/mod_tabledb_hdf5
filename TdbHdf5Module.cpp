@@ -37,11 +37,10 @@ struct TransactionData {
     SharemindTdbError globalResult;
 };
 
-SharemindProcessId toId(const SharemindDatum * datum) {
-    return *static_cast<SharemindProcessId *>(datum->data);
-}
+SharemindProcessId toId(const SharemindConsensusDatum * datum)
+{ return *static_cast<SharemindProcessId const *>(datum->data); }
 
-bool equivalent(const SharemindDatum * proposals, size_t count) {
+bool equivalent(const SharemindConsensusDatum * proposals, size_t count) {
     SharemindProcessId a = toId(&proposals[0u]);
 
     for (size_t i = 1u; i < count; i++) {
@@ -52,7 +51,7 @@ bool equivalent(const SharemindDatum * proposals, size_t count) {
     return true;
 }
 
-SharemindConsensusResultType execute(const SharemindDatum * proposals,
+SharemindConsensusResultType execute(const SharemindConsensusDatum * proposals,
                                      size_t count,
                                      void * callbackPtr)
 {
@@ -65,7 +64,7 @@ SharemindConsensusResultType execute(const SharemindDatum * proposals,
     return transaction->localResult;
 }
 
-void commit(const SharemindDatum * proposals,
+void commit(const SharemindConsensusDatum * proposals,
             size_t count,
             const SharemindConsensusResultType * results,
             void * callbackPtr)
