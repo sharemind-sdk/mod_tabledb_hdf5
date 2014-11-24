@@ -37,17 +37,15 @@ struct TransactionData {
     SharemindTdbError globalResult;
 };
 
-SharemindProcessId toId(const SharemindConsensusDatum * datum)
-{ return *static_cast<SharemindProcessId const *>(datum->data); }
-
 bool equivalent(const SharemindConsensusDatum * proposals, size_t count) {
-    SharemindProcessId a = toId(&proposals[0u]);
-
-    for (size_t i = 1u; i < count; i++) {
+    assert(proposals);
+    assert(count > 0u);
+    static constexpr auto const toId = [](const SharemindConsensusDatum * datum)
+            { return *static_cast<SharemindProcessId const *>(datum->data); };
+    SharemindProcessId const a = toId(&proposals[0u]);
+    for (size_t i = 1u; i < count; i++)
         if (a != toId(&proposals[i]))
             return false;
-    }
-
     return true;
 }
 
@@ -55,13 +53,15 @@ SharemindConsensusResultType execute(const SharemindConsensusDatum * proposals,
                                      size_t count,
                                      void * callbackPtr)
 {
+    assert(proposals);
+    assert(count > 0u);
+    assert(callbackPtr);
     (void) proposals;
     (void) count;
-
-    TransactionData * transaction = static_cast<TransactionData *>(callbackPtr);
-    transaction->localResult = transaction->strategy.execute();
-
-    return transaction->localResult;
+    TransactionData & transaction =
+            *static_cast<TransactionData *>(callbackPtr);
+    transaction.localResult = transaction.strategy.execute();
+    return transaction.localResult;
 }
 
 void commit(const SharemindConsensusDatum * proposals,
@@ -69,14 +69,15 @@ void commit(const SharemindConsensusDatum * proposals,
             const SharemindConsensusResultType * results,
             void * callbackPtr)
 {
-    (void) proposals;
-
-    TransactionData * transaction = static_cast<TransactionData *>(callbackPtr);
+    assert(proposals);
+    assert(count > 0u);
+    assert(results);
+    assert(callbackPtr);
 
     // Get the global result from all of the local results
     SharemindTdbError err = SHAREMIND_TDB_OK;
-    for (size_t i = 0; i < count; ++i) {
-        if (results[i] != SHAREMIND_TDB_OK) {
+    for (size_t i = 0u; i < count; ++i) {
+        if (static_cast<SharemindTdbError>(results[i]) != SHAREMIND_TDB_OK) {
             if (err == SHAREMIND_TDB_OK) {
                 // TODO Currently, we do not check if what we get is a valid
                 // error code.
@@ -88,14 +89,14 @@ void commit(const SharemindConsensusDatum * proposals,
         }
     }
 
-    transaction->globalResult = err;
+    TransactionData & transaction =
+            *static_cast<TransactionData *>(callbackPtr);
+    transaction.globalResult = err;
 
     // If the operation succeeded locally but not on all miners
-    if (transaction->localResult == SHAREMIND_TDB_OK &&
-            transaction->globalResult != SHAREMIND_TDB_OK)
-    {
-        transaction->strategy.rollback();
-    }
+    if (transaction.localResult == SHAREMIND_TDB_OK
+            && transaction.globalResult != SHAREMIND_TDB_OK)
+        transaction.strategy.rollback();
 }
 
 SharemindOperationType const databaseOperation = {
