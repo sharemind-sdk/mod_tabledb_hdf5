@@ -40,7 +40,7 @@ struct TransactionData {
 bool equivalent(const SharemindConsensusDatum * proposals, size_t count) {
     assert(proposals);
     assert(count > 0u);
-    static constexpr auto const toId = [](const SharemindConsensusDatum * datum)
+    static auto const toId = [](const SharemindConsensusDatum * datum)
             { return *static_cast<SharemindProcessId const *>(datum->data); };
     SharemindProcessId const a = toId(&proposals[0u]);
     for (size_t i = 1u; i < count; i++)
