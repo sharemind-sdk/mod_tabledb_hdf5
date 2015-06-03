@@ -70,6 +70,7 @@ void commit(const SharemindConsensusDatum * proposals,
             void * callbackPtr)
 {
     assert(proposals);
+    (void) proposals;
     assert(count > 0u);
     assert(results);
     assert(callbackPtr);
