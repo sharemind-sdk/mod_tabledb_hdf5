@@ -199,7 +199,11 @@ bool TdbHdf5Module::openConnection(const SharemindModuleApi0x1SyscallContext * c
             #ifndef NDEBUG
             const bool r =
             #endif
-                    m_dsConf.insert(dsName, cfg).second;
+                    m_dsConf.insert(dsName, cfg)
+                    #ifndef NDEBUG
+                        .second
+                    #endif
+                    ;
             assert(r);
         } else {
             cfg = it->second;

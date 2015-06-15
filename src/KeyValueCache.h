@@ -75,7 +75,11 @@ protected: /* Methods: */
         #ifndef NDEBUG
         const bool r =
         #endif
-                m_deleterMap.insert(typename DeleterMap::value_type(ptr.get(), it)).second;
+                m_deleterMap.insert(typename DeleterMap::value_type(ptr.get(), it))
+                #ifndef NDEBUG
+                    .second
+                #endif
+                ;
         assert(r);
 
         return ptr;

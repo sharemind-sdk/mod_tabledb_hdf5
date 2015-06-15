@@ -698,7 +698,11 @@ SharemindTdbError TdbHdf5Connection::tblCreate(const std::string & tbl,
     #ifndef NDEBUG
     const bool r =
     #endif
-            m_tableFiles.insert(TableFileMap::value_type(tbl, fileId)).second;
+            m_tableFiles.insert(TableFileMap::value_type(tbl, fileId))
+            #ifndef NDEBUG
+                .second
+            #endif
+            ;
     assert(r);
 
     success = true;
@@ -1328,12 +1332,20 @@ SharemindTdbError TdbHdf5Connection::insertRow(const std::string & tbl,
                 #ifndef NDEBUG
                 const bool r =
                 #endif
-                        typeCounts.insert(TypeCountMap::value_type(type.get(), 1)).second;
+                        typeCounts.insert(TypeCountMap::value_type(type.get(), 1))
+                        #ifndef NDEBUG
+                            .second
+                        #endif
+                        ;
                 assert(r);
                 #ifndef NDEBUG
                 const bool r2 =
                 #endif
-                        refTypes.insert(RefTypeMap::value_type(dsetRefs[i], RefTypeMap::mapped_type(type.release(), aId))).second;
+                        refTypes.insert(RefTypeMap::value_type(dsetRefs[i], RefTypeMap::mapped_type(type.release(), aId)))
+                        #ifndef NDEBUG
+                            .second
+                        #endif
+                        ;
                 assert(r2);
             } else {
                 SharemindTdbType * const type = it->second.first;
