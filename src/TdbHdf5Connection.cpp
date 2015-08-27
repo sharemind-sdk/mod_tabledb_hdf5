@@ -34,7 +34,7 @@ namespace fs = boost::filesystem;
 #define DATASET_TYPE_ATTR      "type"
 #define DATASET_TYPE_ATTR_TYPE "/meta/dataset_type"
 #define ERR_MSG_SIZE_MAX       (64u)
-#define FILE_EXT               "h5"
+#define FILE_EXT               ".h5"
 #define META_GROUP             "/meta"
 #define ROW_COUNT_ATTR         "row_count"
 #define TBL_NAME_SIZE_MAX      (64u)
@@ -1972,8 +1972,7 @@ boost::filesystem::path TdbHdf5Connection::nameToPath(const std::string & tbl) {
 
     // TODO Should we try to eliminate the copying?
     fs::path p(m_path);
-    p /= tbl;
-    p.replace_extension(FILE_EXT);
+    p /= tbl + FILE_EXT;
 
     return p;
 }
