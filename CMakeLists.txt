@@ -25,8 +25,10 @@ FIND_PACKAGE(Boost COMPONENTS filesystem system thread REQUIRED)
 FIND_PACKAGE(HDF5 REQUIRED)
 FIND_PACKAGE(LogHard REQUIRED)
 FIND_PACKAGE(SharemindCxxHeaders REQUIRED)
+FIND_PACKAGE(SharemindLibDataStoreManager REQUIRED)
 FIND_PACKAGE(SharemindLibDbCommon REQUIRED)
 FIND_PACKAGE(SharemindLibmodapi REQUIRED)
+FIND_PACKAGE(SharemindLibProcessFacility REQUIRED)
 FIND_PACKAGE(SharemindMiner REQUIRED)
 FIND_PACKAGE(SharemindModTableDb REQUIRED)
 INCLUDE_DIRECTORIES(
@@ -34,11 +36,12 @@ INCLUDE_DIRECTORIES(
     ${HDF5_INCLUDE_DIRS}
     ${LogHard_INCLUDE_DIRS}
     ${SharemindCxxHeaders_INCLUDE_DIRS}
+    ${SharemindLibDataStoreManager_INCLUDE_DIRS}
     ${SharemindLibDbCommon_INCLUDE_DIRS}
     ${SharemindLibmodapi_INCLUDE_DIRS}
+    ${SharemindLibProcessFacility_INCLUDE_DIRS}
     ${SharemindMiner_Dsa_INCLUDE_DIRS}
     ${SharemindMiner_LibConsensusService_INCLUDE_DIRS}
-    ${SharemindMiner_LibProcessFacility_INCLUDE_DIRS}
     ${SharemindModTableDb_INCLUDE_DIRS}
 )
 
@@ -48,11 +51,12 @@ ADD_DEFINITIONS(
     "-D__STDC_FORMAT_MACROS"
     ${LogHard_DEFINITIONS}
     ${SharemindCxxHeaders_DEFINITIONS}
+    ${SharemindLibDataStoreManager_DEFINITIONS}
     ${SharemindLibDbCommon_DEFINITIONS}
     ${SharemindLibmodapi_DEFINITIONS}
+    ${SharemindLibProcessFacility_DEFINITIONS}
     ${SharemindMiner_Dsa_DEFINITIONS}
     ${SharemindMiner_LibConsensusService_DEFINITIONS}
-    ${SharemindMiner_LibProcessFacility_DEFINITIONS}
     ${SharemindModTableDb_DEFINITIONS}
 )
 
@@ -65,9 +69,9 @@ TARGET_LINK_LIBRARIES(sharemind_mod_tabledb_hdf5
     ${Boost_LIBRARIES}
     ${LogHard_LIBRARIES}
     ${SharemindCxxHeaders_LIBRARIES}
+    ${SharemindLibProcessFacility_LIBRARIES}
     ${SharemindMiner_Dsa_LIBRARIES}
     ${SharemindMiner_LibConsensusService_LIBRARIES}
-    ${SharemindMiner_LibProcessFacility_LIBRARIES}
     ${SharemindModTableDb_LIBRARIES}
 )
 
