@@ -25,23 +25,22 @@ FIND_PACKAGE(Boost COMPONENTS filesystem system thread REQUIRED)
 FIND_PACKAGE(HDF5 REQUIRED)
 FIND_PACKAGE(LogHard REQUIRED)
 FIND_PACKAGE(SharemindCxxHeaders REQUIRED)
+FIND_PACKAGE(SharemindLibConsensusService REQUIRED)
 FIND_PACKAGE(SharemindLibDataStoreManager REQUIRED)
 FIND_PACKAGE(SharemindLibDbCommon REQUIRED)
 FIND_PACKAGE(SharemindLibmodapi REQUIRED)
 FIND_PACKAGE(SharemindLibProcessFacility REQUIRED)
-FIND_PACKAGE(SharemindMiner REQUIRED)
 FIND_PACKAGE(SharemindModTableDb REQUIRED)
 INCLUDE_DIRECTORIES(
     ${Boost_INCLUDE_DIRS}
     ${HDF5_INCLUDE_DIRS}
     ${LogHard_INCLUDE_DIRS}
     ${SharemindCxxHeaders_INCLUDE_DIRS}
+    ${SharemindLibConsensusService_INCLUDE_DIRS}
     ${SharemindLibDataStoreManager_INCLUDE_DIRS}
     ${SharemindLibDbCommon_INCLUDE_DIRS}
     ${SharemindLibmodapi_INCLUDE_DIRS}
     ${SharemindLibProcessFacility_INCLUDE_DIRS}
-    ${SharemindMiner_Dsa_INCLUDE_DIRS}
-    ${SharemindMiner_LibConsensusService_INCLUDE_DIRS}
     ${SharemindModTableDb_INCLUDE_DIRS}
 )
 
@@ -51,12 +50,11 @@ ADD_DEFINITIONS(
     "-D__STDC_FORMAT_MACROS"
     ${LogHard_DEFINITIONS}
     ${SharemindCxxHeaders_DEFINITIONS}
+    ${SharemindLibConsensusService_DEFINITIONS}
     ${SharemindLibDataStoreManager_DEFINITIONS}
     ${SharemindLibDbCommon_DEFINITIONS}
     ${SharemindLibmodapi_DEFINITIONS}
     ${SharemindLibProcessFacility_DEFINITIONS}
-    ${SharemindMiner_Dsa_DEFINITIONS}
-    ${SharemindMiner_LibConsensusService_DEFINITIONS}
     ${SharemindModTableDb_DEFINITIONS}
 )
 
@@ -65,13 +63,15 @@ FILE(GLOB_RECURSE TABLEDB_HDF5_HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.h")
 
 ADD_LIBRARY(sharemind_mod_tabledb_hdf5 MODULE ${TABLEDB_HDF5_SOURCES} ${TABLEDB_HDF5_HEADERS})
 TARGET_LINK_LIBRARIES(sharemind_mod_tabledb_hdf5
-    ${HDF5_LIBRARIES}
     ${Boost_LIBRARIES}
+    ${HDF5_LIBRARIES}
     ${LogHard_LIBRARIES}
     ${SharemindCxxHeaders_LIBRARIES}
+    ${SharemindLibConsensusService_LIBRARIES}
+    ${SharemindLibDataStoreManager_LIBRARIES}
+    ${SharemindLibDbCommon_LIBRARIES}
+    ${SharemindLibmodapi_LIBRARIES}
     ${SharemindLibProcessFacility_LIBRARIES}
-    ${SharemindMiner_Dsa_LIBRARIES}
-    ${SharemindMiner_LibConsensusService_LIBRARIES}
     ${SharemindModTableDb_LIBRARIES}
 )
 

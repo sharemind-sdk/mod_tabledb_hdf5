@@ -16,9 +16,9 @@
 #include <mutex>
 #include <sharemind/datastoreapi.h>
 #include <sharemind/dbcommon/datasourceapi.h>
+#include <sharemind/libconsensusservice.h>
 #include <sharemind/libmodapi/api_0x1.h>
 #include <sharemind/libprocessfacility.h>
-#include <sharemind/miner/libconsensusservice.h>
 #include <sharemind/mod_tabledb/tdberror.h>
 #include <sharemind/mod_tabledb/tdbvectormapapi.h>
 #include <sharemind/ScopedObjectMap.h>
