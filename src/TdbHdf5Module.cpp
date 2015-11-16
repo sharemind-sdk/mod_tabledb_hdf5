@@ -113,7 +113,7 @@ TdbHdf5Module::TdbHdf5Module(const LogHard::Logger & logger,
                              SharemindDataStoreManager & dataStoreManager,
                              SharemindDataSourceManager & dataSourceManager,
                              SharemindTdbVectorMapUtil & mapUtil,
-                             SharemindConsensusFacility & consensusService)
+                             SharemindConsensusFacility * consensusService)
     : m_logger(logger, "[TdbHdf5Module]")
     , m_dataStoreManager(dataStoreManager)
     , m_dataSourceManager(dataSourceManager)
@@ -121,7 +121,8 @@ TdbHdf5Module::TdbHdf5Module(const LogHard::Logger & logger,
     , m_consensusService(consensusService)
     , m_dbManager(new TdbHdf5Manager(logger))
 {
-    m_consensusService.add_operation_type(&m_consensusService, &databaseOperation);
+    if (m_consensusService)
+        m_consensusService->add_operation_type(m_consensusService, &databaseOperation);
 }
 
 bool TdbHdf5Module::setErrorCode(const SharemindModuleApi0x1SyscallContext * ctx,
@@ -344,24 +345,30 @@ SharemindTdbError TdbHdf5Module::executeTransaction(
     TransactionData transaction(strategy);
     assert(c);
     assert(c->process_internal);
-    typedef SharemindProcessFacility CPF;
-    const CPF & pf = *static_cast<const CPF *>(c->process_internal);
-    const SharemindProcessId processId = pf.get_process_id(&pf);
+    if (m_consensusService) {
+        typedef SharemindProcessFacility CPF;
+        const CPF & pf = *static_cast<const CPF *>(c->process_internal);
+        const SharemindProcessId processId = pf.get_process_id(&pf);
 
-    SharemindConsensusFacilityError ret =
-        m_consensusService.blocking_propose(&m_consensusService,
-                                            "TdbHDF5Transaction",
-                                            sizeof(processId),
-                                            &processId,
-                                            &transaction);
-
-    if (ret == SHAREMIND_CONSENSUS_FACILITY_OK) {
-        return transaction.globalResult;
-    } else if (ret == SHAREMIND_CONSENSUS_FACILITY_OUT_OF_MEMORY) {
-        throw std::bad_alloc();
+        SharemindConsensusFacilityError ret =
+            m_consensusService->blocking_propose(m_consensusService,
+                                                "TdbHDF5Transaction",
+                                                sizeof(processId),
+                                                &processId,
+                                                &transaction);
+        if (ret == SHAREMIND_CONSENSUS_FACILITY_OK) {
+            return transaction.globalResult;
+        } else if (ret == SHAREMIND_CONSENSUS_FACILITY_OUT_OF_MEMORY) {
+            throw std::bad_alloc();
+        } else {
+            throw std::runtime_error("Unknown ConsensusService exception.");
+        }
     } else {
-        throw std::runtime_error("Unknown ConsensusService exception.");
+        transaction.localResult = transaction.strategy.execute();
+        transaction.globalResult = transaction.localResult;
+        return transaction.globalResult;
     }
+
 }
 
 } // namespace sharemind {

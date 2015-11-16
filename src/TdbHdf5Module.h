@@ -68,7 +68,7 @@ public: /* Methods: */
                   SharemindDataStoreManager & dataStoreManager,
                   SharemindDataSourceManager & dsManager,
                   SharemindTdbVectorMapUtil & mapUtil,
-                  SharemindConsensusFacility & consensusService);
+                  SharemindConsensusFacility * consensusService);
 
     bool setErrorCode(const SharemindModuleApi0x1SyscallContext * ctx,
             const std::string & dsName,
@@ -108,7 +108,7 @@ private: /* Fields: */
     SharemindDataStoreManager & m_dataStoreManager;
     SharemindDataSourceManager & m_dataSourceManager;
     SharemindTdbVectorMapUtil & m_mapUtil;
-    SharemindConsensusFacility & m_consensusService;
+    SharemindConsensusFacility * m_consensusService;
 
     std::shared_ptr<TdbHdf5Manager> m_dbManager;
 
