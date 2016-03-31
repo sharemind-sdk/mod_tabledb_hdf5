@@ -358,7 +358,6 @@ SharemindTdbError TdbHdf5Module::executeTransaction(
     if (m_consensusService) {
         typedef SharemindProcessFacility CPF;
         const CPF & pf = *static_cast<const CPF *>(c->process_internal);
-        const SharemindProcessId processId = pf.get_process_id(&pf);
 
         SharemindConsensusFacilityError ret =
             m_consensusService->blocking_propose(m_consensusService,
