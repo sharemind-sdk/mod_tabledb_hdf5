@@ -19,6 +19,7 @@
 
 #include "TdbHdf5Module.h"
 
+#include <cstring>
 #include "TdbHdf5ConnectionConf.h"
 #include "TdbHdf5Manager.h"
 
@@ -50,11 +51,11 @@ struct TransactionData {
 bool equivalent(const SharemindConsensusDatum * proposals, size_t count) {
     assert(proposals);
     assert(count > 0u);
-    static auto const toId = [](const SharemindConsensusDatum * datum)
-            { return *static_cast<SharemindProcessId const *>(datum->data); };
-    SharemindProcessId const a = toId(&proposals[0u]);
+    auto const firstData = proposals[0u].data;
+    auto const firstSize = proposals[0u].size;
     for (size_t i = 1u; i < count; i++)
-        if (a != toId(&proposals[i]))
+        if ((proposals[i].size != firstSize)
+            || std::memcmp(firstData, proposals[i].data, firstSize) != 0)
             return false;
     return true;
 }
