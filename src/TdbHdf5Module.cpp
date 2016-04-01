@@ -117,6 +117,37 @@ SharemindOperationType const databaseOperation = {
     "TdbHDF5Transaction"
 };
 
+template <typename Logger>
+SharemindDataStore * getDataStore(
+        SharemindModuleApi0x1SyscallContext const * const ctx,
+        char const * const name,
+        Logger & logger) noexcept
+{
+    SharemindDataStoreFactory * const f =
+            static_cast<SharemindDataStoreFactory *>(
+                ctx->processFacility(ctx, "DataStoreFactory"));
+    if (!f) {
+        logger.error() << "Failed to get process data store factory!";
+        return nullptr;
+    }
+    if (SharemindDataStore * const store = f->get_datastore(f, name))
+        return store;
+    logger.error() << "Failed to get process data store: " << name << '!';
+    return nullptr;
+}
+
+template <typename Logger>
+SharemindDataStore * getConnections(
+        SharemindModuleApi0x1SyscallContext const * const ctx,
+        Logger & logger) noexcept
+{ return getDataStore(ctx, "mod_tabledb_hdf5/connections", logger); }
+
+template <typename Logger>
+SharemindDataStore * getVectorMaps(
+        SharemindModuleApi0x1SyscallContext const * const ctx,
+        Logger & logger) noexcept
+{ return getDataStore(ctx, "mod_tabledb/vector_maps", logger); }
+
 } /* namespace { */
 
 TdbHdf5Module::TdbHdf5Module(const LogHard::Logger & logger,
@@ -140,14 +171,10 @@ bool TdbHdf5Module::setErrorCode(const SharemindModuleApi0x1SyscallContext * ctx
         SharemindTdbError code)
 {
     // Get error store
-    SharemindDataStore * const errors = m_dataStoreManager.get_datastore(
-                                                 &m_dataStoreManager,
-                                                 ctx,
-                                                 "mod_tabledb/errors");
-    if (!errors) {
-        m_logger.error() << "Failed to get process data store.";
+    SharemindDataStore * const errors =
+            getDataStore(ctx, "mod_tabledb/errors", m_logger);
+    if (!errors)
         return false;
-    }
 
     // Remove existing error code, if any
     errors->remove(errors, dsName.c_str());
@@ -169,10 +196,7 @@ bool TdbHdf5Module::openConnection(const SharemindModuleApi0x1SyscallContext * c
                                    const std::string & dsName)
 {
     // Get connection store
-    SharemindDataStore * const connections = m_dataStoreManager.get_datastore(
-                                                 &m_dataStoreManager,
-                                                 ctx,
-                                                 "mod_tabledb_hdf5/connections");
+    SharemindDataStore * const connections = getConnections(ctx, m_logger);
     if (!connections) {
         m_logger.error() << "Failed to get process data store.";
         return false;
@@ -244,10 +268,7 @@ bool TdbHdf5Module::closeConnection(const SharemindModuleApi0x1SyscallContext * 
                                     const std::string & dsName)
 {
     // Get connection store
-    SharemindDataStore * const connections = m_dataStoreManager.get_datastore(
-                                                 &m_dataStoreManager,
-                                                 ctx,
-                                                 "mod_tabledb_hdf5/connections");
+    SharemindDataStore * const connections = getConnections(ctx, m_logger);
     if (!connections) {
         m_logger.error() << "Failed to get process data store.";
         return false;
@@ -263,10 +284,7 @@ TdbHdf5Connection * TdbHdf5Module::getConnection(const SharemindModuleApi0x1Sysc
                                                  const std::string & dsName) const
 {
     // Get connection store
-    SharemindDataStore * const connections = m_dataStoreManager.get_datastore(
-                                                 &m_dataStoreManager,
-                                                 ctx,
-                                                 "mod_tabledb_hdf5/connections");
+    SharemindDataStore * const connections = getConnections(ctx, m_logger);
     if (!connections) {
         m_logger.error() << "Failed to get process data store.";
         return nullptr;
@@ -286,10 +304,7 @@ TdbHdf5Connection * TdbHdf5Module::getConnection(const SharemindModuleApi0x1Sysc
 SharemindTdbVectorMap * TdbHdf5Module::newVectorMap(const SharemindModuleApi0x1SyscallContext * ctx,
                                                     uint64_t & vmapId) {
     // Get vector map store
-    SharemindDataStore * const maps = m_dataStoreManager.get_datastore(
-                                          &m_dataStoreManager,
-                                          ctx,
-                                          "mod_tabledb/vector_maps");
+    SharemindDataStore * const maps = getVectorMaps(ctx, m_logger);
     if (!maps) {
         m_logger.error() << "Failed to get process data store.";
         return nullptr;
@@ -312,10 +327,7 @@ bool TdbHdf5Module::deleteVectorMap(const SharemindModuleApi0x1SyscallContext * 
                                     const uint64_t vmapId)
 {
     // Get vector map store
-    SharemindDataStore * const maps = m_dataStoreManager.get_datastore(
-                                          &m_dataStoreManager,
-                                          ctx,
-                                          "mod_tabledb/vector_maps");
+    SharemindDataStore * const maps = getVectorMaps(ctx, m_logger);
     if (!maps) {
         m_logger.error() << "Failed to get process data store.";
         return false;
@@ -329,10 +341,7 @@ SharemindTdbVectorMap * TdbHdf5Module::getVectorMap(const SharemindModuleApi0x1S
                                                     const uint64_t vmapId) const
 {
     // Get vector map store
-    SharemindDataStore * const maps = m_dataStoreManager.get_datastore(
-                                          &m_dataStoreManager,
-                                          ctx,
-                                          "mod_tabledb/vector_maps");
+    SharemindDataStore * const maps = getVectorMaps(ctx, m_logger);
     if (!maps) {
         m_logger.error() << "Failed to get process data store.";
         return nullptr;
