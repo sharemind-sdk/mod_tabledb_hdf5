@@ -1345,10 +1345,6 @@ SHAREMIND_MODULE_API_0x1_INITIALIZER(c) {
     if (!flog || !flog->facility)
         return SHAREMIND_MODULE_API_0x1_MISSING_FACILITY;
 
-    const SharemindModuleApi0x1Facility * fstorem = c->getModuleFacility(c, "DataStoreManager");
-    if (!fstorem || !fstorem->facility)
-        return SHAREMIND_MODULE_API_0x1_MISSING_FACILITY;
-
     const SharemindModuleApi0x1Facility * fsourcem = c->getModuleFacility(c, "DataSourceManager");
     if (!fsourcem || !fsourcem->facility)
         return SHAREMIND_MODULE_API_0x1_MISSING_FACILITY;
@@ -1367,7 +1363,6 @@ SHAREMIND_MODULE_API_0x1_INITIALIZER(c) {
 
     const LogHard::Logger & logger =
             *static_cast<const LogHard::Logger *>(flog->facility);
-    SharemindDataStoreManager * dataStoreManager = static_cast<SharemindDataStoreManager *>(fstorem->facility);
     SharemindDataSourceManager * dataSourceManager = static_cast<SharemindDataSourceManager *>(fsourcem->facility);
     SharemindTdbVectorMapUtil * mapUtil = static_cast<SharemindTdbVectorMapUtil *>(fvmaputil->facility);
 
@@ -1376,7 +1371,6 @@ SHAREMIND_MODULE_API_0x1_INITIALIZER(c) {
      */
     try {
         c->moduleHandle = new sharemind::TdbHdf5Module(logger,
-                                                       *dataStoreManager,
                                                        *dataSourceManager,
                                                        *mapUtil,
                                                        consensusService);

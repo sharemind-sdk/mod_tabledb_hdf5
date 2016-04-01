@@ -151,12 +151,10 @@ SharemindDataStore * getVectorMaps(
 } /* namespace { */
 
 TdbHdf5Module::TdbHdf5Module(const LogHard::Logger & logger,
-                             SharemindDataStoreManager & dataStoreManager,
                              SharemindDataSourceManager & dataSourceManager,
                              SharemindTdbVectorMapUtil & mapUtil,
                              SharemindConsensusFacility * consensusService)
     : m_logger(logger, "[TdbHdf5Module]")
-    , m_dataStoreManager(dataStoreManager)
     , m_dataSourceManager(dataSourceManager)
     , m_mapUtil(mapUtil)
     , m_consensusService(consensusService)

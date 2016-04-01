@@ -75,7 +75,6 @@ private: /* Types: */
 public: /* Methods: */
 
     TdbHdf5Module(const LogHard::Logger & logger,
-                  SharemindDataStoreManager & dataStoreManager,
                   SharemindDataSourceManager & dsManager,
                   SharemindTdbVectorMapUtil & mapUtil,
                   SharemindConsensusFacility * consensusService);
@@ -104,9 +103,6 @@ public: /* Methods: */
 
     inline const LogHard::Logger & logger() const noexcept { return m_logger; }
 
-    inline SharemindDataStoreManager & dataStoreManager() { return m_dataStoreManager; }
-    inline const SharemindDataStoreManager & dataStoreManager() const { return m_dataStoreManager; }
-
     inline SharemindTdbVectorMapUtil & vectorMapUtil() { return m_mapUtil; }
     inline const SharemindTdbVectorMapUtil & vectorMapUtil() const { return m_mapUtil; }
 
@@ -115,7 +111,6 @@ private: /* Fields: */
     const LogHard::Logger m_logger;
 
     /* Cached references: */
-    SharemindDataStoreManager & m_dataStoreManager;
     SharemindDataSourceManager & m_dataSourceManager;
     SharemindTdbVectorMapUtil & m_mapUtil;
     SharemindConsensusFacility * m_consensusService;
