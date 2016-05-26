@@ -14,6 +14,7 @@ INCLUDE("${CMAKE_CURRENT_BINARY_DIR}/config.local" OPTIONAL)
 
 ADD_COMPILE_OPTIONS(
   "-std=c++11" "-Wall" "-Wextra" "-O2" "-fPIC"
+  "-DH5_USE_18_API"
   "$<$<NOT:$<STREQUAL:$<CONFIGURATION>,Release>>:-ggdb>"
   "$<$<NOT:$<STREQUAL:$<CONFIGURATION>,Release>>:-fno-omit-frame-pointer>"
   "$<$<STREQUAL:$<CONFIGURATION>,Release>:-DNDEBUG>"
