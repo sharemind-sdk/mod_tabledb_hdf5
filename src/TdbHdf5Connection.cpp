@@ -1954,16 +1954,16 @@ bool TdbHdf5Connection::validateValues(const std::vector<SharemindTdbValue *> & 
         SharemindTdbType * const type = val->type;
         assert(type);
 
+        // Variable length types are handled differently
+        if (isVariableLengthType(type))
+            continue;
+
         // Check if the value is non-empty
         if (val->size == 0) {
             m_logger.error() << "Invalid value of type \"" << type->domain
                 << "::" << type->name << "\": Value size must be greater than zero.";
             return false;
         }
-
-        // Variable length types are handled differently
-        if (isVariableLengthType(type))
-            continue;
 
         // Check if the value buffer length is a multiple of the type size
         // length
