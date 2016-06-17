@@ -87,6 +87,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_open,
                           args, num_args, refs, crefs,
                           returnValue, c)
 {
+    assert(c);
     if (!SyscallArgs<0u, false, 0u, 1u>::check(args, num_args, refs, crefs, returnValue)) {
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
     }
@@ -95,8 +96,6 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_open,
             || static_cast<const char *>(crefs[0u].pData)[crefs[0u].size - 1u] != '\0')
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
-    if (!c)
-        return SHAREMIND_MODULE_API_0x1_SHAREMIND_ERROR;
 
     try {
         const std::string dsName(static_cast<const char *>(crefs[0u].pData), crefs[0u].size - 1u);
@@ -110,7 +109,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_open,
     } catch (const std::bad_alloc &) {
         return SHAREMIND_MODULE_API_0x1_OUT_OF_MEMORY;
     } catch (...) {
-        return SHAREMIND_MODULE_API_0x1_SHAREMIND_ERROR;
+        return SHAREMIND_MODULE_API_0x1_MODULE_ERROR;
     }
 }
 
@@ -118,6 +117,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_close,
                           args, num_args, refs, crefs,
                           returnValue, c)
 {
+    assert(c);
     if (!SyscallArgs<0u, false, 0u, 1u>::check(args, num_args, refs, crefs, returnValue)) {
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
     }
@@ -126,8 +126,6 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_close,
             || static_cast<const char *>(crefs[0u].pData)[crefs[0u].size - 1u] != '\0')
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
-    if (!c)
-        return SHAREMIND_MODULE_API_0x1_SHAREMIND_ERROR;
 
     try {
         const std::string dsName(static_cast<const char *>(crefs[0u].pData), crefs[0u].size - 1u);
@@ -141,7 +139,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_close,
     } catch (const std::bad_alloc &) {
         return SHAREMIND_MODULE_API_0x1_OUT_OF_MEMORY;
     } catch (...) {
-        return SHAREMIND_MODULE_API_0x1_SHAREMIND_ERROR;
+        return SHAREMIND_MODULE_API_0x1_MODULE_ERROR;
     }
 }
 
@@ -149,6 +147,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_create,
                           args, num_args, refs, crefs,
                           returnValue, c)
 {
+    assert(c);
     if (!SyscallArgs<2u, false, 0u, 4u>::check(args, num_args, refs, crefs, returnValue) &&
             !SyscallArgs<2u, false, 1u, 4u>::check(args, num_args, refs, crefs, returnValue)) {
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
@@ -166,9 +165,6 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_create,
             || static_cast<const char *>(crefs[2u].pData)[crefs[2u].size - 1u] != '\0'
             || static_cast<const char *>(crefs[3u].pData)[crefs[3u].size - 1u] != '\0')
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
-
-    if (!c)
-        return SHAREMIND_MODULE_API_0x1_SHAREMIND_ERROR;
 
     try {
         const std::string dsName(static_cast<const char *>(crefs[0u].pData), crefs[0u].size - 1u);
@@ -236,7 +232,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_create,
     } catch (const std::bad_alloc &) {
         return SHAREMIND_MODULE_API_0x1_OUT_OF_MEMORY;
     } catch (...) {
-        return SHAREMIND_MODULE_API_0x1_SHAREMIND_ERROR;
+        return SHAREMIND_MODULE_API_0x1_MODULE_ERROR;
     }
 }
 
@@ -244,6 +240,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_delete,
                           args, num_args, refs, crefs,
                           returnValue, c)
 {
+    assert(c);
     if (!SyscallArgs<0u, false, 0u, 2u>::check(args, num_args, refs, crefs, returnValue) &&
             !SyscallArgs<0u, false, 1u, 2u>::check(args, num_args, refs, crefs, returnValue)) {
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
@@ -257,9 +254,6 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_delete,
             || static_cast<const char *>(crefs[0u].pData)[crefs[0u].size - 1u] != '\0'
             || static_cast<const char *>(crefs[1u].pData)[crefs[1u].size - 1u] != '\0')
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
-
-    if (!c)
-        return SHAREMIND_MODULE_API_0x1_SHAREMIND_ERROR;
 
     try {
         const std::string dsName(static_cast<const char *>(crefs[0u].pData), crefs[0u].size - 1u);
@@ -291,7 +285,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_delete,
     } catch (const std::bad_alloc &) {
         return SHAREMIND_MODULE_API_0x1_OUT_OF_MEMORY;
     } catch (...) {
-        return SHAREMIND_MODULE_API_0x1_SHAREMIND_ERROR;
+        return SHAREMIND_MODULE_API_0x1_MODULE_ERROR;
     }
 }
 
@@ -299,6 +293,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_exists,
                           args, num_args, refs, crefs,
                           returnValue, c)
 {
+    assert(c);
     if (!SyscallArgs<0u, true, 0u, 2u>::check(args, num_args, refs, crefs, returnValue) &&
             !SyscallArgs<0u, true, 1u, 2u>::check(args, num_args, refs, crefs, returnValue)) {
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
@@ -312,9 +307,6 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_exists,
             || static_cast<const char *>(crefs[0u].pData)[crefs[0u].size - 1u] != '\0'
             || static_cast<const char *>(crefs[1u].pData)[crefs[1u].size - 1u] != '\0')
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
-
-    if (!c)
-        return SHAREMIND_MODULE_API_0x1_SHAREMIND_ERROR;
 
     try {
         const std::string dsName(static_cast<const char *>(crefs[0u].pData), crefs[0u].size - 1u);
@@ -353,7 +345,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_exists,
     } catch (const std::bad_alloc &) {
         return SHAREMIND_MODULE_API_0x1_OUT_OF_MEMORY;
     } catch (...) {
-        return SHAREMIND_MODULE_API_0x1_SHAREMIND_ERROR;
+        return SHAREMIND_MODULE_API_0x1_MODULE_ERROR;
     }
 }
 
@@ -361,6 +353,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_col_count,
                           args, num_args, refs, crefs,
                           returnValue, c)
 {
+    assert(c);
     if (!SyscallArgs<0u, true, 0u, 2u>::check(args, num_args, refs, crefs, returnValue) &&
             !SyscallArgs<0u, true, 1u, 2u>::check(args, num_args, refs, crefs, returnValue)) {
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
@@ -374,9 +367,6 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_col_count,
             || static_cast<const char *>(crefs[0u].pData)[crefs[0u].size - 1u] != '\0'
             || static_cast<const char *>(crefs[1u].pData)[crefs[1u].size - 1u] != '\0')
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
-
-    if (!c)
-        return SHAREMIND_MODULE_API_0x1_SHAREMIND_ERROR;
 
     try {
         const std::string dsName(static_cast<const char *>(crefs[0u].pData), crefs[0u].size - 1u);
@@ -415,7 +405,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_col_count,
     } catch (const std::bad_alloc &) {
         return SHAREMIND_MODULE_API_0x1_OUT_OF_MEMORY;
     } catch (...) {
-        return SHAREMIND_MODULE_API_0x1_SHAREMIND_ERROR;
+        return SHAREMIND_MODULE_API_0x1_MODULE_ERROR;
     }
 }
 
@@ -423,6 +413,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_col_names,
                           args, num_args, refs, crefs,
                           returnValue, c)
 {
+    assert(c);
     if (!SyscallArgs<0u, true, 0u, 2u>::check(args, num_args, refs, crefs, returnValue) &&
             !SyscallArgs<0u, true, 1u, 2u>::check(args, num_args, refs, crefs, returnValue)) {
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
@@ -436,9 +427,6 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_col_names,
             || static_cast<const char *>(crefs[0u].pData)[crefs[0u].size - 1u] != '\0'
             || static_cast<const char *>(crefs[1u].pData)[crefs[1u].size - 1u] != '\0')
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
-
-    if (!c)
-        return SHAREMIND_MODULE_API_0x1_SHAREMIND_ERROR;
 
     try {
         const std::string dsName(static_cast<const char *>(crefs[0u].pData), crefs[0u].size - 1u);
@@ -515,7 +503,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_col_names,
     } catch (const std::bad_alloc &) {
         return SHAREMIND_MODULE_API_0x1_OUT_OF_MEMORY;
     } catch (...) {
-        return SHAREMIND_MODULE_API_0x1_SHAREMIND_ERROR;
+        return SHAREMIND_MODULE_API_0x1_MODULE_ERROR;
     }
 }
 
@@ -523,6 +511,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_col_types,
                           args, num_args, refs, crefs,
                           returnValue, c)
 {
+    assert(c);
     if (!SyscallArgs<0u, true, 0u, 2u>::check(args, num_args, refs, crefs, returnValue) &&
             !SyscallArgs<0u, true, 1u, 2u>::check(args, num_args, refs, crefs, returnValue)) {
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
@@ -536,9 +525,6 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_col_types,
             || static_cast<const char *>(crefs[0u].pData)[crefs[0u].size - 1u] != '\0'
             || static_cast<const char *>(crefs[1u].pData)[crefs[1u].size - 1u] != '\0')
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
-
-    if (!c)
-        return SHAREMIND_MODULE_API_0x1_SHAREMIND_ERROR;
 
     try {
         const std::string dsName(static_cast<const char *>(crefs[0u].pData), crefs[0u].size - 1u);
@@ -615,7 +601,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_col_types,
     } catch (const std::bad_alloc &) {
         return SHAREMIND_MODULE_API_0x1_OUT_OF_MEMORY;
     } catch (...) {
-        return SHAREMIND_MODULE_API_0x1_SHAREMIND_ERROR;
+        return SHAREMIND_MODULE_API_0x1_MODULE_ERROR;
     }
 }
 
@@ -623,6 +609,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_row_count,
                           args, num_args, refs, crefs,
                           returnValue, c)
 {
+    assert(c);
     if (!SyscallArgs<0u, true, 0u, 2u>::check(args, num_args, refs, crefs, returnValue) &&
             !SyscallArgs<0u, true, 1u, 2u>::check(args, num_args, refs, crefs, returnValue)) {
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
@@ -636,9 +623,6 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_row_count,
             || static_cast<const char *>(crefs[0u].pData)[crefs[0u].size - 1u] != '\0'
             || static_cast<const char *>(crefs[1u].pData)[crefs[1u].size - 1u] != '\0')
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
-
-    if (!c)
-        return SHAREMIND_MODULE_API_0x1_SHAREMIND_ERROR;
 
     try {
         const std::string dsName(static_cast<const char *>(crefs[0u].pData), crefs[0u].size - 1u);
@@ -677,7 +661,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_row_count,
     } catch (const std::bad_alloc &) {
         return SHAREMIND_MODULE_API_0x1_OUT_OF_MEMORY;
     } catch (...) {
-        return SHAREMIND_MODULE_API_0x1_SHAREMIND_ERROR;
+        return SHAREMIND_MODULE_API_0x1_MODULE_ERROR;
     }
 }
 
@@ -685,6 +669,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_insert_row,
                           args, num_args, refs, crefs,
                           returnValue, c)
 {
+    assert(c);
     if (!SyscallArgs<1u, false, 0u, 5u>::check(args, num_args, refs, crefs, returnValue) &&
             !SyscallArgs<1u, false, 1u, 5u>::check(args, num_args, refs, crefs, returnValue) &&
             !SyscallArgs<2u, false, 0u, 5u>::check(args, num_args, refs, crefs, returnValue) &&
@@ -705,9 +690,6 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_insert_row,
             || static_cast<const char *>(crefs[2u].pData)[crefs[2u].size - 1u] != '\0'
             || static_cast<const char *>(crefs[3u].pData)[crefs[3u].size - 1u] != '\0')
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
-
-    if (!c)
-        return SHAREMIND_MODULE_API_0x1_SHAREMIND_ERROR;
 
     try {
         const std::string dsName(static_cast<const char *>(crefs[0u].pData), crefs[0u].size - 1u);
@@ -773,7 +755,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_insert_row,
     } catch (const std::bad_alloc &) {
         return SHAREMIND_MODULE_API_0x1_OUT_OF_MEMORY;
     } catch (...) {
-        return SHAREMIND_MODULE_API_0x1_SHAREMIND_ERROR;
+        return SHAREMIND_MODULE_API_0x1_MODULE_ERROR;
     }
 }
 
@@ -781,6 +763,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_read_col,
                           args, num_args, refs, crefs,
                           returnValue, c)
 {
+    assert(c);
     if (!SyscallArgs<1u, true, 0u, 2u>::check(args, num_args, refs, crefs, returnValue) &&
             !SyscallArgs<1u, true, 1u, 2u>::check(args, num_args, refs, crefs, returnValue) &&
             !SyscallArgs<0u, true, 0u, 3u>::check(args, num_args, refs, crefs, returnValue) &&
@@ -796,9 +779,6 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_read_col,
             || static_cast<const char *>(crefs[0u].pData)[crefs[0u].size - 1u] != '\0'
             || static_cast<const char *>(crefs[1u].pData)[crefs[1u].size - 1u] != '\0')
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
-
-    if (!c)
-        return SHAREMIND_MODULE_API_0x1_SHAREMIND_ERROR;
 
     try {
         const std::string dsName(static_cast<const char *>(crefs[0u].pData), crefs[0u].size - 1u);
@@ -840,7 +820,12 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_read_col,
                                            std::cref(colIdBatch),
                                            std::ref(valuesBatch));
             ecode = m->executeTransaction(transaction, c);
-        } else if (SyscallArgs<0u, true, 0u, 3u>::check(args, num_args, nullptr, crefs, returnValue)) {
+        } else {
+            assert((SyscallArgs<0u, true, 0u, 3u>::check(args,
+                                                         num_args,
+                                                         nullptr,
+                                                         crefs,
+                                                         returnValue)));
             // Read the column by column name
             const std::string colId(static_cast<const char *>(crefs[2u].pData), crefs[2u].size - 1u);
 
@@ -864,8 +849,6 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_read_col,
                                            std::cref(colIdBatch),
                                            std::ref(valuesBatch));
             ecode = m->executeTransaction(transaction, c);
-        } else {
-            return SHAREMIND_MODULE_API_0x1_SHAREMIND_ERROR;
         }
 
         if (!m->setErrorCode(c, dsName, ecode))
@@ -944,7 +927,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_read_col,
     } catch (const std::bad_alloc &) {
         return SHAREMIND_MODULE_API_0x1_OUT_OF_MEMORY;
     } catch (...) {
-        return SHAREMIND_MODULE_API_0x1_SHAREMIND_ERROR;
+        return SHAREMIND_MODULE_API_0x1_MODULE_ERROR;
     }
 }
 
@@ -952,6 +935,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_stmt_exec,
                                  args, num_args, refs, crefs,
                                  returnValue, c)
 {
+    assert(c);
     if (!SyscallArgs<1u, false, 0u, 3u>::check(args, num_args, refs, crefs, returnValue)
             && !SyscallArgs<1u, false, 1u, 3u>::check(args, num_args, refs, crefs, returnValue)
             && !SyscallArgs<1u, true, 0u, 3u>::check(args, num_args, refs, crefs, returnValue)
@@ -969,10 +953,6 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_stmt_exec,
             || static_cast<const char *>(crefs[1u].pData)[crefs[1u].size - 1u] != '\0'
             || static_cast<const char *>(crefs[2u].pData)[crefs[2u].size - 1u] != '\0')
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
-
-
-    if (!c)
-        return SHAREMIND_MODULE_API_0x1_SHAREMIND_ERROR;
 
     try {
         const uint64_t vmapId = args[0].uint64[0];
@@ -1322,7 +1302,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_stmt_exec,
     } catch (const std::bad_alloc &) {
         return SHAREMIND_MODULE_API_0x1_OUT_OF_MEMORY;
     } catch (...) {
-        return SHAREMIND_MODULE_API_0x1_SHAREMIND_ERROR;
+        return SHAREMIND_MODULE_API_0x1_MODULE_ERROR;
     }
 }
 
