@@ -173,11 +173,10 @@ TdbHdf5Connection::TdbHdf5Connection(const LogHard::Logger & logger,
 }
 
 TdbHdf5Connection::~TdbHdf5Connection() {
-    TableFileMap::const_iterator it;
-    for (it = m_tableFiles.begin(); it != m_tableFiles.end(); ++it) {
-        if (H5Fclose(it->second) < 0)
+    for (auto & vp : m_tableFiles) {
+        if (H5Fclose(vp.second) < 0)
             m_logger.warning() << "Error while closing handle to table file \""
-                               << nameToPath(it->first).string() << "\".";
+                               << nameToPath(vp.first).string() << "\".";
     }
 
     m_tableFiles.clear();
@@ -222,10 +221,9 @@ SharemindTdbError TdbHdf5Connection::tblCreate(const std::string & tbl,
 
     // Check for duplicate column names
     {
-        std::set<SharemindTdbString *, SharemindTdbStringLess> namesSet;
-        std::vector<SharemindTdbString *>::const_iterator nIt;
-        for (nIt = names.begin(); nIt != names.end(); ++nIt) {
-            if (!namesSet.insert(*nIt).second) {
+        std::set<SharemindTdbString const *, SharemindTdbStringLess> namesSet;
+        for (SharemindTdbString const * const name : names) {
+            if (!namesSet.insert(name).second) {
                 m_logger.error() << "Given column names must be unique.";
                 return SHAREMIND_TDB_INVALID_ARGUMENT;
             }
@@ -279,19 +277,14 @@ SharemindTdbError TdbHdf5Connection::tblCreate(const std::string & tbl,
     typedef std::map<SharemindTdbType *, size_t, SharemindTdbTypeLess> TypeMap;
     TypeMap typeMap;
 
-    {
-        std::vector<SharemindTdbType *>::const_iterator it;
-        for (it = types.begin(); it != types.end(); ++it) {
-            SharemindTdbType * const type = *it;
+    for (SharemindTdbType * const type : types) {
+        std::pair<TypeMap::iterator, bool> rv = typeMap.insert(TypeMap::value_type(type, 1));
+        if (!rv.second)
+            ++rv.first->second;
 
-            std::pair<TypeMap::iterator, bool> rv = typeMap.insert(TypeMap::value_type(type, 1));
-            if (!rv.second)
-                ++rv.first->second;
-
-            std::ostringstream oss; // TODO figure out something better than this
-            oss << type->domain << "::" << type->name << "::" << type->size;
-            colInfoVector.push_back(ColInfoVector::value_type(oss.str(), rv.first->second - 1));
-        }
+        std::ostringstream oss; // TODO figure out something better than this
+        oss << type->domain << "::" << type->name << "::" << type->size;
+        colInfoVector.push_back(ColInfoVector::value_type(oss.str(), rv.first->second - 1));
     }
 
     const size_t ntypes = typeMap.size();
@@ -305,17 +298,15 @@ SharemindTdbError TdbHdf5Connection::tblCreate(const std::string & tbl,
 
     // Set cleanup handler for the opened HDF5 types
     BOOST_SCOPE_EXIT_ALL(this, &memTypes) {
-        std::vector<std::pair<SharemindTdbType *, hid_t> >::const_iterator it;
-        for (it = memTypes.begin(); it != memTypes.end(); ++it)
-            if (H5Tclose(it->second) < 0)
+        for (auto const & vp : memTypes)
+            if (H5Tclose(vp.second) < 0)
                 m_logger.fullDebug() << "Error while cleaning up dataset type.";
         memTypes.clear();
     };
 
     {
-        std::map<SharemindTdbType *, size_t, SharemindTdbTypeLess>::const_iterator it;
-        for (it = typeMap.begin(); it != typeMap.end(); ++it) {
-            SharemindTdbType * const type = it->first;
+        for (auto const & vp : typeMap) {
+            SharemindTdbType * const type = vp.first;
 
             hid_t tId = H5I_INVALID_HID;
 
@@ -349,8 +340,8 @@ SharemindTdbError TdbHdf5Connection::tblCreate(const std::string & tbl,
             }
 
             assert(tId >= 0);
-            memTypes.push_back(std::make_pair(it->first, tId));
-            colSizes.push_back(it->second);
+            memTypes.push_back(std::make_pair(type, tId));
+            colSizes.push_back(vp.second);
         }
     }
 
@@ -944,9 +935,8 @@ SharemindTdbError TdbHdf5Connection::tblColNames(const std::string & tbl, std::v
 
     BOOST_SCOPE_EXIT_ALL(&success, &names) {
         if (!success) {
-            std::vector<SharemindTdbString *>::iterator it;
-            for (it = names.begin(); it != names.end(); ++it)
-                SharemindTdbString_delete(*it);
+            for (SharemindTdbString * const name : names)
+                SharemindTdbString_delete(name);
             names.clear();
         }
     };
@@ -1051,9 +1041,8 @@ SharemindTdbError TdbHdf5Connection::tblColTypes(const std::string & tbl, std::v
 
     BOOST_SCOPE_EXIT_ALL(&success, &types) {
         if (!success) {
-            std::vector<SharemindTdbType *>::iterator it;
-            for (it = types.begin(); it != types.end(); ++it)
-                SharemindTdbType_delete(*it);
+            for (SharemindTdbType * const type : types)
+                SharemindTdbType_delete(type);
             types.clear();
         }
     };
@@ -1220,7 +1209,7 @@ SharemindTdbError TdbHdf5Connection::insertRow(const std::string & tbl,
         return SHAREMIND_TDB_INVALID_ARGUMENT;
 
     {
-        for (const std::vector<SharemindTdbValue *> & values : valuesBatch) {
+        for (auto const & values : valuesBatch) {
             if (values.empty()) {
                 m_logger.error() << "Empty batch of values given.";
                 return SHAREMIND_TDB_INVALID_ARGUMENT;
@@ -1469,8 +1458,8 @@ SharemindTdbError TdbHdf5Connection::insertRow(const std::string & tbl,
     BOOST_SCOPE_EXIT_ALL(&success, this, &cleanup, fileId) {
         if (!success) {
             std::map<hobj_ref_t, std::pair<hsize_t, hsize_t> >::const_iterator it;
-            for (it = cleanup.begin(); it != cleanup.end(); ++it) {
-                const hobj_ref_t dsetRef = it->first;
+            for (auto const & vp : cleanup) {
+                const hobj_ref_t dsetRef = vp.first;
 
                 // Get dataset from reference
                 const hid_t oId = H5Rdereference(fileId, H5R_OBJECT, &dsetRef);
@@ -1480,7 +1469,7 @@ SharemindTdbError TdbHdf5Connection::insertRow(const std::string & tbl,
                 }
 
                 // Set the size of the dataset back to the original
-                const hsize_t dims[] = { it->second.first, it->second.second };
+                const hsize_t dims[] = { vp.second.first, vp.second.second };
                 if (H5Dset_extent(oId, dims) < 0) {
                     m_logger.error() << "Error while restoring initial state: Failed to clean up changes to the table.";
 
@@ -1501,7 +1490,7 @@ SharemindTdbError TdbHdf5Connection::insertRow(const std::string & tbl,
     // For each dataset, write the data
     // TODO move to a separate function
     {
-        for (auto & pair : refTypes) {
+        for (auto const & pair : refTypes) {
             const hobj_ref_t dsetRef = pair.first;
             SharemindTdbType * const type = pair.second.first;
 
@@ -1597,7 +1586,7 @@ SharemindTdbError TdbHdf5Connection::insertRow(const std::string & tbl,
                 delBuffer = true;
 
                 hvl_t * cursor = static_cast<hvl_t *>(buffer);
-                for (SharemindTdbValue * const val : values) {
+                for (SharemindTdbValue const * const val : values) {
                     cursor->len = val->size;
                     cursor->p = val->buffer;
                     ++cursor;
@@ -1619,7 +1608,7 @@ SharemindTdbError TdbHdf5Connection::insertRow(const std::string & tbl,
                         bool lastAsColumn = false;
                         std::vector<bool>::const_iterator vacIt = vac.begin();
 
-                        for (SharemindTdbValue * const val : values) {
+                        for (SharemindTdbValue const * const val : values) {
                             const bool asColumn = *vacIt++;
                             memcpy(static_cast<char *>(buffer) + offset, val->buffer, val->size);
 
@@ -1648,7 +1637,7 @@ SharemindTdbError TdbHdf5Connection::insertRow(const std::string & tbl,
                     } else {
                         size_t offset = 0u;
 
-                        for (SharemindTdbValue * const val : values) {
+                        for (SharemindTdbValue const * const val : values) {
                             memcpy(static_cast<char *>(buffer) + offset, val->buffer, val->size);
                             offset += val->size;
                         }
@@ -1737,11 +1726,9 @@ SharemindTdbError TdbHdf5Connection::readColumn(const std::string & tbl,
 
     // Check for duplicates
     {
-        std::set<SharemindTdbString *, SharemindTdbStringLess> colIdSet;
-
-        std::vector<SharemindTdbString *>::const_iterator it;
-        for (it = colIdBatch.begin(); it != colIdBatch.end(); ++it) {
-            if (!colIdSet.insert(*it).second) {
+        std::set<SharemindTdbString const *, SharemindTdbStringLess> colIdSet;
+        for (auto const * const v : colIdBatch) {
+            if (!colIdSet.insert(v).second) {
                 m_logger.error() << "Duplicate column names given.";
                 return SHAREMIND_TDB_INVALID_ARGUMENT;
             }
@@ -1757,9 +1744,8 @@ SharemindTdbError TdbHdf5Connection::readColumn(const std::string & tbl,
     }
 
     BOOST_SCOPE_EXIT_ALL(&colNames) {
-        std::vector<SharemindTdbString *>::iterator it;
-        for (it = colNames.begin(); it != colNames.end(); ++it)
-            SharemindTdbString_delete(*it);
+        for (auto * const colName : colNames)
+            SharemindTdbString_delete(colName);
         colNames.clear();
     };
 
@@ -1776,18 +1762,16 @@ SharemindTdbError TdbHdf5Connection::readColumn(const std::string & tbl,
     colNrBatch.reserve(colIdBatch.size());
 
     BOOST_SCOPE_EXIT_ALL(&colNrBatch) {
-        std::vector<SharemindTdbIndex *>::iterator it;
-        for (it = colNrBatch.begin(); it != colNrBatch.end(); ++it)
-            SharemindTdbIndex_delete(*it);
+        for (auto * const colNr : colNrBatch)
+            SharemindTdbIndex_delete(colNr);
         colNrBatch.clear();
     };
 
     {
-        std::vector<SharemindTdbString *>::const_iterator it;
-        for (it = colIdBatch.begin(); it != colIdBatch.end(); ++it) {
-            ColNamesMap::const_iterator nIt = colNamesMap.find(*it);
+        for (auto * const colId : colIdBatch) {
+            ColNamesMap::const_iterator nIt = colNamesMap.find(colId);
             if (nIt == colNamesMap.end()) {
-                m_logger.error() << "Table \"" << tbl << "\" does not contain column \"" << (*it)->str << "\".";
+                m_logger.error() << "Table \"" << tbl << "\" does not contain column \"" << colId->str << "\".";
                 return SHAREMIND_TDB_INVALID_ARGUMENT;
             }
 
@@ -1860,9 +1844,7 @@ SharemindTdbError TdbHdf5Connection::readColumn(const std::string & tbl,
     // Check if column numbers are valid
     {
         std::set<uint64_t> uniqueColumns;
-        std::vector<SharemindTdbIndex *>::const_iterator it;
-        for (it = colIdBatch.begin(); it != colIdBatch.end(); ++it) {
-            const SharemindTdbIndex * const colId = *it;
+        for (SharemindTdbIndex const * const colId : colIdBatch) {
             assert(colId);
 
             if (colId->idx >= colCount) {
@@ -1916,9 +1898,7 @@ bool TdbHdf5Connection::pathIsHdf5(const fs::path & path) {
 }
 
 bool TdbHdf5Connection::validateColumnNames(const std::vector<SharemindTdbString *> & names) const {
-    std::vector<SharemindTdbString *>::const_iterator it;
-    for (it = names.begin(); it != names.end(); ++it) {
-        SharemindTdbString * const str = *it;
+    for (auto const * const str : names) {
         assert(str);
 
         const size_t size = strlen(str->str);
@@ -1948,9 +1928,7 @@ bool TdbHdf5Connection::validateTableName(const std::string & tbl) const {
 }
 
 bool TdbHdf5Connection::validateValues(const std::vector<SharemindTdbValue *> & values) const {
-    std::vector<SharemindTdbValue *>::const_iterator it;
-    for (it = values.begin(); it != values.end(); ++it) {
-        SharemindTdbValue * const val = *it;
+    for (auto const * const val : values) {
         assert(val);
 
         SharemindTdbType * const type = val->type;
@@ -2078,9 +2056,8 @@ SharemindTdbError TdbHdf5Connection::readColumn(const hid_t fileId,
         std::vector<hsize_t> coords;
         coords.reserve(colNrBatch.size());
 
-        std::vector<SharemindTdbIndex *>::const_iterator it;
-        for (it = colNrBatch.begin(); it != colNrBatch.end(); ++it)
-            coords.push_back((*it)->idx);
+        for (auto const * const colNr : colNrBatch)
+            coords.push_back(colNr->idx);
 
         if (H5Sselect_elements(sId, H5S_SELECT_SET, coords.size(), &coords.front()) < 0) {
             m_logger.error() << "Failed to do selection in column meta info data space.";
@@ -2105,32 +2082,28 @@ SharemindTdbError TdbHdf5Connection::readColumn(const hid_t fileId,
         valuesBatch.resize(colNrBatch.size());
 
         size_t count = 0;
-        std::vector<PartialColumnIndex>::const_iterator it;
-        for (it = indices.begin(); it != indices.end(); ++it)
-            dsetBatch[it->dataset_ref].push_back(std::make_pair(it->dataset_column, &valuesBatch[count++]));
+        for (auto const & index : indices)
+            dsetBatch[index.dataset_ref].push_back(
+                        std::make_pair(index.dataset_column,
+                                       &valuesBatch[count++]));
     }
 
     // Register cleanup for valuesBatch, if something goes wrong
     BOOST_SCOPE_EXIT_ALL(&success, &valuesBatch) {
         if (!success) {
-            std::vector<std::vector<SharemindTdbValue *> >::iterator it;
-            std::vector<SharemindTdbValue *>::iterator innerIt;
-            for (it = valuesBatch.begin(); it != valuesBatch.end(); ++it) {
-                for (innerIt = it->begin(); innerIt != it->end(); ++innerIt)
-                    SharemindTdbValue_delete(*innerIt);
-            }
+            for (auto const & values : valuesBatch)
+                for (auto * const value : values)
+                    SharemindTdbValue_delete(value);
             valuesBatch.clear();
         }
     };
 
     // Read the columns
-    {
-        DatasetBatchMap::iterator it;
-        for (it = dsetBatch.begin(); it != dsetBatch.end(); ++it) {
-            const SharemindTdbError ecode = readDatasetColumn(fileId, it->first, it->second);
-            if (ecode != SHAREMIND_TDB_OK)
-                return ecode;
-        }
+    for (auto const & vp : dsetBatch) {
+        SharemindTdbError const ecode =
+                readDatasetColumn(fileId, vp.first, vp.second);
+        if (ecode != SHAREMIND_TDB_OK)
+            return ecode;
     }
 
     success = true;
@@ -2202,13 +2175,10 @@ SharemindTdbError TdbHdf5Connection::readDatasetColumn(const hid_t fileId, const
     // TODO check dims[0] against row count attribute?
 
     // Check if column offset is in range
-    {
-        ParamBatchVector::const_iterator it;
-        for (it = paramBatch.begin(); it != paramBatch.end(); ++it) {
-            if (it->first >= dims[1]) {
-                m_logger.error() << "Invalid dataset column number: out of range.";
-                return SHAREMIND_TDB_INVALID_ARGUMENT;
-            }
+    for (auto const & param : paramBatch) {
+        if (param.first >= dims[1]) {
+            m_logger.error() << "Invalid dataset column number: out of range.";
+            return SHAREMIND_TDB_INVALID_ARGUMENT;
         }
     }
 
@@ -2260,13 +2230,12 @@ SharemindTdbError TdbHdf5Connection::readDatasetColumn(const hid_t fileId, const
     };
 
     {
-        ParamBatchVector::const_iterator it;
-        for (it = paramBatch.begin(); it != paramBatch.end(); ++it) {
+        for (auto const & param : paramBatch) {
             // Check if we have anything to read
             if (dims[0] == 0) {
                 // TODO check if this is handled correctly
                 SharemindTdbValue * const val = SharemindTdbValue_new(type->domain, type->name, type->size, nullptr, 0);
-                it->second->push_back(val);
+                param.second->push_back(val);
             } else {
                 void * buffer = nullptr;
                 size_type bufferSize = 0;
@@ -2282,7 +2251,7 @@ SharemindTdbError TdbHdf5Connection::readDatasetColumn(const hid_t fileId, const
                 assert(buffer);
 
                 // Select a hyperslab in the data space to read from
-                const hsize_t start[] = { 0, it->first };
+                const hsize_t start[] = { 0, param.first };
                 const hsize_t count[] = { dims[0], 1 };
                 if (H5Sselect_hyperslab(sId, H5S_SELECT_SET, start, nullptr, count, nullptr) < 0) {
                     m_logger.error() << "Failed to do selection in dataset data space.";
@@ -2331,7 +2300,7 @@ SharemindTdbError TdbHdf5Connection::readDatasetColumn(const hid_t fileId, const
                         memcpy(val->buffer, hvlBuffer[i].p, bufferSize);
                         val->size = bufferSize;
 
-                        it->second->push_back(val.release());
+                        param.second->push_back(val.release());
                     }
 
                     // Release the memory allocated for the variable length types
@@ -2346,7 +2315,7 @@ SharemindTdbError TdbHdf5Connection::readDatasetColumn(const hid_t fileId, const
                     val->buffer = buffer;
                     val->size = bufferSize;
 
-                    it->second->push_back(val.release());
+                    param.second->push_back(val.release());
                 }
             }
         }
