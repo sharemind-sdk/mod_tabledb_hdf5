@@ -137,6 +137,35 @@ struct SharemindTdbTypeLess {
     }
 };
 
+inline bool isVariableLengthType(SharemindTdbType const * const type)
+{ return !type->size; }
+
+bool cleanupType(hid_t const aId, SharemindTdbType & type) {
+    // Open the type attribute type
+    const hid_t aTId = H5Aget_type(aId);
+    if (aTId < 0)
+        return false;
+
+    BOOST_SCOPE_EXIT_ALL(aTId) {
+        H5Tclose(aTId);
+    };
+
+    // Open the type attribute data space
+    const hid_t aSId = H5Aget_space(aId);
+    if (aSId < 0)
+        return false;
+
+    BOOST_SCOPE_EXIT_ALL(aSId) {
+        H5Sclose(aSId);
+    };
+
+    // Release the memory allocated for the vlen types
+    if (H5Dvlen_reclaim(aTId, aSId, H5P_DEFAULT, &type) < 0)
+        return false;
+
+    return true;
+}
+
 } /* namespace { */
 
 namespace sharemind {
@@ -1869,10 +1898,6 @@ SharemindTdbError TdbHdf5Connection::readColumn(const std::string & tbl,
     return SHAREMIND_TDB_OK;
 }
 
-bool TdbHdf5Connection::isVariableLengthType(
-        SharemindTdbType const * const type)
-{ return !type->size; }
-
 bool TdbHdf5Connection::pathExists(const fs::path & path, bool & status) {
     try {
         status = exists(path);
@@ -2383,32 +2408,6 @@ SharemindTdbError TdbHdf5Connection::objRefToType(const hid_t fileId, const hobj
     closeAttr = false;
 
     return SHAREMIND_TDB_OK;
-}
-
-bool TdbHdf5Connection::cleanupType(const hid_t aId, SharemindTdbType & type) {
-    // Open the type attribute type
-    const hid_t aTId = H5Aget_type(aId);
-    if (aTId < 0)
-        return false;
-
-    BOOST_SCOPE_EXIT_ALL(aTId) {
-        H5Tclose(aTId);
-    };
-
-    // Open the type attribute data space
-    const hid_t aSId = H5Aget_space(aId);
-    if (aSId < 0)
-        return false;
-
-    BOOST_SCOPE_EXIT_ALL(aSId) {
-        H5Sclose(aSId);
-    };
-
-    // Release the memory allocated for the vlen types
-    if (H5Dvlen_reclaim(aTId, aSId, H5P_DEFAULT, &type) < 0)
-        return false;
-
-    return true;
 }
 
 SharemindTdbError TdbHdf5Connection::getColumnCount(const hid_t fileId, hsize_t & ncols) {

@@ -98,9 +98,6 @@ public: /* Methods: */
 
 private: /* Methods: */
 
-    static bool isVariableLengthType(SharemindTdbType const * const type);
-    static bool cleanupType(const hid_t aId, SharemindTdbType & type);
-
     /*
      * Filesystem operations
      */
