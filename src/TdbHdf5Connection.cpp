@@ -271,9 +271,9 @@ SharemindTdbError TdbHdf5Connection::tblCreate(const std::string & tbl,
         return SHAREMIND_TDB_TABLE_ALREADY_EXISTS;
     }
 
-    // Remove dangling file handler, if any (file was deleted while the handler
+    // Remove dangling file handler, if any (file was unlinked while the handler
     // was open).
-    m_tableFiles.erase(tbl);
+    closeTableFile(tbl);
 
     // Create a new file handle
     // H5F_ACC_EXCL - Fail if file already exists.
@@ -2525,7 +2525,7 @@ SharemindTdbError TdbHdf5Connection::setRowCount(const hid_t fileId, const hsize
 }
 
 bool TdbHdf5Connection::closeTableFile(const std::string & tbl) {
-    assert(tbl.empty());
+    assert(!tbl.empty());
 
     TableFileMap::iterator it = m_tableFiles.find(tbl);
     if (it == m_tableFiles.end())
