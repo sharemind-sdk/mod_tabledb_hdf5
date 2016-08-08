@@ -168,7 +168,7 @@ TdbHdf5Connection::TdbHdf5Connection(const LogHard::Logger & logger,
                     &const_cast<LogHard::Logger &>(m_logger)) < 0)
     {
         m_logger.error() << "Failed to set HDF5 logging handler.";
-        throw InitializationException("Failed to set HDF5 logging handler.");
+        throw FailedToSetHdf5LoggingHandlerException();
     }
 }
 

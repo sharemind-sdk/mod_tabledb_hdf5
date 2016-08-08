@@ -23,8 +23,10 @@
 #include <boost/filesystem/path.hpp>
 #include <H5Rpublic.h>
 #include <H5Ipublic.h>
+#include <exception>
 #include <LogHard/Logger.h>
 #include <map>
+#include <sharemind/Exception.h>
 #include <sharemind/mod_tabledb/tdberror.h>
 #include <sharemind/mod_tabledb/tdbtypes.h>
 #include <string>
@@ -38,32 +40,11 @@ class __attribute__ ((visibility("internal"))) TdbHdf5Connection {
 
 public: /* Types: */
 
-    class Exception: public std::runtime_error {
-
-    public: /* Methods: */
-
-        inline Exception(const std::string & msg)
-            : std::runtime_error(msg) {}
-
-    };
-
-    class ConfigurationException: public Exception {
-
-    public: /* Methods: */
-
-        inline ConfigurationException(const std::string & msg)
-            : Exception(msg) {}
-
-    };
-
-    class InitializationException: public Exception {
-
-    public: /* Methods: */
-
-        inline InitializationException(const std::string & msg)
-            : Exception(msg) {}
-
-    };
+    SHAREMIND_DEFINE_EXCEPTION(std::exception, Exception);
+    SHAREMIND_DEFINE_EXCEPTION(Exception, InitializationException);
+    SHAREMIND_DEFINE_EXCEPTION_CONST_MSG(InitializationException,
+                                         FailedToSetHdf5LoggingHandlerException,
+                                         "Failed to set HDF5 logging handler.");
 
     typedef uint64_t size_type;
 
