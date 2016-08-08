@@ -105,7 +105,6 @@ private: /* Methods: */
     boost::filesystem::path nameToPath(const std::string & tbl);
     bool pathRemove(const boost::filesystem::path & path);
     bool pathExists(const boost::filesystem::path & path, bool & status);
-    bool pathIsHdf5(const boost::filesystem::path & path);
 
     /*
      * Parameter validation

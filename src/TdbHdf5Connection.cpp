@@ -780,10 +780,19 @@ SharemindTdbError TdbHdf5Connection::tblExists(const std::string & tbl, bool & s
         return SHAREMIND_TDB_GENERAL_ERROR;
 
     // Check if the file has the right format
-    if (status && !pathIsHdf5(tblPath)) {
-        m_logger.error() << "Table \"" << tbl << "\" file " << tblPath.string()
-                         << " is not a valid table file.";
-        return SHAREMIND_TDB_GENERAL_ERROR;
+    if (status) {
+        // Check if the file has the right format
+        htri_t const isHdf5 = H5Fis_hdf5(tblPath.c_str());
+        if (isHdf5 <= 0) {
+            if (isHdf5 < 0) {
+                m_logger.error() << "Error while checking file \""
+                                 << tblPath.string() << "\" format.";
+            }
+            m_logger.error() << "Table \"" << tbl << "\" file \""
+                             << tblPath.string()
+                             << "\" is not a valid table file.";
+            return SHAREMIND_TDB_GENERAL_ERROR;
+        }
     }
 
     return SHAREMIND_TDB_OK;
@@ -1908,18 +1917,6 @@ bool TdbHdf5Connection::pathExists(const fs::path & path, bool & status) {
     }
 
     return true;
-}
-
-bool TdbHdf5Connection::pathIsHdf5(const fs::path & path) {
-    // Check if the file has the right format
-    htri_t isHdf5 = H5Fis_hdf5(path.c_str());
-    if (isHdf5 < 0) {
-        m_logger.error() << "Error while checking file " << path.string()
-                         << " format.";
-        return false;
-    }
-
-    return isHdf5 > 0;
 }
 
 bool TdbHdf5Connection::validateColumnNames(const std::vector<SharemindTdbString *> & names) const {
