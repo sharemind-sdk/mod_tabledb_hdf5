@@ -120,13 +120,15 @@ void transposeBlock(char * const first,
 }
 
 struct SharemindTdbStringLess {
-    bool operator() (SharemindTdbString * const lhs, SharemindTdbString * const rhs) const {
-        return strcmp(lhs->str, rhs->str) < 0;
-    }
+    bool operator() (SharemindTdbString const * const lhs,
+                     SharemindTdbString const * const rhs) const
+    { return strcmp(lhs->str, rhs->str) < 0; }
 };
 
 struct SharemindTdbTypeLess {
-    bool operator() (SharemindTdbType * const lhs, SharemindTdbType * const rhs) const {
+    bool operator() (SharemindTdbType const * const lhs,
+                     SharemindTdbType const * const rhs) const
+    {
         int cmp = 0;
         return !(cmp = strcmp(lhs->domain, rhs->domain))
                 && !(cmp = strcmp(lhs->name, rhs->name))
@@ -1885,9 +1887,9 @@ SharemindTdbError TdbHdf5Connection::readColumn(const std::string & tbl,
     return SHAREMIND_TDB_OK;
 }
 
-bool TdbHdf5Connection::isVariableLengthType(SharemindTdbType * const type) {
-    return !type->size;
-}
+bool TdbHdf5Connection::isVariableLengthType(
+        SharemindTdbType const * const type)
+{ return !type->size; }
 
 bool TdbHdf5Connection::pathExists(const fs::path & path, bool & status) {
     try {
