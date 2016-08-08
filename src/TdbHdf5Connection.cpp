@@ -2113,7 +2113,6 @@ SharemindTdbError TdbHdf5Connection::readColumn(const hid_t fileId,
 
 SharemindTdbError TdbHdf5Connection::readDatasetColumn(const hid_t fileId, const hobj_ref_t ref,
         const std::vector<std::pair<hsize_t, std::vector<SharemindTdbValue *> *> > & paramBatch) {
-    typedef std::vector<std::pair<hsize_t, std::vector<SharemindTdbValue *> *> > ParamBatchVector;
     assert(paramBatch.size());
 
     // Get dataset from reference
