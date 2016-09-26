@@ -370,8 +370,8 @@ SharemindTdbError TdbHdf5Module::executeTransaction(
         SharemindConsensusFacilityError ret =
             m_consensusService->blocking_propose(m_consensusService,
                                                 "TdbHDF5Transaction",
-                                                pf.localIdSize(&pf),
-                                                pf.localId(&pf),
+                                                pf.globalIdSize(&pf),
+                                                pf.globalId(&pf),
                                                 &transaction);
         if (ret == SHAREMIND_CONSENSUS_FACILITY_OK) {
             return transaction.globalResult;
