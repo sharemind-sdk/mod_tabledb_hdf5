@@ -367,11 +367,22 @@ SharemindTdbError TdbHdf5Module::executeTransaction(
         typedef SharemindProcessFacility CPF;
         const CPF & pf = *static_cast<const CPF *>(c->process_internal);
 
+        // Local transactions will always succeed:
+        auto const guidData = pf.globalId(&pf);
+        if (!guidData)
+            return SHAREMIND_TDB_OK;
+        auto const guidSize = pf.globalIdSize(&pf);
+        assert(guidSize > 0u);
+
+        /** \bug This transaction may actually be run on a subset of servers
+                 participating in the consensus service, but we currently
+                 require ALL of the participating parties to agree on the
+                 transaction, which will fail in the strict subset case. */
         SharemindConsensusFacilityError ret =
             m_consensusService->blocking_propose(m_consensusService,
                                                 "TdbHDF5Transaction",
-                                                pf.globalIdSize(&pf),
-                                                pf.globalId(&pf),
+                                                guidSize,
+                                                guidData,
                                                 &transaction);
         if (ret == SHAREMIND_CONSENSUS_FACILITY_OK) {
             return transaction.globalResult;
