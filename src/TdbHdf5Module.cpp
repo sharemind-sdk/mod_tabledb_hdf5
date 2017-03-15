@@ -360,7 +360,6 @@ SharemindTdbError TdbHdf5Module::executeTransaction(
         TdbHdf5Transaction & strategy,
         const SharemindModuleApi0x1SyscallContext * c)
 {
-    TransactionData transaction(strategy);
     assert(c);
     assert(c->process_internal);
     if (m_consensusService) {
@@ -374,6 +373,7 @@ SharemindTdbError TdbHdf5Module::executeTransaction(
         auto const guidSize = pf.globalIdSize(&pf);
         assert(guidSize > 0u);
 
+        TransactionData transaction(strategy);
         /** \bug This transaction may actually be run on a subset of servers
                  participating in the consensus service, but we currently
                  require ALL of the participating parties to agree on the
@@ -392,9 +392,7 @@ SharemindTdbError TdbHdf5Module::executeTransaction(
             throw std::runtime_error("Unknown ConsensusService exception.");
         }
     } else {
-        transaction.localResult = transaction.strategy.execute();
-        transaction.globalResult = transaction.localResult;
-        return transaction.globalResult;
+        return strategy.execute();
     }
 
 }
