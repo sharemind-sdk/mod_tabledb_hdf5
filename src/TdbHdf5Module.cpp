@@ -368,33 +368,31 @@ SharemindTdbError TdbHdf5Module::executeTransaction(
 
         // Local transactions will always succeed:
         auto const guidData = pf.globalId(&pf);
-        if (!guidData)
-            return SHAREMIND_TDB_OK;
-        auto const guidSize = pf.globalIdSize(&pf);
-        assert(guidSize > 0u);
+        if (guidData) {
+            TransactionData transaction(strategy);
+            auto const guidSize = pf.globalIdSize(&pf);
+            assert(guidSize > 0u);
 
-        TransactionData transaction(strategy);
-        /** \bug This transaction may actually be run on a subset of servers
-                 participating in the consensus service, but we currently
-                 require ALL of the participating parties to agree on the
-                 transaction, which will fail in the strict subset case. */
-        SharemindConsensusFacilityError ret =
-            m_consensusService->blocking_propose(m_consensusService,
-                                                "TdbHDF5Transaction",
-                                                guidSize,
-                                                guidData,
-                                                &transaction);
-        if (ret == SHAREMIND_CONSENSUS_FACILITY_OK) {
-            return transaction.globalResult;
-        } else if (ret == SHAREMIND_CONSENSUS_FACILITY_OUT_OF_MEMORY) {
-            throw std::bad_alloc();
-        } else {
-            throw std::runtime_error("Unknown ConsensusService exception.");
+            /** \bug This transaction may actually be run on a subset of servers
+                     participating in the consensus service, but we currently
+                     require ALL of the participating parties to agree on the
+                     transaction, which will fail in the strict subset case. */
+            SharemindConsensusFacilityError ret =
+                m_consensusService->blocking_propose(m_consensusService,
+                                                    "TdbHDF5Transaction",
+                                                    guidSize,
+                                                    guidData,
+                                                    &transaction);
+            if (ret == SHAREMIND_CONSENSUS_FACILITY_OK) {
+                return transaction.globalResult;
+            } else if (ret == SHAREMIND_CONSENSUS_FACILITY_OUT_OF_MEMORY) {
+                throw std::bad_alloc();
+            } else {
+                throw std::runtime_error("Unknown ConsensusService exception.");
+            }
         }
-    } else {
-        return strategy.execute();
     }
-
+    return strategy.execute();
 }
 
 } // namespace sharemind {
