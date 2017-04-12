@@ -22,6 +22,7 @@
 
 #include <functional>
 #include <LogHard/Logger.h>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <sharemind/datastoreapi.h>
@@ -31,7 +32,6 @@
 #include <sharemind/libprocessfacility.h>
 #include <sharemind/mod_tabledb/tdberror.h>
 #include <sharemind/mod_tabledb/tdbvectormapapi.h>
-#include <sharemind/ScopedObjectMap.h>
 #include <string>
 #include "TdbHdf5ConnectionConf.h"
 
@@ -68,9 +68,6 @@ private: /* Fields: */
 };
 
 class __attribute__ ((visibility("internal"))) TdbHdf5Module {
-private: /* Types: */
-
-    typedef ScopedObjectMap<std::string, TdbHdf5ConnectionConf> ConfMap;
 
 public: /* Methods: */
 
@@ -117,8 +114,8 @@ private: /* Fields: */
 
     std::shared_ptr<TdbHdf5Manager> m_dbManager;
 
-    ConfMap m_dsConf;
     std::mutex m_dsConfMutex;
+    std::map<std::string, std::unique_ptr<TdbHdf5ConnectionConf> > m_dsConf;
 
 }; /* class TdbHdf5Module { */
 

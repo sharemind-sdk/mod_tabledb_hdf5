@@ -20,6 +20,7 @@
 #include "TdbHdf5Module.h"
 
 #include <cstring>
+#include <sharemind/MakeUnique.h>
 #include "TdbHdf5ConnectionConf.h"
 #include "TdbHdf5Manager.h"
 
@@ -214,33 +215,28 @@ bool TdbHdf5Module::openConnection(const SharemindModuleApi0x1SyscallContext * c
         std::lock_guard<std::mutex> lock(m_dsConfMutex);
 
         // Get configuration from file or load a cached configuration
-        ConfMap::iterator it = m_dsConf.find(dsName);
-        if (it == m_dsConf.end()) {
+        auto const it(m_dsConf.find(dsName));
+        if (it == m_dsConf.cend()) {
             SharemindDataSource * src = m_dataSourceManager.get_source(&m_dataSourceManager, dsName.c_str());
             if (!src) {
                 m_logger.error() << "Failed to get configuration for data source \"" << dsName << "\".";
                 return false;
             }
 
-            cfg = new TdbHdf5ConnectionConf;
-            if (!cfg->load(src->conf(src))) {
-                m_logger.error() << "Failed to parse configuration for data source \"" << dsName << "\": "
-                    << cfg->getLastErrorMessage();
-                delete cfg;
+            auto configuration(makeUnique<TdbHdf5ConnectionConf>());
+            if (!configuration->load(src->conf(src))) {
+                m_logger.error()
+                        << "Failed to parse configuration for data source \""
+                        << dsName << "\": "
+                        << configuration->getLastErrorMessage();
                 return false;
             }
 
-            #ifndef NDEBUG
-            const bool r =
-            #endif
-                    m_dsConf.insert(dsName, cfg)
-                    #ifndef NDEBUG
-                        .second
-                    #endif
-                    ;
-            assert(r);
+            cfg = configuration.get();
+            auto const rv(m_dsConf.emplace(dsName, std::move(configuration)));
+            assert(rv.second);
         } else {
-            cfg = it->second;
+            cfg = it->second.get();
         }
     }
 
