@@ -32,6 +32,7 @@
 #include <H5Ppublic.h>
 #include <H5Spublic.h>
 #include <H5Tpublic.h>
+#include <sharemind/MakeUnique.h>
 #include <sharemind/mod_tabledb/TdbTypesUtil.h>
 
 
@@ -252,7 +253,7 @@ SharemindTdbError TdbHdf5Connection::tblCreate(const std::string & tbl,
     {
         std::set<SharemindTdbString const *, SharemindTdbStringLess> namesSet;
         for (SharemindTdbString const * const name : names) {
-            if (!namesSet.insert(name).second) {
+            if (!namesSet.emplace(name).second) {
                 m_logger.error() << "Given column names must be unique.";
                 return SHAREMIND_TDB_INVALID_ARGUMENT;
             }
@@ -307,13 +308,13 @@ SharemindTdbError TdbHdf5Connection::tblCreate(const std::string & tbl,
     TypeMap typeMap;
 
     for (SharemindTdbType * const type : types) {
-        std::pair<TypeMap::iterator, bool> rv = typeMap.insert(TypeMap::value_type(type, 1));
+        auto rv(typeMap.emplace(type, 1));
         if (!rv.second)
             ++rv.first->second;
 
         std::ostringstream oss; // TODO figure out something better than this
         oss << type->domain << "::" << type->name << "::" << type->size;
-        colInfoVector.push_back(ColInfoVector::value_type(oss.str(), rv.first->second - 1));
+        colInfoVector.emplace_back(oss.str(), rv.first->second - 1);
     }
 
     const size_t ntypes = typeMap.size();
@@ -500,8 +501,8 @@ SharemindTdbError TdbHdf5Connection::tblCreate(const std::string & tbl,
         assert(memTypes.size() == ntypes);
         assert(colSizes.size() == ntypes);
 
-        std::vector<std::pair<SharemindTdbType *, hid_t> >::const_iterator typeIt = memTypes.begin();
-        std::vector<size_t>::const_iterator sizeIt = colSizes.begin();
+        auto typeIt(memTypes.cbegin());
+        auto sizeIt(colSizes.cbegin());
 
         for (size_t i = 0; i < ntypes; ++i, ++typeIt, ++sizeIt) {
             SharemindTdbType * const type = typeIt->first;
@@ -699,10 +700,10 @@ SharemindTdbError TdbHdf5Connection::tblCreate(const std::string & tbl,
         // Write column index data
         if (size > 0) {
             // Serialize the column index data
-            std::unique_ptr<ColumnIndex[]> colIdx(new ColumnIndex[size]);
+            auto const colIdx(makeUnique<ColumnIndex[]>(size));
 
-            std::vector<SharemindTdbString *>::const_iterator nameIt = names.begin();
-            ColInfoVector::const_iterator mIt = colInfoVector.begin();
+            auto nameIt(names.cbegin());
+            auto mIt(colInfoVector.cbegin());
 
             for (size_t i = 0; i < size; ++i, ++nameIt, ++mIt) {
                 colIdx[i].name = (*nameIt)->str;
@@ -730,7 +731,7 @@ SharemindTdbError TdbHdf5Connection::tblCreate(const std::string & tbl,
     #ifndef NDEBUG
     const bool r =
     #endif
-            m_tableFiles.insert(TableFileMap::value_type(tbl, fileId))
+            m_tableFiles.emplace(tbl, fileId)
             #ifndef NDEBUG
                 .second
             #endif
@@ -953,7 +954,7 @@ SharemindTdbError TdbHdf5Connection::tblColNames(const std::string & tbl, std::v
     };
 
     // Allocate a buffer for reading
-    std::unique_ptr<PartialColumnIndex[]> buffer(new PartialColumnIndex[colCount]);
+    auto const buffer(makeUnique<PartialColumnIndex[]>(colCount));
 
     // Read column meta info from the dataset
     if (H5Dread(dId, tId, mSId, H5S_ALL, H5P_DEFAULT, buffer.get()) < 0) {
@@ -1065,7 +1066,7 @@ SharemindTdbError TdbHdf5Connection::tblColTypes(const std::string & tbl, std::v
     };
 
     // Allocate a buffer for reading
-    std::unique_ptr<PartialColumnIndex[]> indices(new PartialColumnIndex[colCount]);
+    auto const indices(makeUnique<PartialColumnIndex[]>(colCount));
 
     // Read column meta info from the dataset
     if (H5Dread(dId, tId, H5S_ALL, H5S_ALL, H5P_DEFAULT, indices.get()) < 0) {
@@ -1090,8 +1091,8 @@ SharemindTdbError TdbHdf5Connection::tblColTypes(const std::string & tbl, std::v
     TypesMap typesMap;
 
     for (hsize_t i = 0; i < colCount; ++i) {
-        TypesMap::const_iterator it = typesMap.find(indices[i].dataset_ref);
-
+        auto const it(const_cast<TypesMap const &>(typesMap).find(
+                          indices[i].dataset_ref));
         if (it == typesMap.end()) {
             // Get dataset from reference
             const hid_t oId = H5Rdereference(fileId, H5R_OBJECT, &indices[i].dataset_ref);
@@ -1141,7 +1142,7 @@ SharemindTdbError TdbHdf5Connection::tblColTypes(const std::string & tbl, std::v
             };
 
             // Read the type attribute
-            std::unique_ptr<SharemindTdbType> type(new SharemindTdbType);
+            auto const type(makeUnique<SharemindTdbType>());
             if (H5Aread(aId, aTId, type.get()) < 0) {
                 m_logger.error() << "Failed to read dataset type attribute.";
                 return SHAREMIND_TDB_IO_ERROR;
@@ -1155,9 +1156,9 @@ SharemindTdbError TdbHdf5Connection::tblColTypes(const std::string & tbl, std::v
             types.push_back(SharemindTdbType_new(type->domain, type->name, type->size));
 
             #ifndef NDEBUG
-            std::pair<TypesMap::iterator, bool> rv =
+            auto const rv =
             #endif
-                    typesMap.insert(std::pair<hobj_ref_t, SharemindTdbType *>(indices[i].dataset_ref, types.back()));
+                    typesMap.emplace(indices[i].dataset_ref, types.back());
             assert(rv.second);
         } else {
             types.push_back(SharemindTdbType_new(it->second->domain, it->second->name, it->second->size));
@@ -1348,7 +1349,7 @@ SharemindTdbError TdbHdf5Connection::insertRow(const std::string & tbl,
         };
 
         // Read dataset references from the column meta info dataset
-        std::unique_ptr<hobj_ref_t[]> dsetRefs(new hobj_ref_t[colCount]);
+        auto const dsetRefs(makeUnique<hobj_ref_t[]>(colCount));
         if (H5Dread(dId, tId, H5S_ALL, H5S_ALL, H5P_DEFAULT, dsetRefs.get()) < 0) {
             m_logger.fullDebug() << "Failed to read column meta info dataset.";
             return SHAREMIND_TDB_IO_ERROR;
@@ -1356,12 +1357,13 @@ SharemindTdbError TdbHdf5Connection::insertRow(const std::string & tbl,
 
         // Resolve references to types
         for (size_type i = 0u; i < colCount; ++i) {
-            RefTypeMap::const_iterator it = refTypes.find(dsetRefs[i]);
+            auto const it(const_cast<RefTypeMap const &>(refTypes).find(
+                              dsetRefs[i]));
             if (it == refTypes.end()) {
                 hid_t aId = H5I_INVALID_HID;
 
                 // Read the type attribute
-                std::unique_ptr<SharemindTdbType> type(new SharemindTdbType);
+                auto type(makeUnique<SharemindTdbType>());
                 const SharemindTdbError ecode = objRefToType(fileId, dsetRefs[i], aId, *type);
                 if (ecode != SHAREMIND_TDB_OK) {
                     m_logger.error() << "Failed to get type info from dataset reference.";
@@ -1371,7 +1373,7 @@ SharemindTdbError TdbHdf5Connection::insertRow(const std::string & tbl,
                 #ifndef NDEBUG
                 const bool r =
                 #endif
-                        typeCounts.insert(TypeCountMap::value_type(type.get(), 1))
+                        typeCounts.emplace(type.get(), 1)
                         #ifndef NDEBUG
                             .second
                         #endif
@@ -1380,7 +1382,7 @@ SharemindTdbError TdbHdf5Connection::insertRow(const std::string & tbl,
                 #ifndef NDEBUG
                 const bool r2 =
                 #endif
-                        refTypes.insert(RefTypeMap::value_type(dsetRefs[i], RefTypeMap::mapped_type(type.release(), aId)))
+                        refTypes.emplace(dsetRefs[i], RefTypeMap::mapped_type(type.release(), aId))
                         #ifndef NDEBUG
                             .second
                         #endif
@@ -1405,7 +1407,7 @@ SharemindTdbError TdbHdf5Connection::insertRow(const std::string & tbl,
 
     size_type insertedRowCount = 0u;
 
-    std::vector<bool>::const_iterator vacIt = valueAsColumnBatch.begin();
+    auto vacIt(valueAsColumnBatch.cbegin());
     for (const ValuesVector & values : valuesBatch) {
         size_type batchColCount = 0u;
 
@@ -1432,7 +1434,9 @@ SharemindTdbError TdbHdf5Connection::insertRow(const std::string & tbl,
             } else {
                 assert(val->size);
 
-                TypeCountMap::const_iterator tIt = typeCounts.find(type);
+                auto const tIt(
+                            const_cast<TypeCountMap const &>(typeCounts).find(
+                                type));
                 if (tIt == typeCounts.end()) {
                     m_logger.error() << "Given values do not match the table schema.";
                     return SHAREMIND_TDB_INVALID_ARGUMENT;
@@ -1475,7 +1479,8 @@ SharemindTdbError TdbHdf5Connection::insertRow(const std::string & tbl,
             SharemindTdbType * const type = pair.first;
             const size_t count = pair.second;
 
-            TypeCountMap::const_iterator tIt = typeCounts.find(type);
+            auto const tIt(const_cast<TypeCountMap const &>(typeCounts).find(
+                               type));
             assert(tIt != typeCounts.end());
 
             if (count != tIt->second) {
@@ -1495,7 +1500,6 @@ SharemindTdbError TdbHdf5Connection::insertRow(const std::string & tbl,
 
     BOOST_SCOPE_EXIT_ALL(&success, this, &cleanup, fileId) {
         if (!success) {
-            std::map<hobj_ref_t, std::pair<hsize_t, hsize_t> >::const_iterator it;
             for (auto const & vp : cleanup) {
                 const hobj_ref_t dsetRef = vp.first;
 
@@ -1533,7 +1537,8 @@ SharemindTdbError TdbHdf5Connection::insertRow(const std::string & tbl,
             SharemindTdbType * const type = pair.second.first;
 
             // Get the number of columns for this type
-            TypeCountMap::const_iterator tIt = typeCounts.find(type);
+            auto const tIt(const_cast<TypeCountMap const &>(typeCounts).find(
+                               type));
             assert(tIt != typeCounts.end());
 
             const size_type dsetCols = tIt->second;
@@ -1585,7 +1590,7 @@ SharemindTdbError TdbHdf5Connection::insertRow(const std::string & tbl,
             }
 
             // Register this dataset for cleanup
-            cleanup.insert(CleanupMap::value_type(dsetRef, std::pair<hsize_t, hsize_t>(rowCount, dsetCols)));
+            cleanup.emplace(dsetRef, std::pair<hsize_t, hsize_t>(rowCount, dsetCols));
 
             // Get dataset data space
             const hid_t sId = H5Dget_space(oId);
@@ -1608,7 +1613,8 @@ SharemindTdbError TdbHdf5Connection::insertRow(const std::string & tbl,
             }
 
             // Serialize the values
-            TypeValueMap::const_iterator tvIt = typeValues.find(type);
+            auto const tvIt(const_cast<TypeValueMap const &>(typeValues).find(
+                                type));
             assert(tvIt != typeValues.end());
             const std::vector<SharemindTdbValue *> & values = tvIt->second.values;
             const std::vector<bool> & vac = tvIt->second.valueAsColumn;
@@ -1644,7 +1650,7 @@ SharemindTdbError TdbHdf5Connection::insertRow(const std::string & tbl,
                         size_t transposeOffset = 0u;
 
                         bool lastAsColumn = false;
-                        std::vector<bool>::const_iterator vacIt = vac.begin();
+                        auto vacIt(vac.cbegin());
 
                         for (SharemindTdbValue const * const val : values) {
                             const bool asColumn = *vacIt++;
@@ -1766,7 +1772,7 @@ SharemindTdbError TdbHdf5Connection::readColumn(const std::string & tbl,
     {
         std::set<SharemindTdbString const *, SharemindTdbStringLess> colIdSet;
         for (auto const * const v : colIdBatch) {
-            if (!colIdSet.insert(v).second) {
+            if (!colIdSet.emplace(v).second) {
                 m_logger.error() << "Duplicate column names given.";
                 return SHAREMIND_TDB_INVALID_ARGUMENT;
             }
@@ -1791,7 +1797,7 @@ SharemindTdbError TdbHdf5Connection::readColumn(const std::string & tbl,
     typedef std::map<SharemindTdbString *, size_t, SharemindTdbStringLess> ColNamesMap;
     ColNamesMap colNamesMap;
     for (size_t i = 0, end = colNames.size(); i < end; ++i) {
-        const bool rv = colNamesMap.insert(std::pair<SharemindTdbString *, size_t>(colNames[i], i)).second;
+        const bool rv = colNamesMap.emplace(colNames[i], i).second;
         (void) rv; assert(rv);
     }
 
@@ -1807,7 +1813,8 @@ SharemindTdbError TdbHdf5Connection::readColumn(const std::string & tbl,
 
     {
         for (auto * const colId : colIdBatch) {
-            ColNamesMap::const_iterator nIt = colNamesMap.find(colId);
+            auto const nIt(const_cast<ColNamesMap const &>(colNamesMap).find(
+                               colId));
             if (nIt == colNamesMap.end()) {
                 m_logger.error() << "Table \"" << tbl << "\" does not contain column \"" << colId->str << "\".";
                 return SHAREMIND_TDB_INVALID_ARGUMENT;
@@ -1889,7 +1896,7 @@ SharemindTdbError TdbHdf5Connection::readColumn(const std::string & tbl,
                 m_logger.error() << "Column number out of range.";
                 return SHAREMIND_TDB_INVALID_ARGUMENT;
             }
-            if (!uniqueColumns.insert(colId->idx).second) {
+            if (!uniqueColumns.emplace(colId->idx).second) {
                 m_logger.error() << "Duplicate column numbers given.";
                 return SHAREMIND_TDB_INVALID_ARGUMENT;
             }
@@ -2239,7 +2246,7 @@ SharemindTdbError TdbHdf5Connection::readDatasetColumn(const hid_t fileId, const
     };
 
     // Read the type attribute
-    std::unique_ptr<SharemindTdbType> type(new SharemindTdbType);
+    auto const type(makeUnique<SharemindTdbType>());
     if (H5Aread(aId, aTId, type.get()) < 0) {
         m_logger.error() << "Failed to read dataset type attribute.";
         return SHAREMIND_TDB_IO_ERROR;
@@ -2314,7 +2321,7 @@ SharemindTdbError TdbHdf5Connection::readDatasetColumn(const hid_t fileId, const
                     hvl_t * const hvlBuffer = static_cast<hvl_t *>(buffer);
 
                     for (hsize_t i = 0; i < dims[0]; ++i) {
-                        std::unique_ptr<SharemindTdbValue> val(new SharemindTdbValue);
+                        auto val(makeUnique<SharemindTdbValue>());
                         val->type = SharemindTdbType_new(type->domain, type->name, type->size);
                         bufferSize = hvlBuffer[i].len;
                         val->buffer = ::operator new(bufferSize);
@@ -2331,7 +2338,7 @@ SharemindTdbError TdbHdf5Connection::readDatasetColumn(const hid_t fileId, const
                     // Free the variable length type array
                     ::operator delete(buffer);
                 } else {
-                    std::unique_ptr<SharemindTdbValue> val(new SharemindTdbValue);
+                    auto val(makeUnique<SharemindTdbValue>());
                     val->type = SharemindTdbType_new(type->domain, type->name, type->size);
                     val->buffer = buffer;
                     val->size = bufferSize;
@@ -2524,7 +2531,7 @@ SharemindTdbError TdbHdf5Connection::setRowCount(const hid_t fileId, const hsize
 bool TdbHdf5Connection::closeTableFile(const std::string & tbl) {
     assert(!tbl.empty());
 
-    TableFileMap::iterator it = m_tableFiles.find(tbl);
+    auto it(m_tableFiles.find(tbl));
     if (it == m_tableFiles.end())
         return false;
 
@@ -2539,7 +2546,7 @@ hid_t TdbHdf5Connection::openTableFile(const std::string & tbl) {
     assert(!tbl.empty());
 
     // Check if we already have a file handle for the table
-    TableFileMap::const_iterator it = m_tableFiles.find(tbl);
+    auto const it(const_cast<TableFileMap const &>(m_tableFiles).find(tbl));
     if (it != m_tableFiles.end())
         return it->second;
 
@@ -2554,7 +2561,7 @@ hid_t TdbHdf5Connection::openTableFile(const std::string & tbl) {
     // TODO Do some sanity checks when opening the table (if all the datasets
     // have the same number of rows).
 
-    m_tableFiles.insert(TableFileMap::value_type(tbl, id));
+    m_tableFiles.emplace(tbl, id);
 
     return id;
 }
