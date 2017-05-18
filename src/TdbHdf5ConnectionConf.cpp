@@ -19,11 +19,13 @@
 
 #include "TdbHdf5ConnectionConf.h"
 
+#include <boost/filesystem.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/property_tree/ini_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
 
 
+namespace fs = boost::filesystem;
 namespace pt = boost::property_tree;
 
 namespace sharemind {
@@ -38,7 +40,9 @@ bool TdbHdf5ConnectionConf::load(const std::string & filename) {
     try {
 
         pt::read_ini(filename, config);
-        m_path = config.get<std::string>("DatabasePath");
+
+        fs::path parent(fs::path(filename).parent_path());
+        m_path = fs::absolute(config.get<std::string>("DatabasePath"), parent).string();
 
     } catch (const pt::ini_parser_error & error) {
 #if BOOST_VERSION <= 104200
