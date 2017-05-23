@@ -20,6 +20,7 @@
 #ifndef SHAREMIND_MOD_TABLEDB_HDF5_TDBHDF5CONNECTIONCONF_H
 #define SHAREMIND_MOD_TABLEDB_HDF5_TDBHDF5CONNECTIONCONF_H
 
+#include <sharemind/ConfigurationInterpolation.h>
 #include <string>
 
 
@@ -38,8 +39,8 @@ public: /* Methods: */
 
 private: /* Fields: */
 
+    ConfigurationInterpolation m_interpolate;
     std::string m_lastErrorMessage;
-
     std::string m_path;
 
 }; /* class TdbHdf5ConnectionConf { */

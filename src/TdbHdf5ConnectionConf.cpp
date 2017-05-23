@@ -25,7 +25,6 @@
 #include <boost/property_tree/ptree.hpp>
 
 
-namespace fs = boost::filesystem;
 namespace pt = boost::property_tree;
 
 namespace sharemind {
@@ -38,12 +37,10 @@ bool TdbHdf5ConnectionConf::load(const std::string & filename) {
 
     // Parse the configuration file into the property tree:
     try {
-
         pt::read_ini(filename, config);
-
-        fs::path parent(fs::path(filename).parent_path());
-        m_path = fs::absolute(config.get<std::string>("DatabasePath"), parent).string();
-
+        m_interpolate.addVar("CurrentFileDirectory",
+                             boost::filesystem::path(filename).parent_path().string());
+        m_path = m_interpolate(config.get<std::string>("DatabasePath"));
     } catch (const pt::ini_parser_error & error) {
 #if BOOST_VERSION <= 104200
         m_lastErrorMessage = error.what();
