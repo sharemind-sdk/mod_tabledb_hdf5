@@ -25,7 +25,7 @@
 namespace sharemind {
 
 TdbHdf5ConnectionConf::TdbHdf5ConnectionConf(std::string const & filename)
-    : m_path(Configuration(filename).get<std::string>("DataBasePath"))
+    : m_path(Configuration(filename).get<std::string>("DatabasePath"))
 {}
 
 } /* namespace sharemind { */
