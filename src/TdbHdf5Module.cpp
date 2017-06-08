@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Cybernetica
+ * Copyright (C) 2015-2017 Cybernetica
  *
  * Research/Commercial License Usage
  * Licensees holding a valid Research License or Commercial License
@@ -223,12 +223,16 @@ bool TdbHdf5Module::openConnection(const SharemindModuleApi0x1SyscallContext * c
                 return false;
             }
 
-            auto configuration(makeUnique<TdbHdf5ConnectionConf>());
-            if (!configuration->load(src->conf(src))) {
+            std::unique_ptr<TdbHdf5ConnectionConf> configuration;
+            try {
+                configuration = makeUnique<TdbHdf5ConnectionConf>(
+                                    src->conf(src));
+            } catch (...) {
+                auto const loggerLock(m_logger.retrieveBackendLock());
                 m_logger.error()
                         << "Failed to parse configuration for data source \""
-                        << dsName << "\": "
-                        << configuration->getLastErrorMessage();
+                        << dsName << "\":";
+                m_logger.printCurrentException();
                 return false;
             }
 

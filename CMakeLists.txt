@@ -26,6 +26,7 @@ FIND_PACKAGE(Boost COMPONENTS filesystem system REQUIRED)
 FIND_PACKAGE(HDF5 COMPONENTS C REQUIRED)
 FIND_PACKAGE(LogHard REQUIRED)
 FIND_PACKAGE(SharemindCxxHeaders REQUIRED)
+FIND_PACKAGE(SharemindLibConfiguration REQUIRED)
 FIND_PACKAGE(SharemindLibConsensusService REQUIRED)
 FIND_PACKAGE(SharemindLibDataStoreManager REQUIRED)
 FIND_PACKAGE(SharemindLibDbCommon REQUIRED)
@@ -37,6 +38,7 @@ INCLUDE_DIRECTORIES(
     ${HDF5_INCLUDE_DIRS}
     ${LogHard_INCLUDE_DIRS}
     ${SharemindCxxHeaders_INCLUDE_DIRS}
+    ${SharemindLibConfiguration_INCLUDE_DIRS}
     ${SharemindLibConsensusService_INCLUDE_DIRS}
     ${SharemindLibDataStoreManager_INCLUDE_DIRS}
     ${SharemindLibDbCommon_INCLUDE_DIRS}
@@ -51,6 +53,7 @@ ADD_DEFINITIONS(
     "-D__STDC_FORMAT_MACROS"
     ${LogHard_DEFINITIONS}
     ${SharemindCxxHeaders_DEFINITIONS}
+    ${SharemindLibConfiguration_DEFINITIONS}
     ${SharemindLibConsensusService_DEFINITIONS}
     ${SharemindLibDataStoreManager_DEFINITIONS}
     ${SharemindLibDbCommon_DEFINITIONS}
@@ -68,6 +71,7 @@ TARGET_LINK_LIBRARIES(sharemind_mod_tabledb_hdf5
     ${HDF5_LIBRARIES}
     ${LogHard_LIBRARIES}
     ${SharemindCxxHeaders_LIBRARIES}
+    ${SharemindLibConfiguration_LIBRARIES}
     ${SharemindLibConsensusService_LIBRARIES}
     ${SharemindLibDataStoreManager_LIBRARIES}
     ${SharemindLibDbCommon_LIBRARIES}

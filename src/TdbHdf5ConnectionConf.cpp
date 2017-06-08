@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Cybernetica
+ * Copyright (C) 2015-2017 Cybernetica
  *
  * Research/Commercial License Usage
  * Licensees holding a valid Research License or Commercial License
@@ -19,51 +19,13 @@
 
 #include "TdbHdf5ConnectionConf.h"
 
-#include <boost/filesystem.hpp>
-#include <boost/lexical_cast.hpp>
-#include <boost/property_tree/ini_parser.hpp>
-#include <boost/property_tree/ptree.hpp>
+#include <sharemind/Configuration.h>
 
-
-namespace fs = boost::filesystem;
-namespace pt = boost::property_tree;
 
 namespace sharemind {
 
-bool TdbHdf5ConnectionConf::load(const std::string & filename) {
-    // TODO this probably needs some refactoring... maybe move to constructor
-
-    // Define the configuration property tree:
-    pt::ptree config;
-
-    // Parse the configuration file into the property tree:
-    try {
-        pt::read_ini(filename, config);
-        m_interpolate.addVar("CurrentFileDirectory",
-                             fs::canonical(fs::path(filename)).parent_path().string());
-        m_path = m_interpolate(config.get<std::string>("DatabasePath"));
-    } catch (const pt::ini_parser_error & error) {
-#if BOOST_VERSION <= 104200
-        m_lastErrorMessage = error.what();
-#else
-        std::ostringstream o;
-        o << error.message() << " [" << error.filename() << ":" << error.line() << "].";
-        m_lastErrorMessage = o.str();
-#endif
-        return false;
-    } catch (const pt::ptree_bad_data & error) {
-        std::ostringstream o;
-        o << "Bad data: " << error.what();
-        m_lastErrorMessage = o.str();
-        return false;
-    } catch (const pt::ptree_bad_path & error) {
-        std::ostringstream o;
-        o << "Bad path: " << error.what();
-        m_lastErrorMessage = o.str();
-        return false;
-    }
-
-    return true;
-}
+TdbHdf5ConnectionConf::TdbHdf5ConnectionConf(std::string const & filename)
+    : m_path(Configuration(filename).get<std::string>("DataBasePath"))
+{}
 
 } /* namespace sharemind { */
