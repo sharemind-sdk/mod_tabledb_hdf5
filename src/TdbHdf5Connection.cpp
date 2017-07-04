@@ -217,7 +217,7 @@ SharemindTdbError TdbHdf5Connection::tblNames(std::vector<SharemindTdbString *> 
     fs::directory_iterator it(m_path);
     while (it != fs::directory_iterator()) {
         fs::path filepath(it->path());
-        if (filepath.extension().string().compare(".h5") == 0) {
+        if (filepath.extension().string().compare(FILE_EXT) == 0) {
             names.push_back(SharemindTdbString_new(filepath.stem().c_str()));
         }
         ++it;
