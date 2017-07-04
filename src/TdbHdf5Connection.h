@@ -65,6 +65,11 @@ public: /* Methods: */
     ~TdbHdf5Connection();
 
     /*
+     * General database functions
+     */
+    SharemindTdbError tblNames(std::vector<SharemindTdbString *> & names);
+
+    /*
      * General database table functions
      */
 

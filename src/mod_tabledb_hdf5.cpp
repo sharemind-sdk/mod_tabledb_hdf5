@@ -1306,6 +1306,84 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_stmt_exec,
     }
 }
 
+SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_table_names,
+                          args, num_args, refs, crefs,
+                          returnValue, c)
+{
+    assert(c);
+    if (!SyscallArgs<0u, true, 0u, 1u>::check(args, num_args, refs, crefs, returnValue)) {
+        return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
+    }
+
+    if (refs && refs[0u].size != sizeof(int64_t)) {
+        return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
+    }
+
+    if (crefs[0u].size == 0u
+        || static_cast<const char *>(crefs[0u].pData)[crefs[0u].size - 1u] != '\0')
+    {
+        return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
+    }
+
+    try {
+        const std::string dsName(static_cast<const char *>(crefs[0u].pData), crefs[0u].size - 1u);
+        sharemind::TdbHdf5Module * m = static_cast<sharemind::TdbHdf5Module *>(c->moduleHandle);
+
+        TdbHdf5Connection * const conn = m->getConnection(c, dsName);
+        if (!conn)
+            return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
+
+        std::vector<SharemindTdbString *> namesVec;
+        conn->tblNames(namesVec);
+
+        // Register cleanup in case we fail to hand over the ownership for the
+        // strings
+        bool cleanup = true;
+
+        BOOST_SCOPE_EXIT_ALL(&cleanup, &namesVec) {
+            if (cleanup) {
+                std::vector<SharemindTdbString *>::iterator it;
+                for (it = namesVec.begin(); it != namesVec.end(); ++it)
+                    SharemindTdbString_delete(*it);
+                namesVec.clear();
+            }
+        };
+
+        // Get the result map
+        uint64_t vmapId = 0;
+        SharemindTdbVectorMap * const rmap = m->newVectorMap(c, vmapId);
+        if (!rmap)
+            return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
+
+        // Register cleanup for the result vector map
+        BOOST_SCOPE_EXIT_ALL(&cleanup, m, c, vmapId) {
+            if (cleanup && !m->deleteVectorMap(c, vmapId))
+                m->logger().fullDebug() << "Error while cleaning up result vector map.";
+        };
+
+        // Make a copy of the string pointers
+        SharemindTdbString ** names = new SharemindTdbString * [namesVec.size()];
+        std::copy(namesVec.begin(), namesVec.end(), names);
+
+        // Set the result "names"
+        if (rmap->set_string_vector(rmap, "names", names, namesVec.size()) != TDB_VECTOR_MAP_OK) {
+            m->logger().error() << "Failed to set \"names\" string vector result.";
+            delete[] names;
+            return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
+        }
+
+        cleanup = false;
+
+        returnValue->uint64[0] = vmapId;
+
+        return SHAREMIND_MODULE_API_0x1_OK;
+    } catch (const std::bad_alloc &) {
+        return SHAREMIND_MODULE_API_0x1_OUT_OF_MEMORY;
+    } catch (...) {
+        return SHAREMIND_MODULE_API_0x1_MODULE_ERROR;
+    }
+}
+
 } /* namespace { */
 
 extern "C" {
@@ -1384,8 +1462,9 @@ SHAREMIND_MODULE_API_0x1_DEINITIALIZER(c) {
 SHAREMIND_MODULE_API_0x1_SYSCALL_DEFINITIONS(
 
     /* High level database operations */
-      { "tdb_open",               &tdb_open }
+      { "tdb_open",             &tdb_open }
     , { "tdb_close",            &tdb_close }
+    , { "tdb_table_names",      &tdb_table_names }
 
     /* Table database API */
     , { "tdb_tbl_create",       &tdb_tbl_create }
