@@ -169,8 +169,6 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_create,
     try {
         const std::string dsName(static_cast<const char *>(crefs[0u].pData), crefs[0u].size - 1u);
         const std::string tblName(static_cast<const char *>(crefs[1u].pData), crefs[1u].size - 1u);
-        const std::string typeDomain(static_cast<const char *>(crefs[2u].pData), crefs[2u].size - 1u);
-        const std::string typeName(static_cast<const char *>(crefs[3u].pData), crefs[3u].size - 1u);
 
         const uint64_t typeSize = args[0u].uint64[0u];
         const uint64_t ncols = args[1u].uint64[0u];
@@ -197,11 +195,25 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_create,
         std::ostringstream oss;
         for (uint64_t i = 0; i < ncols; ++i) {
             oss << i;
-            namesVec.push_back(SharemindTdbString_new(oss.str()));
+            auto const str(oss.str());
+            auto * const s = SharemindTdbString_new2(str.c_str(), str.size());
+            try {
+                namesVec.emplace_back(s);
+            } catch (...) {
+                SharemindTdbString_delete(s);
+                throw;
+            }
+
             oss.str(""); oss.clear();
         }
 
-        SharemindTdbType * const type = SharemindTdbType_new(typeDomain, typeName, typeSize);
+        auto * const type =
+                SharemindTdbType_new2(
+                    static_cast<const char *>(crefs[2u].pData),
+                    crefs[2u].size - 1u,
+                    static_cast<const char *>(crefs[3u].pData),
+                    crefs[3u].size - 1u,
+                    typeSize);
 
         BOOST_SCOPE_EXIT_ALL(type) {
             SharemindTdbType_delete(type);
@@ -691,8 +703,6 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_insert_row,
     try {
         const std::string dsName(static_cast<const char *>(crefs[0u].pData), crefs[0u].size - 1u);
         const std::string tblName(static_cast<const char *>(crefs[1u].pData), crefs[1u].size - 1u);
-        const std::string typeDomain(static_cast<const char *>(crefs[2u].pData), crefs[2u].size - 1u);
-        const std::string typeName(static_cast<const char *>(crefs[3u].pData), crefs[3u].size - 1u);
 
         const uint64_t typeSize = args[0u].uint64[0u];
         const bool valueAsColumn = num_args == 2u ? args[1u].uint64[0u] : false;
@@ -718,7 +728,13 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_insert_row,
         // Construct some parameters
         const std::unique_ptr<SharemindTdbValue> val (new SharemindTdbValue);
 
-        val->type = SharemindTdbType_new(typeDomain, typeName, typeSize);
+        val->type =
+                SharemindTdbType_new2(
+                    static_cast<const char *>(crefs[2u].pData),
+                    crefs[2u].size - 1u,
+                    static_cast<const char *>(crefs[3u].pData),
+                    crefs[3u].size - 1u,
+                    typeSize);
 
         BOOST_SCOPE_EXIT_ALL(&val) {
             SharemindTdbType_delete(val->type);
@@ -823,11 +839,11 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_read_col,
                                                          nullptr,
                                                          crefs,
                                                          returnValue)));
-            // Read the column by column name
-            const std::string colId(static_cast<const char *>(crefs[2u].pData), crefs[2u].size - 1u);
-
             // Construct some parameters
-            SharemindTdbString * const idx = SharemindTdbString_new(colId);
+            auto * const idx =
+                    SharemindTdbString_new2(
+                        static_cast<const char *>(crefs[2u].pData),
+                        crefs[2u].size - 1u);
 
             BOOST_SCOPE_EXIT_ALL(idx) {
                 SharemindTdbString_delete(idx);

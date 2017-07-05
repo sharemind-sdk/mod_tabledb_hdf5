@@ -220,8 +220,10 @@ SharemindTdbError TdbHdf5Connection::tblNames(std::vector<SharemindTdbString *> 
         while (it != fs::directory_iterator()) {
             fs::path filepath(it->path());
             if (filepath.extension().string().compare(FILE_EXT) == 0) {
+                auto const stemString(filepath.stem().string());
                 auto * const str =
-                        SharemindTdbString_new(filepath.stem().string());
+                        SharemindTdbString_new2(stemString.c_str(),
+                                                stemString.size());
                 try {
                     names.emplace_back(str);
                 } catch (...) {
