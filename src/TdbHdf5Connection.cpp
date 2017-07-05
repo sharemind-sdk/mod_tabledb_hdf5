@@ -220,7 +220,8 @@ std::vector<SharemindTdbString *> TdbHdf5Connection::tblNames() {
         while (it != fs::directory_iterator()) {
             fs::path filepath(it->path());
             if (filepath.extension().string().compare(FILE_EXT) == 0) {
-                auto * const str = SharemindTdbString_new(filepath.stem().string());
+                auto * const str =
+                        SharemindTdbString_new(filepath.stem().string());
                 try {
                     names.emplace_back(str);
                 } catch (...) {
@@ -1006,8 +1007,15 @@ SharemindTdbError TdbHdf5Connection::tblColNames(const std::string & tbl, std::v
         }
     };
 
-    for (hsize_t i = 0; i < colCount; ++i)
-        names.push_back(SharemindTdbString_new(buffer[i].name));
+    for (hsize_t i = 0; i < colCount; ++i) {
+        auto str(SharemindTdbString_new(buffer[i].name));
+        try {
+            names.emplace_back(str);
+        } catch (...) {
+            SharemindTdbString_delete(str);
+            throw;
+        }
+    }
 
     success = true;
 
@@ -1179,7 +1187,17 @@ SharemindTdbError TdbHdf5Connection::tblColTypes(const std::string & tbl, std::v
                     m_logger.fullDebug() << "Error while cleaning up dataset type attribute object.";
             };
 
-            types.push_back(SharemindTdbType_new(type->domain, type->name, type->size));
+            {
+                auto tdbType(SharemindTdbType_new(type->domain,
+                                                  type->name,
+                                                  type->size));
+                try {
+                    types.emplace_back(tdbType);
+                } catch (...) {
+                    SharemindTdbType_delete(tdbType);
+                    throw;
+                }
+            }
 
             #ifndef NDEBUG
             auto const rv =
@@ -1187,7 +1205,15 @@ SharemindTdbError TdbHdf5Connection::tblColTypes(const std::string & tbl, std::v
                     typesMap.emplace(indices[i].dataset_ref, types.back());
             assert(rv.second);
         } else {
-            types.push_back(SharemindTdbType_new(it->second->domain, it->second->name, it->second->size));
+            auto tdbType(SharemindTdbType_new(it->second->domain,
+                                              it->second->name,
+                                              it->second->size));
+            try {
+                types.push_back(tdbType);
+            } catch (...) {
+                SharemindTdbType_delete(tdbType);
+                throw;
+            }
         }
     }
 
@@ -1846,7 +1872,13 @@ SharemindTdbError TdbHdf5Connection::readColumn(const std::string & tbl,
                 return SHAREMIND_TDB_INVALID_ARGUMENT;
             }
 
-            colNrBatch.push_back(SharemindTdbIndex_new(nIt->second));
+            auto tdbIndex(SharemindTdbIndex_new(nIt->second));
+            try {
+                colNrBatch.push_back(tdbIndex);
+            } catch (...) {
+                SharemindTdbIndex_delete(tdbIndex);
+                throw;
+            }
         }
     }
 
@@ -2288,8 +2320,17 @@ SharemindTdbError TdbHdf5Connection::readDatasetColumn(const hid_t fileId, const
             // Check if we have anything to read
             if (dims[0] == 0) {
                 // TODO check if this is handled correctly
-                SharemindTdbValue * const val = SharemindTdbValue_new(type->domain, type->name, type->size, nullptr, 0);
-                param.second->push_back(val);
+                auto val(SharemindTdbValue_new(type->domain,
+                                               type->name,
+                                               type->size,
+                                               nullptr,
+                                               0));
+                try {
+                    param.second->push_back(val);
+                } catch (...) {
+                    SharemindTdbValue_delete(val);
+                    throw;
+                }
             } else {
                 void * buffer = nullptr;
                 size_type bufferSize = 0;
@@ -2348,13 +2389,26 @@ SharemindTdbError TdbHdf5Connection::readDatasetColumn(const hid_t fileId, const
 
                     for (hsize_t i = 0; i < dims[0]; ++i) {
                         auto val(makeUnique<SharemindTdbValue>());
-                        val->type = SharemindTdbType_new(type->domain, type->name, type->size);
-                        bufferSize = hvlBuffer[i].len;
-                        val->buffer = ::operator new(bufferSize);
-                        memcpy(val->buffer, hvlBuffer[i].p, bufferSize);
-                        val->size = bufferSize;
+                        val->type = SharemindTdbType_new(type->domain,
+                                                         type->name,
+                                                         type->size);
+                        try {
+                            bufferSize = hvlBuffer[i].len;
+                            val->buffer = ::operator new(bufferSize);
+                            try {
+                                memcpy(val->buffer, hvlBuffer[i].p, bufferSize);
+                                val->size = bufferSize;
 
-                        param.second->push_back(val.release());
+                                param.second->push_back(val.get());
+                                val.release();
+                            } catch (...) {
+                                ::operator delete(val->buffer);
+                                throw;
+                            }
+                        } catch (...) {
+                            SharemindTdbType_delete(val->type);
+                            throw;
+                        }
                     }
 
                     // Release the memory allocated for the variable length types
@@ -2365,11 +2419,19 @@ SharemindTdbError TdbHdf5Connection::readDatasetColumn(const hid_t fileId, const
                     ::operator delete(buffer);
                 } else {
                     auto val(makeUnique<SharemindTdbValue>());
-                    val->type = SharemindTdbType_new(type->domain, type->name, type->size);
-                    val->buffer = buffer;
-                    val->size = bufferSize;
+                    val->type = SharemindTdbType_new(type->domain,
+                                                     type->name,
+                                                     type->size);
+                    try {
+                        val->buffer = buffer;
+                        val->size = bufferSize;
 
-                    param.second->push_back(val.release());
+                        param.second->push_back(val.get());
+                        val.release();
+                    } catch (...) {
+                        SharemindTdbType_delete(val->type);
+                        throw;
+                    }
                 }
             }
         }
