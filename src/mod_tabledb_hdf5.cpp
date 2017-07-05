@@ -1333,8 +1333,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_table_names,
         if (!conn)
             return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
-        std::vector<SharemindTdbString *> namesVec;
-        conn->tblNames(namesVec);
+        auto namesVec(conn->tblNames());
 
         // Register cleanup in case we fail to hand over the ownership for the
         // strings
