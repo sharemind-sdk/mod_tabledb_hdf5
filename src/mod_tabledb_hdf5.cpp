@@ -189,9 +189,8 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_create,
         std::vector<SharemindTdbString *> namesVec;
 
         BOOST_SCOPE_EXIT_ALL(&namesVec) {
-            std::vector<SharemindTdbString *>::iterator it;
-            for (it = namesVec.begin(); it != namesVec.end(); ++it)
-                SharemindTdbString_delete(*it);
+            for (auto * const stringPtr : namesVec)
+                SharemindTdbString_delete(stringPtr);
             namesVec.clear();
         };
 
@@ -465,9 +464,8 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_col_names,
 
         BOOST_SCOPE_EXIT_ALL(&cleanup, &namesVec) {
             if (cleanup) {
-                std::vector<SharemindTdbString *>::iterator it;
-                for (it = namesVec.begin(); it != namesVec.end(); ++it)
-                    SharemindTdbString_delete(*it);
+                for (auto * const stringPtr : namesVec)
+                    SharemindTdbString_delete(stringPtr);
                 namesVec.clear();
             }
         };
@@ -563,9 +561,8 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_col_types,
 
         BOOST_SCOPE_EXIT_ALL(&cleanup, &typesVec) {
             if (cleanup) {
-                std::vector<SharemindTdbType *>::iterator it;
-                for (it = typesVec.begin(); it != typesVec.end(); ++it)
-                    SharemindTdbType_delete(*it);
+                for (auto * const typePtr : typesVec)
+                    SharemindTdbType_delete(typePtr);
                 typesVec.clear();
             }
         };
@@ -872,12 +869,9 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_read_col,
 
         BOOST_SCOPE_EXIT_ALL(&cleanup, &valuesBatch) {
             if (cleanup) {
-                std::vector<std::vector<SharemindTdbValue *> >::iterator it;
-                std::vector<SharemindTdbValue *>::iterator innerIt;
-                for (it = valuesBatch.begin(); it != valuesBatch.end(); ++it) {
-                    for (innerIt = it->begin(); innerIt != it->end(); ++innerIt)
-                        SharemindTdbValue_delete(*innerIt);
-                }
+                for (auto const & batch : valuesBatch)
+                    for (auto * const valuePtr : batch)
+                        SharemindTdbValue_delete(valuePtr);
                 valuesBatch.clear();
             }
         };
@@ -894,8 +888,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_read_col,
                 m->logger().fullDebug() << "Error while cleaning up result vector map.";
         };
 
-        ValuesBatchVector::iterator it;
-        for (it = valuesBatch.begin(); it != valuesBatch.end(); it = ++it) {
+        for (auto it = valuesBatch.begin(); it != valuesBatch.end(); ++it) {
             std::vector<SharemindTdbValue *> & valuesVec = *it;
 
             // Make a copy of the value pointers
@@ -1242,12 +1235,9 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_stmt_exec,
 
             BOOST_SCOPE_EXIT_ALL(&cleanup, &valuesBatch) {
                 if (cleanup) {
-                    std::vector<std::vector<SharemindTdbValue *> >::iterator it;
-                    std::vector<SharemindTdbValue *>::iterator innerIt;
-                    for (it = valuesBatch.begin(); it != valuesBatch.end(); ++it) {
-                        for (innerIt = it->begin(); innerIt != it->end(); ++innerIt)
-                            SharemindTdbValue_delete(*innerIt);
-                    }
+                    for (auto const & batch : valuesBatch)
+                        for (auto * valuePtr : batch)
+                            SharemindTdbValue_delete(valuePtr);
                     valuesBatch.clear();
                 }
             };
@@ -1264,8 +1254,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_stmt_exec,
                     m->logger().fullDebug() << "Error while cleaning up result vector map.";
             };
 
-            ValuesBatchVector::iterator it;
-            for (it = valuesBatch.begin(); it != valuesBatch.end(); ++it) {
+            for (auto it = valuesBatch.begin(); it != valuesBatch.end(); ++it) {
                 std::vector<SharemindTdbValue *> & valuesVec = *it;
 
                 // Make a copy of the value pointers
@@ -1360,9 +1349,8 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_table_names,
 
         BOOST_SCOPE_EXIT_ALL(&cleanup, &namesVec) {
             if (cleanup) {
-                std::vector<SharemindTdbString *>::iterator it;
-                for (it = namesVec.begin(); it != namesVec.end(); ++it)
-                    SharemindTdbString_delete(*it);
+                for (auto * const stringPtr : namesVec)
+                    SharemindTdbString_delete(stringPtr);
                 namesVec.clear();
             }
         };
