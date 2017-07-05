@@ -67,7 +67,7 @@ public: /* Methods: */
     /*
      * General database functions
      */
-    SharemindTdbError tblNames(std::vector<SharemindTdbString *> & names);
+    void tblNames(std::vector<SharemindTdbString *> & names);
 
     /*
      * General database table functions

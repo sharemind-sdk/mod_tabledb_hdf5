@@ -212,7 +212,7 @@ TdbHdf5Connection::~TdbHdf5Connection() {
     m_tableFiles.clear();
 }
 
-SharemindTdbError TdbHdf5Connection::tblNames(std::vector<SharemindTdbString *> & names) {
+void TdbHdf5Connection::tblNames(std::vector<SharemindTdbString *> & names) {
     names.clear();
 
     bool success = false;
