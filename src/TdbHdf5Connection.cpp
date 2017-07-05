@@ -228,7 +228,13 @@ std::vector<SharemindTdbString *> TdbHdf5Connection::tblNames() {
     while (it != fs::directory_iterator()) {
         fs::path filepath(it->path());
         if (filepath.extension().string().compare(FILE_EXT) == 0) {
-            names.push_back(SharemindTdbString_new(filepath.stem().string()));
+            auto * const str = SharemindTdbString_new(filepath.stem().string());
+            try {
+                names.emplace_back(str);
+            } catch (...) {
+                SharemindTdbString_delete(str);
+                throw;
+            }
         }
         ++it;
     }
