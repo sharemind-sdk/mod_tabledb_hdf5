@@ -212,10 +212,10 @@ TdbHdf5Connection::~TdbHdf5Connection() {
     m_tableFiles.clear();
 }
 
-std::vector<SharemindTdbString *> TdbHdf5Connection::tblNames() {
-    std::vector<SharemindTdbString *> names;
+SharemindTdbError TdbHdf5Connection::tblNames(std::vector<SharemindTdbString *> & names) {
     try {
         namespace fs = boost::filesystem;
+        names.clear();
         fs::directory_iterator it(m_path);
         while (it != fs::directory_iterator()) {
             fs::path filepath(it->path());
@@ -236,7 +236,8 @@ std::vector<SharemindTdbString *> TdbHdf5Connection::tblNames() {
             SharemindTdbString_delete(name);
         throw;
     }
-    return names;
+
+    return SHAREMIND_TDB_OK;
 }
 
 SharemindTdbError TdbHdf5Connection::tblCreate(const std::string & tbl,

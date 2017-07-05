@@ -1311,7 +1311,9 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_table_names,
                           returnValue, c)
 {
     assert(c);
-    if (!SyscallArgs<0u, true, 0u, 1u>::check(args, num_args, refs, crefs, returnValue)) {
+    if (!SyscallArgs<0u, true, 0u, 1u>::check(args, num_args, refs, crefs, returnValue) &&
+        !SyscallArgs<0u, true, 1u, 1u>::check(args, num_args, refs, crefs, returnValue))
+    {
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
     }
 
@@ -1333,7 +1335,24 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_table_names,
         if (!conn)
             return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
-        auto namesVec(conn->tblNames());
+        std::vector<SharemindTdbString *> namesVec;
+        TdbHdf5Transaction transaction(*conn,
+                                       &TdbHdf5Connection::tblNames,
+                                       std::ref(namesVec));
+        const SharemindTdbError ecode = m->executeTransaction(transaction, c);
+
+        if (!m->setErrorCode(c, dsName, ecode))
+            return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
+
+        if (refs) {
+            *static_cast<int64_t *>(refs[0u].pData) = ecode;
+
+            if (ecode != SHAREMIND_TDB_OK)
+                return SHAREMIND_MODULE_API_0x1_OK;
+        } else {
+            if (ecode != SHAREMIND_TDB_OK)
+                return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
+        }
 
         // Register cleanup in case we fail to hand over the ownership for the
         // strings
