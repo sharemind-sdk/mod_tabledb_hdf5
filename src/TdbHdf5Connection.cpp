@@ -214,31 +214,27 @@ TdbHdf5Connection::~TdbHdf5Connection() {
 
 std::vector<SharemindTdbString *> TdbHdf5Connection::tblNames() {
     std::vector<SharemindTdbString *> names;
-    bool success = false;
-
-    BOOST_SCOPE_EXIT_ALL(&success, &names) {
-        if (!success) {
-            for (SharemindTdbString * const name : names)
-                SharemindTdbString_delete(name);
-            names.clear();
-        }
-    };
-    namespace fs = boost::filesystem;
-    fs::directory_iterator it(m_path);
-    while (it != fs::directory_iterator()) {
-        fs::path filepath(it->path());
-        if (filepath.extension().string().compare(FILE_EXT) == 0) {
-            auto * const str = SharemindTdbString_new(filepath.stem().string());
-            try {
-                names.emplace_back(str);
-            } catch (...) {
-                SharemindTdbString_delete(str);
-                throw;
+    try {
+        namespace fs = boost::filesystem;
+        fs::directory_iterator it(m_path);
+        while (it != fs::directory_iterator()) {
+            fs::path filepath(it->path());
+            if (filepath.extension().string().compare(FILE_EXT) == 0) {
+                auto * const str = SharemindTdbString_new(filepath.stem().string());
+                try {
+                    names.emplace_back(str);
+                } catch (...) {
+                    SharemindTdbString_delete(str);
+                    throw;
+                }
             }
+            ++it;
         }
-        ++it;
+    } catch (...) {
+        for (auto * const name : names)
+            SharemindTdbString_delete(name);
+        throw;
     }
-    success = true;
     return names;
 }
 
