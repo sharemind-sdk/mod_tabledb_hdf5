@@ -230,7 +230,7 @@ void TdbHdf5Connection::tblNames(std::vector<SharemindTdbString *> & names) {
     while (it != fs::directory_iterator()) {
         fs::path filepath(it->path());
         if (filepath.extension().string().compare(FILE_EXT) == 0) {
-            names.push_back(SharemindTdbString_new(filepath.stem().c_str()));
+            names.push_back(SharemindTdbString_new(filepath.stem().string()));
         }
         ++it;
     }
