@@ -215,7 +215,7 @@ TdbHdf5Connection::~TdbHdf5Connection() {
 SharemindTdbError TdbHdf5Connection::tblNames(std::vector<SharemindTdbString *> & names) {
     try {
         namespace fs = boost::filesystem;
-        names.clear();
+        assert(names.empty());
         fs::directory_iterator it(m_path);
         while (it != fs::directory_iterator()) {
             fs::path filepath(it->path());
@@ -999,7 +999,7 @@ SharemindTdbError TdbHdf5Connection::tblColNames(const std::string & tbl, std::v
     };
 
     // Copy the strings to the return values
-    names.clear();
+    assert(names.empty());
     names.reserve(colCount);
 
     BOOST_SCOPE_EXIT_ALL(&success, &names) {
