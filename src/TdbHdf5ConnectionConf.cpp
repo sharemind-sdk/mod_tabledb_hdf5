@@ -19,7 +19,7 @@
 
 #include "TdbHdf5ConnectionConf.h"
 
-#include <sharemind/Configuration.h>
+#include <sharemind/libconfiguration/Configuration.h>
 
 
 namespace sharemind {
