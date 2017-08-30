@@ -6,26 +6,18 @@
 # without the written consent of the copyright owner. The usage of this
 # code is subject to the appropriate license agreement.
 #
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12)
-PROJECT(SHAREMIND_MOD_TABLEDB_HDF5)
 
-SET(CPACK_PACKAGE_VERSION_MAJOR "0")
-SET(CPACK_PACKAGE_VERSION_MINOR "1")
-SET(CPACK_PACKAGE_VERSION_PATCH "0")
-SET(SHAREMIND_MOD_ALGORITHMS_VERSION
-    "${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}")
+CMAKE_MINIMUM_REQUIRED(VERSION 3.0)
+# The C language is only required for FIND_PACKAGE(HDF5 COMPONENTS C):
+PROJECT(SharemindModTableDbHdf5 VERSION 0.1.0 LANGUAGES C CXX)
 
 INCLUDE("${CMAKE_CURRENT_SOURCE_DIR}/config.local" OPTIONAL)
 INCLUDE("${CMAKE_CURRENT_BINARY_DIR}/config.local" OPTIONAL)
 
-ADD_COMPILE_OPTIONS(
-  "-std=c++11" "-Wall" "-Wextra" "-O2" "-fPIC"
-  "-DH5_USE_18_API"
-  "$<$<NOT:$<STREQUAL:$<CONFIGURATION>,Release>>:-ggdb>"
-  "$<$<NOT:$<STREQUAL:$<CONFIGURATION>,Release>>:-fno-omit-frame-pointer>"
-  "$<$<STREQUAL:$<CONFIGURATION>,Release>:-DNDEBUG>"
-  "$<$<STREQUAL:$<CONFIGURATION>,Release>:-fomit-frame-pointer>"
-)
+FIND_PACKAGE(SharemindCMakeHelpers REQUIRED)
+
+SharemindSetProjectVersion()
+
 
 SET(Boost_USE_STATIC_RUNTIME OFF)
 FIND_PACKAGE(Boost COMPONENTS filesystem system REQUIRED)
@@ -39,75 +31,77 @@ FIND_PACKAGE(SharemindLibDbCommon REQUIRED)
 FIND_PACKAGE(SharemindLibModapi REQUIRED)
 FIND_PACKAGE(SharemindLibProcessFacility REQUIRED)
 FIND_PACKAGE(SharemindModTableDb REQUIRED)
-INCLUDE_DIRECTORIES(
-    ${Boost_INCLUDE_DIRS}
-    ${HDF5_INCLUDE_DIRS}
-    ${LogHard_INCLUDE_DIRS}
-    ${SharemindCxxHeaders_INCLUDE_DIRS}
-    ${SharemindLibConfiguration_INCLUDE_DIRS}
-    ${SharemindLibConsensusService_INCLUDE_DIRS}
-    ${SharemindLibDataStoreManager_INCLUDE_DIRS}
-    ${SharemindLibDbCommon_INCLUDE_DIRS}
-    ${SharemindLibModapi_INCLUDE_DIRS}
-    ${SharemindLibProcessFacility_INCLUDE_DIRS}
-    ${SharemindModTableDb_INCLUDE_DIRS}
+
+
+# The module:
+SharemindSetCxx11CompileOptions()
+FILE(GLOB_RECURSE SharemindModTableDbHdf5_SOURCES
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
+FILE(GLOB_RECURSE SharemindModTableDbHdf5_HEADERS
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.h")
+SharemindAddSharedLibrary("sharemind_mod_tabledb_hdf5"
+    MODULE
+    SOURCES
+        ${SharemindModTableDbHdf5_SOURCES}
+        ${SharemindModTableDbHdf5_HEADERS}
+    INCLUDE_DIRECTORIES
+        ${Boost_INCLUDE_DIRS}
+        ${HDF5_INCLUDE_DIRS}
+        ${LogHard_INCLUDE_DIRS}
+        ${SharemindCxxHeaders_INCLUDE_DIRS}
+        ${SharemindLibConfiguration_INCLUDE_DIRS}
+        ${SharemindLibConsensusService_INCLUDE_DIRS}
+        ${SharemindLibDataStoreManager_INCLUDE_DIRS}
+        ${SharemindLibDbCommon_INCLUDE_DIRS}
+        ${SharemindLibModapi_INCLUDE_DIRS}
+        ${SharemindLibProcessFacility_INCLUDE_DIRS}
+        ${SharemindModTableDb_INCLUDE_DIRS}
+    LEGACY_DEFINITIONS
+        ${LogHard_DEFINITIONS}
+        ${SharemindCxxHeaders_DEFINITIONS}
+        ${SharemindLibConfiguration_DEFINITIONS}
+        ${SharemindLibConsensusService_DEFINITIONS}
+        ${SharemindLibDataStoreManager_DEFINITIONS}
+        ${SharemindLibDbCommon_DEFINITIONS}
+        ${SharemindLibModapi_DEFINITIONS}
+        ${SharemindLibProcessFacility_DEFINITIONS}
+        ${SharemindModTableDb_DEFINITIONS}
+    LINK_LIBRARIES
+        ${Boost_LIBRARIES}
+        ${HDF5_LIBRARIES}
+        ${LogHard_LIBRARIES}
+        ${SharemindCxxHeaders_LIBRARIES}
+        ${SharemindLibConfiguration_LIBRARIES}
+        ${SharemindLibConsensusService_LIBRARIES}
+        ${SharemindLibDataStoreManager_LIBRARIES}
+        ${SharemindLibDbCommon_LIBRARIES}
+        ${SharemindLibModapi_LIBRARIES}
+        ${SharemindLibProcessFacility_LIBRARIES}
+        ${SharemindModTableDb_LIBRARIES}
 )
-
-ADD_DEFINITIONS(
-    "-D__STDC_LIMIT_MACROS"
-    "-D__STDC_CONSTANT_MACROS"
-    "-D__STDC_FORMAT_MACROS"
-    ${LogHard_DEFINITIONS}
-    ${SharemindCxxHeaders_DEFINITIONS}
-    ${SharemindLibConfiguration_DEFINITIONS}
-    ${SharemindLibConsensusService_DEFINITIONS}
-    ${SharemindLibDataStoreManager_DEFINITIONS}
-    ${SharemindLibDbCommon_DEFINITIONS}
-    ${SharemindLibModapi_DEFINITIONS}
-    ${SharemindLibProcessFacility_DEFINITIONS}
-    ${SharemindModTableDb_DEFINITIONS}
-)
-
-FILE(GLOB_RECURSE TABLEDB_HDF5_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
-FILE(GLOB_RECURSE TABLEDB_HDF5_HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.h")
-
-ADD_LIBRARY(sharemind_mod_tabledb_hdf5 MODULE ${TABLEDB_HDF5_SOURCES} ${TABLEDB_HDF5_HEADERS})
-TARGET_LINK_LIBRARIES(sharemind_mod_tabledb_hdf5
-    ${Boost_LIBRARIES}
-    ${HDF5_LIBRARIES}
-    ${LogHard_LIBRARIES}
-    ${SharemindCxxHeaders_LIBRARIES}
-    ${SharemindLibConfiguration_LIBRARIES}
-    ${SharemindLibConsensusService_LIBRARIES}
-    ${SharemindLibDataStoreManager_LIBRARIES}
-    ${SharemindLibDbCommon_LIBRARIES}
-    ${SharemindLibModapi_LIBRARIES}
-    ${SharemindLibProcessFacility_LIBRARIES}
-    ${SharemindModTableDb_LIBRARIES}
-)
-
-INSTALL(TARGETS sharemind_mod_tabledb_hdf5 LIBRARY DESTINATION "lib")
 
 
 # Packaging:
-SET(CPACK_PACKAGE_VENDOR "Cybernetica AS")
-SET(CPACK_PACKAGE_CONTACT "Sharemind packaging <sharemind-packaging@cyber.ee>")
-SET(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Sharemind TableDB HDF5 module")
-SET(CPACK_GENERATOR "DEB")
-SET(CPACK_DEBIAN_PACKAGE_NAME "libsharemind-mod-tabledb-hdf5")
-SET(CPACK_DEBIAN_PACKAGE_RELEASE "cyber1")
-SET(CPACK_DEBIAN_COMPRESSION_TYPE "xz")
+SharemindSetupPackaging()
 SET(BV "${Boost_MAJOR_VERSION}.${Boost_MINOR_VERSION}.0")
-SET(CPACK_DEBIAN_PACKAGE_DEPENDS
-    "libboost-filesystem${BV}"
-    "libboost-system${BV}"
-    "libc6 (>= 2.19)"
-    "libloghard (>= 0.1.0)"
-    "libsharemind-mod-tabledb (>= 0.1.0)"
-    "libsharemind-configuration (>= 0.1.0)"
-    "libstdc++6 (>= 4.8.0)"
+SharemindAddComponentPackage("lib"
+    NAME "libsharemind-mod-tabledb-hdf5"
+    DESCRIPTION "Sharemind TableDB HDF5 module"
+    DEB_SECTION "libs"
+    DEB_DEPENDS
+        "libboost-filesystem${BV}"
+        "libboost-system${BV}"
+        "libc6 (>= 2.19)"
+        "libloghard (>= 0.1.0)"
+        "libsharemind-mod-tabledb (>= 0.1.0)"
+        "libsharemind-configuration (>= 0.1.0)"
+        "libstdc++6 (>= 4.8.0)"
 )
-STRING(REPLACE ";" ", " CPACK_DEBIAN_PACKAGE_DEPENDS "${CPACK_DEBIAN_PACKAGE_DEPENDS}")
-SET(CPACK_DEBIAN_PACKAGE_SECTION "libs")
-SET(CPACK_DEBIAN_FILE_NAME "DEB-DEFAULT")
-INCLUDE(CPack)
+SharemindAddComponentPackage("debug"
+    NAME "libsharemind-mod-tabledb-hdf5-dbg"
+    DESCRIPTION "Sharemind TableDB HDF5 module debug symbols"
+    DEB_SECTION "debug"
+    DEB_DEPENDS
+        "libsharemind-mod-tabledb-hdf5 (= ${SharemindModTableDbHdf5_VERSION})"
+)
+SharemindPackagingFinalize()
