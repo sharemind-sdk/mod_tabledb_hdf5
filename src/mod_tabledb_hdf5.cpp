@@ -57,9 +57,9 @@ struct SyscallArgs {
             return false;
         }
 
-        if (refs != 0) {
+        if (refs) {
             size_t i = 0;
-            for (; refs[i].pData != 0; ++ i);
+            for (; refs[i].pData; ++ i);
             if (i != NumRefs)
                 return false;
         }
@@ -68,9 +68,9 @@ struct SyscallArgs {
                 return false;
         }
 
-        if (crefs != 0) {
+        if (crefs) {
             size_t i = 0;
-            for (; crefs[i].pData != 0; ++ i);
+            for (; crefs[i].pData; ++ i);
             if (i != NumCRefs)
                 return false;
         }
@@ -1478,7 +1478,7 @@ SHAREMIND_MODULE_API_0x1_DEINITIALIZER(c) {
         }
     }
 
-    c->moduleHandle = 0;
+    c->moduleHandle = nullptr;
 }
 
 SHAREMIND_MODULE_API_0x1_SYSCALL_DEFINITIONS(

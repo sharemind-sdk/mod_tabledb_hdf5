@@ -48,7 +48,8 @@ public: /* Methods: */
 
 private: /* Methods: */
 
-    TdbHdf5Connection * alloc(const boost::filesystem::path & key) const;
+    TdbHdf5Connection * alloc(boost::filesystem::path const & key)
+            const override;
 
 private: /* Fields: */
 
