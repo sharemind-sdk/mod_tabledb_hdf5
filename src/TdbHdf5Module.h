@@ -28,10 +28,10 @@
 #include <sharemind/datastoreapi.h>
 #include <sharemind/dbcommon/datasourceapi.h>
 #include <sharemind/libconsensusservice.h>
-#include <sharemind/libmodapi/api_0x1.h>
 #include <sharemind/libprocessfacility.h>
 #include <sharemind/mod_tabledb/tdberror.h>
 #include <sharemind/mod_tabledb/tdbvectormapapi.h>
+#include <sharemind/module-apis/api_0x1.h>
 #include <string>
 #include "TdbHdf5ConnectionConf.h"
 

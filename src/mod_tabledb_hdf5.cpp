@@ -23,10 +23,10 @@
 #include <string>
 #include <boost/scope_exit.hpp>
 #include <sharemind/datastoreapi.h>
-#include <sharemind/libmodapi/api_0x1.h>
 #include <sharemind/dbcommon/datasourceapi.h>
 #include <sharemind/mod_tabledb/tdbvectormapapi.h>
 #include <sharemind/mod_tabledb/TdbTypesUtil.h>
+#include <sharemind/module-apis/api_0x1.h>
 #include "TdbHdf5Connection.h"
 #include "TdbHdf5Module.h"
 

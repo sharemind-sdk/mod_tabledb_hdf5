@@ -28,9 +28,9 @@ FIND_PACKAGE(SharemindLibConfiguration REQUIRED)
 FIND_PACKAGE(SharemindLibConsensusService REQUIRED)
 FIND_PACKAGE(SharemindLibDataStoreManager REQUIRED)
 FIND_PACKAGE(SharemindLibDbCommon REQUIRED)
-FIND_PACKAGE(SharemindLibModapi REQUIRED)
 FIND_PACKAGE(SharemindLibProcessFacility REQUIRED)
 FIND_PACKAGE(SharemindModTableDb REQUIRED)
+FIND_PACKAGE(SharemindModuleApis REQUIRED)
 
 
 # The module:
@@ -53,9 +53,9 @@ SharemindAddSharedLibrary("sharemind_mod_tabledb_hdf5"
         ${SharemindLibConsensusService_INCLUDE_DIRS}
         ${SharemindLibDataStoreManager_INCLUDE_DIRS}
         ${SharemindLibDbCommon_INCLUDE_DIRS}
-        ${SharemindLibModapi_INCLUDE_DIRS}
         ${SharemindLibProcessFacility_INCLUDE_DIRS}
         ${SharemindModTableDb_INCLUDE_DIRS}
+        ${SharemindModuleApis_INCLUDE_DIRS}
     LEGACY_DEFINITIONS
         ${LogHard_DEFINITIONS}
         ${SharemindCxxHeaders_DEFINITIONS}
@@ -63,7 +63,6 @@ SharemindAddSharedLibrary("sharemind_mod_tabledb_hdf5"
         ${SharemindLibConsensusService_DEFINITIONS}
         ${SharemindLibDataStoreManager_DEFINITIONS}
         ${SharemindLibDbCommon_DEFINITIONS}
-        ${SharemindLibModapi_DEFINITIONS}
         ${SharemindLibProcessFacility_DEFINITIONS}
         ${SharemindModTableDb_DEFINITIONS}
     LINK_LIBRARIES
@@ -75,7 +74,6 @@ SharemindAddSharedLibrary("sharemind_mod_tabledb_hdf5"
         ${SharemindLibConsensusService_LIBRARIES}
         ${SharemindLibDataStoreManager_LIBRARIES}
         ${SharemindLibDbCommon_LIBRARIES}
-        ${SharemindLibModapi_LIBRARIES}
         ${SharemindLibProcessFacility_LIBRARIES}
         ${SharemindModTableDb_LIBRARIES}
 )
