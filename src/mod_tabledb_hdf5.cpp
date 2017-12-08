@@ -104,6 +104,10 @@ bool haveNtcsRefs(Ref * refs, std::size_t howManyToCheck) noexcept {
     return true;
 }
 
+template <typename T>
+std::string refToString(T const & ref)
+{ return std::string(static_cast<char const *>(ref.pData), ref.size - 1u); }
+
 } // anonymous namespace
 
 MOD_TABLEDB_HDF5_SYSCALL(tdb_open) {
@@ -141,7 +145,7 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_close) {
 
 
     try {
-        const std::string dsName(static_cast<const char *>(crefs[0u].pData), crefs[0u].size - 1u);
+        auto const dsName(refToString(crefs[0u]));
 
         auto & m = GETMODULEHANDLE;
 
@@ -168,8 +172,8 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_create) {
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
     try {
-        const std::string dsName(static_cast<const char *>(crefs[0u].pData), crefs[0u].size - 1u);
-        const std::string tblName(static_cast<const char *>(crefs[1u].pData), crefs[1u].size - 1u);
+        auto const dsName(refToString(crefs[0u]));
+        auto const tblName(refToString(crefs[1u]));
 
         const uint64_t typeSize = args[0u].uint64[0u];
         const uint64_t ncols = args[1u].uint64[0u];
@@ -260,8 +264,8 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_delete) {
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
     try {
-        const std::string dsName(static_cast<const char *>(crefs[0u].pData), crefs[0u].size - 1u);
-        const std::string tblName(static_cast<const char *>(crefs[1u].pData), crefs[1u].size - 1u);
+        auto const dsName(refToString(crefs[0u]));
+        auto const tblName(refToString(crefs[1u]));
 
         auto & m = GETMODULEHANDLE;
 
@@ -305,8 +309,8 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_exists) {
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
     try {
-        const std::string dsName(static_cast<const char *>(crefs[0u].pData), crefs[0u].size - 1u);
-        const std::string tblName(static_cast<const char *>(crefs[1u].pData), crefs[1u].size - 1u);
+        auto const dsName(refToString(crefs[0u]));
+        auto const tblName(refToString(crefs[1u]));
 
         auto & m = GETMODULEHANDLE;
 
@@ -357,8 +361,8 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_col_count) {
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
     try {
-        const std::string dsName(static_cast<const char *>(crefs[0u].pData), crefs[0u].size - 1u);
-        const std::string tblName(static_cast<const char *>(crefs[1u].pData), crefs[1u].size - 1u);
+        auto const dsName(refToString(crefs[0u]));
+        auto const tblName(refToString(crefs[1u]));
 
         auto & m = GETMODULEHANDLE;
 
@@ -409,8 +413,8 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_col_names) {
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
     try {
-        const std::string dsName(static_cast<const char *>(crefs[0u].pData), crefs[0u].size - 1u);
-        const std::string tblName(static_cast<const char *>(crefs[1u].pData), crefs[1u].size - 1u);
+        auto const dsName(refToString(crefs[0u]));
+        auto const tblName(refToString(crefs[1u]));
 
         auto & m = GETMODULEHANDLE;
 
@@ -498,8 +502,8 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_col_types) {
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
     try {
-        const std::string dsName(static_cast<const char *>(crefs[0u].pData), crefs[0u].size - 1u);
-        const std::string tblName(static_cast<const char *>(crefs[1u].pData), crefs[1u].size - 1u);
+        auto const dsName(refToString(crefs[0u]));
+        auto const tblName(refToString(crefs[1u]));
 
         auto & m = GETMODULEHANDLE;
 
@@ -587,8 +591,8 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_row_count) {
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
     try {
-        const std::string dsName(static_cast<const char *>(crefs[0u].pData), crefs[0u].size - 1u);
-        const std::string tblName(static_cast<const char *>(crefs[1u].pData), crefs[1u].size - 1u);
+        auto const dsName(refToString(crefs[0u]));
+        auto const tblName(refToString(crefs[1u]));
 
         auto & m = GETMODULEHANDLE;
 
@@ -642,8 +646,8 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_insert_row) {
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
     try {
-        const std::string dsName(static_cast<const char *>(crefs[0u].pData), crefs[0u].size - 1u);
-        const std::string tblName(static_cast<const char *>(crefs[1u].pData), crefs[1u].size - 1u);
+        auto const dsName(refToString(crefs[0u]));
+        auto const tblName(refToString(crefs[1u]));
 
         const uint64_t typeSize = args[0u].uint64[0u];
         const bool valueAsColumn = num_args == 2u ? args[1u].uint64[0u] : false;
@@ -728,8 +732,8 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_read_col) {
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
     try {
-        const std::string dsName(static_cast<const char *>(crefs[0u].pData), crefs[0u].size - 1u);
-        const std::string tblName(static_cast<const char *>(crefs[1u].pData), crefs[1u].size - 1u);
+        auto const dsName(refToString(crefs[0u]));
+        auto const tblName(refToString(crefs[1u]));
 
         auto & m = GETMODULEHANDLE;
 
@@ -891,9 +895,9 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_stmt_exec) {
     try {
         const uint64_t vmapId = args[0].uint64[0];
 
-        const std::string dsName(static_cast<const char *>(crefs[0u].pData), crefs[0u].size - 1u);
-        const std::string tblName(static_cast<const char *>(crefs[1u].pData), crefs[1u].size - 1u);
-        const std::string stmtType(static_cast<const char *>(crefs[2u].pData), crefs[2u].size - 1u);
+        auto const dsName(refToString(crefs[0u]));
+        auto const tblName(refToString(crefs[1u]));
+        auto const stmtType(refToString(crefs[2u]));
 
         auto & m = GETMODULEHANDLE;
 
@@ -1063,7 +1067,7 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_table_names) {
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
     try {
-        const std::string dsName(static_cast<const char *>(crefs[0u].pData), crefs[0u].size - 1u);
+        auto const dsName(refToString(crefs[0u]));
         auto & m = GETMODULEHANDLE;
 
         TdbHdf5Connection * const conn = m.getConnection(c, dsName);
