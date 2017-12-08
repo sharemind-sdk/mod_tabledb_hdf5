@@ -36,50 +36,36 @@ namespace {
 
 using namespace sharemind;
 
-template < size_t NumArgs
-         , bool   NeedReturnValue = false
-         , size_t NumRefs = 0
-         , size_t NumCRefs = 0
-         >
+template <std::size_t NumArgs,
+          bool NeedReturnValue = false,
+          std::size_t NumRefs = 0u,
+          std::size_t NumCRefs = 0u>
 struct SyscallArgs {
-    static inline bool check(SharemindCodeBlock * args,
-                             size_t num_args,
-                             const SharemindModuleApi0x1Reference* refs,
-                             const SharemindModuleApi0x1CReference* crefs,
-                             SharemindCodeBlock * returnValue)
+    static bool check(std::size_t numArgs,
+                      SharemindModuleApi0x1Reference const * refs,
+                      SharemindModuleApi0x1CReference const * crefs,
+                      SharemindCodeBlock * returnValue)
     {
-        (void) args;
-
-        if (num_args != NumArgs) {
+        if (numArgs != NumArgs)
             return false;
-        }
-
-        if (NeedReturnValue && ! returnValue) {
+        if (NeedReturnValue && !returnValue)
             return false;
-        }
-
         if (refs) {
-            size_t i = 0;
-            for (; refs[i].pData; ++ i);
+            std::size_t i = 0u;
+            for (; refs[i].pData; ++i);
             if (i != NumRefs)
                 return false;
+        } else if (NumRefs != 0u) {
+            return false;
         }
-        else {
-            if (NumRefs != 0)
-                return false;
-        }
-
         if (crefs) {
-            size_t i = 0;
-            for (; crefs[i].pData; ++ i);
+            std::size_t i = 0u;
+            for (; crefs[i].pData; ++i);
             if (i != NumCRefs)
                 return false;
+        } else if (NumCRefs != 0u) {
+            return false;
         }
-        else {
-            if (NumCRefs != 0)
-                return false;
-        }
-
         return true;
     }
 };
@@ -88,7 +74,7 @@ struct SyscallArgs {
     SHAREMIND_MODULE_API_0x1_SYSCALL(name, args, num_args, refs, crefs, \
                                      returnValue, c)
 #define CHECKARGS(...) \
-    SyscallArgs<__VA_ARGS__>::check(args, num_args, refs, crefs, returnValue)
+    SyscallArgs<__VA_ARGS__>::check(num_args, refs, crefs, returnValue)
 #define GETMODULEHANDLE \
     *sharemind::assertReturn( \
         static_cast<sharemind::TdbHdf5Module *>(c->moduleHandle))
@@ -747,7 +733,7 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_read_col) {
         typedef std::vector<std::vector<SharemindTdbValue *> > ValuesBatchVector;
         ValuesBatchVector valuesBatch;
 
-        if (SyscallArgs<1u, true, 0u, 2u>::check(args, num_args, nullptr, crefs, returnValue)) {
+        if (SyscallArgs<1u, true, 0u, 2u>::check(num_args, nullptr, crefs, returnValue)) {
             // Read the column by column index
             const uint64_t colId = args[0u].uint64[0u];
 
@@ -772,8 +758,7 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_read_col) {
                                            std::ref(valuesBatch));
             ecode = m.executeTransaction(transaction, c);
         } else {
-            assert((SyscallArgs<0u, true, 0u, 3u>::check(args,
-                                                         num_args,
+            assert((SyscallArgs<0u, true, 0u, 3u>::check(num_args,
                                                          nullptr,
                                                          crefs,
                                                          returnValue)));
