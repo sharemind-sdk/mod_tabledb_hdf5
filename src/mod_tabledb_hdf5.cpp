@@ -93,18 +93,30 @@ struct SyscallArgs {
     *sharemind::assertReturn( \
         static_cast<sharemind::TdbHdf5Module *>(c->moduleHandle))
 
+namespace {
+
+template <typename Ref>
+bool haveNtcsRefs(Ref * refs, std::size_t howManyToCheck) noexcept {
+    for (; howManyToCheck; --howManyToCheck, ++refs)
+        if (refs->size == 0
+            || static_cast<const char *>(refs->pData)[refs->size - 1u] != '\0')
+            return false;
+    return true;
+}
+
+} // anonymous namespace
+
 MOD_TABLEDB_HDF5_SYSCALL(tdb_open) {
     assert(c);
     if (!CHECKARGS(0u, false, 0u, 1u))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
-    if (crefs[0u].size == 0u
-            || static_cast<const char *>(crefs[0u].pData)[crefs[0u].size - 1u] != '\0')
+    if (!haveNtcsRefs(crefs, 1u))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
 
     try {
-        const std::string dsName(static_cast<const char *>(crefs[0u].pData), crefs[0u].size - 1u);
+        auto const dsName(refToString(crefs[0u]));
 
         auto & m = GETMODULEHANDLE;
 
@@ -124,8 +136,7 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_close) {
     if (!CHECKARGS(0u, false, 0u, 1u))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
-    if (crefs[0u].size == 0u
-            || static_cast<const char *>(crefs[0u].pData)[crefs[0u].size - 1u] != '\0')
+    if (!haveNtcsRefs(crefs, 1u))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
 
@@ -153,14 +164,7 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_create) {
     if (refs && refs[0u].size != sizeof(int64_t))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
-    if (crefs[0u].size == 0u
-            || crefs[1u].size == 0u
-            || crefs[2u].size == 0u
-            || crefs[3u].size == 0u
-            || static_cast<const char *>(crefs[0u].pData)[crefs[0u].size - 1u] != '\0'
-            || static_cast<const char *>(crefs[1u].pData)[crefs[1u].size - 1u] != '\0'
-            || static_cast<const char *>(crefs[2u].pData)[crefs[2u].size - 1u] != '\0'
-            || static_cast<const char *>(crefs[3u].pData)[crefs[3u].size - 1u] != '\0')
+    if (!haveNtcsRefs(crefs, 4u))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
     try {
@@ -252,10 +256,7 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_delete) {
     if (refs && refs[0u].size != sizeof(int64_t))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
-    if (crefs[0u].size == 0u
-            || crefs[1u].size == 0u
-            || static_cast<const char *>(crefs[0u].pData)[crefs[0u].size - 1u] != '\0'
-            || static_cast<const char *>(crefs[1u].pData)[crefs[1u].size - 1u] != '\0')
+    if (!haveNtcsRefs(crefs, 2u))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
     try {
@@ -300,10 +301,7 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_exists) {
     if (refs && refs[0u].size == sizeof(int64_t))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
-    if (crefs[0u].size == 0u
-            || crefs[1u].size == 0u
-            || static_cast<const char *>(crefs[0u].pData)[crefs[0u].size - 1u] != '\0'
-            || static_cast<const char *>(crefs[1u].pData)[crefs[1u].size - 1u] != '\0')
+    if (!haveNtcsRefs(crefs, 2u))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
     try {
@@ -355,10 +353,7 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_col_count) {
     if (refs && refs[0u].size != sizeof(int64_t))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
-    if (crefs[0u].size == 0u
-            || crefs[1u].size == 0u
-            || static_cast<const char *>(crefs[0u].pData)[crefs[0u].size - 1u] != '\0'
-            || static_cast<const char *>(crefs[1u].pData)[crefs[1u].size - 1u] != '\0')
+    if (!haveNtcsRefs(crefs, 2u))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
     try {
@@ -410,10 +405,7 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_col_names) {
     if (refs && refs[0u].size != sizeof(int64_t))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
-    if (crefs[0u].size == 0u
-            || crefs[1u].size == 0u
-            || static_cast<const char *>(crefs[0u].pData)[crefs[0u].size - 1u] != '\0'
-            || static_cast<const char *>(crefs[1u].pData)[crefs[1u].size - 1u] != '\0')
+    if (!haveNtcsRefs(crefs, 2u))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
     try {
@@ -502,10 +494,7 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_col_types) {
     if (refs && refs[0u].size != sizeof(int64_t))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
-    if (crefs[0u].size == 0u
-            || crefs[1u].size == 0u
-            || static_cast<const char *>(crefs[0u].pData)[crefs[0u].size - 1u] != '\0'
-            || static_cast<const char *>(crefs[1u].pData)[crefs[1u].size - 1u] != '\0')
+    if (!haveNtcsRefs(crefs, 2u))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
     try {
@@ -594,10 +583,7 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_row_count) {
     if (refs && refs[0u].size != sizeof(int64_t))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
-    if (crefs[0u].size == 0u
-            || crefs[1u].size == 0u
-            || static_cast<const char *>(crefs[0u].pData)[crefs[0u].size - 1u] != '\0'
-            || static_cast<const char *>(crefs[1u].pData)[crefs[1u].size - 1u] != '\0')
+    if (!haveNtcsRefs(crefs, 2u))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
     try {
@@ -652,15 +638,7 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_insert_row) {
     if (refs && refs[0u].size != sizeof(int64_t))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
-    if (crefs[0u].size == 0u
-            || crefs[1u].size == 0u
-            || crefs[2u].size == 0u
-            || crefs[3u].size == 0u
-            || crefs[4u].size == 0u
-            || static_cast<const char *>(crefs[0u].pData)[crefs[0u].size - 1u] != '\0'
-            || static_cast<const char *>(crefs[1u].pData)[crefs[1u].size - 1u] != '\0'
-            || static_cast<const char *>(crefs[2u].pData)[crefs[2u].size - 1u] != '\0'
-            || static_cast<const char *>(crefs[3u].pData)[crefs[3u].size - 1u] != '\0')
+    if (!haveNtcsRefs(crefs, 4u))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
     try {
@@ -746,10 +724,7 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_read_col) {
     if (refs && refs[0u].size != sizeof(int64_t))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
-    if (crefs[0u].size == 0u
-            || crefs[1u].size == 0u
-            || static_cast<const char *>(crefs[0u].pData)[crefs[0u].size - 1u] != '\0'
-            || static_cast<const char *>(crefs[1u].pData)[crefs[1u].size - 1u] != '\0')
+    if (!haveNtcsRefs(crefs, 2u))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
     try {
@@ -910,12 +885,7 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_stmt_exec) {
     if (refs && refs[0u].size != sizeof(int64_t))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
-    if (crefs[0u].size == 0u
-            || crefs[1u].size == 0u
-            || crefs[2u].size == 0u
-            || static_cast<const char *>(crefs[0u].pData)[crefs[0u].size - 1u] != '\0'
-            || static_cast<const char *>(crefs[1u].pData)[crefs[1u].size - 1u] != '\0'
-            || static_cast<const char *>(crefs[2u].pData)[crefs[2u].size - 1u] != '\0')
+    if (!haveNtcsRefs(crefs, 3u))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
     try {
@@ -1089,11 +1059,8 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_table_names) {
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
     }
 
-    if (crefs[0u].size == 0u
-        || static_cast<const char *>(crefs[0u].pData)[crefs[0u].size - 1u] != '\0')
-    {
+    if (!haveNtcsRefs(crefs, 1u))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
-    }
 
     try {
         const std::string dsName(static_cast<const char *>(crefs[0u].pData), crefs[0u].size - 1u);
