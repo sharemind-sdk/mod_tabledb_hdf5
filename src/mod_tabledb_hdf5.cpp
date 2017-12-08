@@ -83,14 +83,16 @@ struct SyscallArgs {
     }
 };
 
-SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_open,
-                          args, num_args, refs, crefs,
-                          returnValue, c)
-{
+#define MOD_TABLEDB_HDF5_SYSCALL(name) \
+    SHAREMIND_MODULE_API_0x1_SYSCALL(name, args, num_args, refs, crefs, \
+                                     returnValue, c)
+#define CHECKARGS(...) \
+    SyscallArgs<__VA_ARGS__>::check(args, num_args, refs, crefs, returnValue)
+
+MOD_TABLEDB_HDF5_SYSCALL(tdb_open) {
     assert(c);
-    if (!SyscallArgs<0u, false, 0u, 1u>::check(args, num_args, refs, crefs, returnValue)) {
+    if (!CHECKARGS(0u, false, 0u, 1u))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
-    }
 
     if (crefs[0u].size == 0u
             || static_cast<const char *>(crefs[0u].pData)[crefs[0u].size - 1u] != '\0')
@@ -113,14 +115,10 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_open,
     }
 }
 
-SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_close,
-                          args, num_args, refs, crefs,
-                          returnValue, c)
-{
+MOD_TABLEDB_HDF5_SYSCALL(tdb_close) {
     assert(c);
-    if (!SyscallArgs<0u, false, 0u, 1u>::check(args, num_args, refs, crefs, returnValue)) {
+    if (!CHECKARGS(0u, false, 0u, 1u))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
-    }
 
     if (crefs[0u].size == 0u
             || static_cast<const char *>(crefs[0u].pData)[crefs[0u].size - 1u] != '\0')
@@ -143,15 +141,10 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_close,
     }
 }
 
-SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_create,
-                          args, num_args, refs, crefs,
-                          returnValue, c)
-{
+MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_create) {
     assert(c);
-    if (!SyscallArgs<2u, false, 0u, 4u>::check(args, num_args, refs, crefs, returnValue) &&
-            !SyscallArgs<2u, false, 1u, 4u>::check(args, num_args, refs, crefs, returnValue)) {
+    if (!CHECKARGS(2u, false, 0u, 4u) && !CHECKARGS(2u, false, 1u, 4u))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
-    }
 
     if (refs && refs[0u].size != sizeof(int64_t))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
@@ -247,15 +240,10 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_create,
     }
 }
 
-SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_delete,
-                          args, num_args, refs, crefs,
-                          returnValue, c)
-{
+MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_delete) {
     assert(c);
-    if (!SyscallArgs<0u, false, 0u, 2u>::check(args, num_args, refs, crefs, returnValue) &&
-            !SyscallArgs<0u, false, 1u, 2u>::check(args, num_args, refs, crefs, returnValue)) {
+    if (!CHECKARGS(0u, false, 0u, 2u) && !CHECKARGS(0u, false, 1u, 2u))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
-    }
 
     if (refs && refs[0u].size != sizeof(int64_t))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
@@ -300,15 +288,10 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_delete,
     }
 }
 
-SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_exists,
-                          args, num_args, refs, crefs,
-                          returnValue, c)
-{
+MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_exists) {
     assert(c);
-    if (!SyscallArgs<0u, true, 0u, 2u>::check(args, num_args, refs, crefs, returnValue) &&
-            !SyscallArgs<0u, true, 1u, 2u>::check(args, num_args, refs, crefs, returnValue)) {
+    if (!CHECKARGS(0u, true, 0u, 2u) && !CHECKARGS(0u, true, 1u, 2u))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
-    }
 
     if (refs && refs[0u].size == sizeof(int64_t))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
@@ -360,15 +343,10 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_exists,
     }
 }
 
-SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_col_count,
-                          args, num_args, refs, crefs,
-                          returnValue, c)
-{
+MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_col_count) {
     assert(c);
-    if (!SyscallArgs<0u, true, 0u, 2u>::check(args, num_args, refs, crefs, returnValue) &&
-            !SyscallArgs<0u, true, 1u, 2u>::check(args, num_args, refs, crefs, returnValue)) {
+    if (!CHECKARGS(0u, true, 0u, 2u) && !CHECKARGS(0u, true, 1u, 2u))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
-    }
 
     if (refs && refs[0u].size != sizeof(int64_t))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
@@ -420,15 +398,10 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_col_count,
     }
 }
 
-SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_col_names,
-                          args, num_args, refs, crefs,
-                          returnValue, c)
-{
+MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_col_names) {
     assert(c);
-    if (!SyscallArgs<0u, true, 0u, 2u>::check(args, num_args, refs, crefs, returnValue) &&
-            !SyscallArgs<0u, true, 1u, 2u>::check(args, num_args, refs, crefs, returnValue)) {
+    if (!CHECKARGS(0u, true, 0u, 2u) && !CHECKARGS(0u, true, 1u, 2u))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
-    }
 
     if (refs && refs[0u].size != sizeof(int64_t))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
@@ -517,15 +490,10 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_col_names,
     }
 }
 
-SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_col_types,
-                          args, num_args, refs, crefs,
-                          returnValue, c)
-{
+MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_col_types) {
     assert(c);
-    if (!SyscallArgs<0u, true, 0u, 2u>::check(args, num_args, refs, crefs, returnValue) &&
-            !SyscallArgs<0u, true, 1u, 2u>::check(args, num_args, refs, crefs, returnValue)) {
+    if (!CHECKARGS(0u, true, 0u, 2u) && !CHECKARGS(0u, true, 1u, 2u))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
-    }
 
     if (refs && refs[0u].size != sizeof(int64_t))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
@@ -614,15 +582,10 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_col_types,
     }
 }
 
-SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_row_count,
-                          args, num_args, refs, crefs,
-                          returnValue, c)
-{
+MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_row_count) {
     assert(c);
-    if (!SyscallArgs<0u, true, 0u, 2u>::check(args, num_args, refs, crefs, returnValue) &&
-            !SyscallArgs<0u, true, 1u, 2u>::check(args, num_args, refs, crefs, returnValue)) {
+    if (!CHECKARGS(0u, true, 0u, 2u) && !CHECKARGS(0u, true, 1u, 2u))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
-    }
 
     if (refs && refs[0u].size != sizeof(int64_t))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
@@ -674,17 +637,13 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_tbl_row_count,
     }
 }
 
-SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_insert_row,
-                          args, num_args, refs, crefs,
-                          returnValue, c)
-{
+MOD_TABLEDB_HDF5_SYSCALL(tdb_insert_row) {
     assert(c);
-    if (!SyscallArgs<1u, false, 0u, 5u>::check(args, num_args, refs, crefs, returnValue) &&
-            !SyscallArgs<1u, false, 1u, 5u>::check(args, num_args, refs, crefs, returnValue) &&
-            !SyscallArgs<2u, false, 0u, 5u>::check(args, num_args, refs, crefs, returnValue) &&
-            !SyscallArgs<2u, false, 1u, 5u>::check(args, num_args, refs, crefs, returnValue)) {
+    if (!CHECKARGS(1u, false, 0u, 5u)
+        && !CHECKARGS(1u, false, 1u, 5u)
+        && !CHECKARGS(2u, false, 0u, 5u)
+        && !CHECKARGS(2u, false, 1u, 5u))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
-    }
 
     if (refs && refs[0u].size != sizeof(int64_t))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
@@ -772,17 +731,13 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_insert_row,
     }
 }
 
-SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_read_col,
-                          args, num_args, refs, crefs,
-                          returnValue, c)
-{
+MOD_TABLEDB_HDF5_SYSCALL(tdb_read_col) {
     assert(c);
-    if (!SyscallArgs<1u, true, 0u, 2u>::check(args, num_args, refs, crefs, returnValue) &&
-            !SyscallArgs<1u, true, 1u, 2u>::check(args, num_args, refs, crefs, returnValue) &&
-            !SyscallArgs<0u, true, 0u, 3u>::check(args, num_args, refs, crefs, returnValue) &&
-            !SyscallArgs<0u, true, 1u, 3u>::check(args, num_args, refs, crefs, returnValue)) {
+    if (!CHECKARGS(1u, true, 0u, 2u)
+        && !CHECKARGS(1u, true, 1u, 2u)
+        && !CHECKARGS(0u, true, 0u, 3u)
+        && !CHECKARGS(0u, true, 1u, 3u))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
-    }
 
     if (refs && refs[0u].size != sizeof(int64_t))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
@@ -940,17 +895,13 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_read_col,
     }
 }
 
-SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_stmt_exec,
-                                 args, num_args, refs, crefs,
-                                 returnValue, c)
-{
+MOD_TABLEDB_HDF5_SYSCALL(tdb_stmt_exec) {
     assert(c);
-    if (!SyscallArgs<1u, false, 0u, 3u>::check(args, num_args, refs, crefs, returnValue)
-            && !SyscallArgs<1u, false, 1u, 3u>::check(args, num_args, refs, crefs, returnValue)
-            && !SyscallArgs<1u, true, 0u, 3u>::check(args, num_args, refs, crefs, returnValue)
-            && !SyscallArgs<1u, true, 1u, 3u>::check(args, num_args, refs, crefs, returnValue)) {
+    if (!CHECKARGS(1u, false, 0u, 3u)
+        && !CHECKARGS(1u, false, 1u, 3u)
+        && !CHECKARGS(1u, true, 0u, 3u)
+        && !CHECKARGS(1u, true, 1u, 3u))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
-    }
 
     if (refs && refs[0u].size != sizeof(int64_t))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
@@ -1125,16 +1076,10 @@ SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_stmt_exec,
     }
 }
 
-SHAREMIND_MODULE_API_0x1_SYSCALL(tdb_table_names,
-                          args, num_args, refs, crefs,
-                          returnValue, c)
-{
+MOD_TABLEDB_HDF5_SYSCALL(tdb_table_names) {
     assert(c);
-    if (!SyscallArgs<0u, true, 0u, 1u>::check(args, num_args, refs, crefs, returnValue) &&
-        !SyscallArgs<0u, true, 1u, 1u>::check(args, num_args, refs, crefs, returnValue))
-    {
+    if (!CHECKARGS(0u, true, 0u, 1u) && !CHECKARGS(0u, true, 1u, 1u))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
-    }
 
     if (refs && refs[0u].size != sizeof(int64_t)) {
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
