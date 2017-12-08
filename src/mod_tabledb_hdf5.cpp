@@ -1235,48 +1235,52 @@ SHAREMIND_MODULE_API_0x1_INITIALIZER(c) {
     /*
      * Get facilities
      */
-    const SharemindModuleApi0x1Facility * flog = c->getModuleFacility(c, "Logger");
+    auto const * flog = c->getModuleFacility(c, "Logger");
     if (!flog || !flog->facility)
         return SHAREMIND_MODULE_API_0x1_MISSING_FACILITY;
 
-    const SharemindModuleApi0x1Facility * fsourcem = c->getModuleFacility(c, "DataSourceManager");
+    auto const  * fsourcem = c->getModuleFacility(c, "DataSourceManager");
     if (!fsourcem || !fsourcem->facility)
         return SHAREMIND_MODULE_API_0x1_MISSING_FACILITY;
 
-    const SharemindModuleApi0x1Facility * fvmaputil = c->getModuleFacility(c, "TdbVectorMapUtil");
+    auto const * fvmaputil = c->getModuleFacility(c, "TdbVectorMapUtil");
     if (!fvmaputil || !fvmaputil->facility)
         return SHAREMIND_MODULE_API_0x1_MISSING_FACILITY;
 
     SharemindConsensusFacility * consensusService;
-    const SharemindModuleApi0x1Facility * fconsensus = c->getModuleFacility(c, "ConsensusService");
+    auto const * fconsensus = c->getModuleFacility(c, "ConsensusService");
     if (!fconsensus || !fconsensus->facility) {
         consensusService = nullptr;
     } else {
-        consensusService = static_cast<SharemindConsensusFacility *>(fconsensus->facility);
+        consensusService =
+                static_cast<SharemindConsensusFacility *>(fconsensus->facility);
     }
 
-    const LogHard::Logger & logger =
-            *static_cast<const LogHard::Logger *>(flog->facility);
-    SharemindDataSourceManager * dataSourceManager = static_cast<SharemindDataSourceManager *>(fsourcem->facility);
-    SharemindTdbVectorMapUtil * mapUtil = static_cast<SharemindTdbVectorMapUtil *>(fvmaputil->facility);
+    auto const & logger = *static_cast<LogHard::Logger const *>(flog->facility);
+    auto & dataSourceManager =
+            *static_cast<SharemindDataSourceManager *>(fsourcem->facility);
+    auto & mapUtil =
+            *static_cast<SharemindTdbVectorMapUtil *>(fvmaputil->facility);
 
     /*
      * Initialize the module handle
      */
     try {
-        c->moduleHandle = new sharemind::TdbHdf5Module(logger,
-                                                       *dataSourceManager,
-                                                       *mapUtil,
-                                                       consensusService);
+        c->moduleHandle =
+                new sharemind::TdbHdf5Module(logger,
+                                             dataSourceManager,
+                                             mapUtil,
+                                             consensusService);
         return SHAREMIND_MODULE_API_0x1_OK;
-    } catch (const std::bad_alloc &) {
+    } catch (std::bad_alloc const &) {
         return SHAREMIND_MODULE_API_0x1_OUT_OF_MEMORY;
     } catch (...) {
         return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
     }
 }
 
-SHAREMIND_MODULE_API_0x1_DEINITIALIZER(c) __attribute__ ((visibility("default")));
+SHAREMIND_MODULE_API_0x1_DEINITIALIZER(c)
+        __attribute__ ((visibility("default")));
 SHAREMIND_MODULE_API_0x1_DEINITIALIZER(c) {
     assert(c);
     assert(c->moduleHandle);
@@ -1284,11 +1288,12 @@ SHAREMIND_MODULE_API_0x1_DEINITIALIZER(c) {
     try {
         delete static_cast<sharemind::TdbHdf5Module *>(c->moduleHandle);
     } catch (...) {
-        const SharemindModuleApi0x1Facility * flog = c->getModuleFacility(c, "Logger");
+        auto const * flog = c->getModuleFacility(c, "Logger");
         if (flog && flog->facility) {
-            const LogHard::Logger & logger =
+            auto const & logger =
                     *static_cast<const LogHard::Logger *>(flog->facility);
-            logger.warning() << "Exception was caught during \"mod_tabledb_hdf5\" module deinitialization";
+            logger.warning() << "Exception was caught during "
+                                "\"mod_tabledb_hdf5\" module deinitialization";
         }
     }
 
