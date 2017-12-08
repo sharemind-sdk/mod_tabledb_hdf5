@@ -34,6 +34,7 @@
 #include <H5Tpublic.h>
 #include <sharemind/MakeUnique.h>
 #include <sharemind/mod_tabledb/TdbTypesUtil.h>
+#include <type_traits>
 
 
 namespace fs = boost::filesystem;
@@ -99,19 +100,29 @@ void transposeBlock(char * const first,
 {
     assert(m > 0u);
     assert(vsize > 0u);
-    assert((last - first) % m == 0u);
-    assert((last - first) % vsize == 0u);
+    assert(last >= first);
+    static auto const unsignedDistance =
+            [](decltype(first) const f, decltype(last) const l) noexcept
+                    -> std::make_unsigned<decltype(l - f)>::type
+            {
+                return static_cast<std::make_unsigned<decltype(l - f)>::type>(
+                            l - f);
+            };
+    auto const size = unsignedDistance(first, last);
+    assert(size % m == 0u);
+    assert(size % vsize == 0u);
 
-    const size_t mn1 = (last - first) / vsize - 1u;
-    const size_t n = (last - first) / (m * vsize);
+    const size_t mn1 = size / vsize - 1u;
+    const size_t n = size / (m * vsize);
     assert(n > 0u);
     std::vector<bool> visited(n * m);
     char * cycle = first;
     while (cycle + vsize < last) {
         cycle += vsize;
-        if (visited[(cycle - first) / vsize])
+        auto const visitedSize = unsignedDistance(first, cycle);
+        if (visited[visitedSize / vsize])
             continue;
-        size_t a = (cycle - first) / vsize;
+        size_t a = visitedSize / vsize;
         do {
             a = a == mn1 ? mn1 : (n * a) % mn1;
             std::swap_ranges(first + a * vsize, first + a * vsize + vsize, cycle);
