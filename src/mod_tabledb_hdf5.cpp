@@ -22,6 +22,7 @@
 #include <sstream>
 #include <string>
 #include <boost/scope_exit.hpp>
+#include <sharemind/AssertReturn.h>
 #include <sharemind/datastoreapi.h>
 #include <sharemind/dbcommon/datasourceapi.h>
 #include <sharemind/mod_tabledb/tdbvectormapapi.h>
@@ -88,6 +89,9 @@ struct SyscallArgs {
                                      returnValue, c)
 #define CHECKARGS(...) \
     SyscallArgs<__VA_ARGS__>::check(args, num_args, refs, crefs, returnValue)
+#define GETMODULEHANDLE \
+    *sharemind::assertReturn( \
+        static_cast<sharemind::TdbHdf5Module *>(c->moduleHandle))
 
 MOD_TABLEDB_HDF5_SYSCALL(tdb_open) {
     assert(c);
@@ -102,9 +106,9 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_open) {
     try {
         const std::string dsName(static_cast<const char *>(crefs[0u].pData), crefs[0u].size - 1u);
 
-        sharemind::TdbHdf5Module * m = static_cast<sharemind::TdbHdf5Module *>(c->moduleHandle);
+        auto & m = GETMODULEHANDLE;
 
-        if (!m->openConnection(c, dsName))
+        if (!m.openConnection(c, dsName))
             return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
         return SHAREMIND_MODULE_API_0x1_OK;
@@ -128,9 +132,9 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_close) {
     try {
         const std::string dsName(static_cast<const char *>(crefs[0u].pData), crefs[0u].size - 1u);
 
-        sharemind::TdbHdf5Module * m = static_cast<sharemind::TdbHdf5Module *>(c->moduleHandle);
+        auto & m = GETMODULEHANDLE;
 
-        if (!m->closeConnection(c, dsName))
+        if (!m.closeConnection(c, dsName))
             return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
         return SHAREMIND_MODULE_API_0x1_OK;
@@ -169,10 +173,10 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_create) {
         if (ncols == 0)
             return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
-        sharemind::TdbHdf5Module * m = static_cast<sharemind::TdbHdf5Module *>(c->moduleHandle);
+        auto & m = GETMODULEHANDLE;
 
         // Get the connection
-        TdbHdf5Connection * const conn = m->getConnection(c, dsName);
+        TdbHdf5Connection * const conn = m.getConnection(c, dsName);
         if (!conn)
             return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
@@ -220,9 +224,9 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_create) {
                                        std::cref(tblName),
                                        std::cref(namesVec),
                                        std::cref(typesVec));
-        const SharemindTdbError ecode = m->executeTransaction(transaction, c);
+        const SharemindTdbError ecode = m.executeTransaction(transaction, c);
 
-        if (!m->setErrorCode(c, dsName, ecode))
+        if (!m.setErrorCode(c, dsName, ecode))
             return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
         if (refs) {
@@ -258,9 +262,9 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_delete) {
         const std::string dsName(static_cast<const char *>(crefs[0u].pData), crefs[0u].size - 1u);
         const std::string tblName(static_cast<const char *>(crefs[1u].pData), crefs[1u].size - 1u);
 
-        sharemind::TdbHdf5Module * m = static_cast<sharemind::TdbHdf5Module *>(c->moduleHandle);
+        auto & m = GETMODULEHANDLE;
 
-        TdbHdf5Connection * const conn = m->getConnection(c, dsName);
+        TdbHdf5Connection * const conn = m.getConnection(c, dsName);
         if (!conn)
             return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
@@ -268,9 +272,9 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_delete) {
         TdbHdf5Transaction transaction(*conn,
                                        &TdbHdf5Connection::tblDelete,
                                        std::cref(tblName));
-        const SharemindTdbError ecode = m->executeTransaction(transaction, c);
+        const SharemindTdbError ecode = m.executeTransaction(transaction, c);
 
-        if (!m->setErrorCode(c, dsName, ecode))
+        if (!m.setErrorCode(c, dsName, ecode))
             return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
         if (refs) {
@@ -306,9 +310,9 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_exists) {
         const std::string dsName(static_cast<const char *>(crefs[0u].pData), crefs[0u].size - 1u);
         const std::string tblName(static_cast<const char *>(crefs[1u].pData), crefs[1u].size - 1u);
 
-        sharemind::TdbHdf5Module * m = static_cast<sharemind::TdbHdf5Module *>(c->moduleHandle);
+        auto & m = GETMODULEHANDLE;
 
-        TdbHdf5Connection * const conn = m->getConnection(c, dsName);
+        TdbHdf5Connection * const conn = m.getConnection(c, dsName);
         if (!conn)
             return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
@@ -318,9 +322,9 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_exists) {
                                        &TdbHdf5Connection::tblExists,
                                        std::cref(tblName),
                                        std::ref(exists));
-        const SharemindTdbError ecode = m->executeTransaction(transaction, c);
+        const SharemindTdbError ecode = m.executeTransaction(transaction, c);
 
-        if (!m->setErrorCode(c, dsName, ecode))
+        if (!m.setErrorCode(c, dsName, ecode))
             return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
         if (refs) {
@@ -361,9 +365,9 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_col_count) {
         const std::string dsName(static_cast<const char *>(crefs[0u].pData), crefs[0u].size - 1u);
         const std::string tblName(static_cast<const char *>(crefs[1u].pData), crefs[1u].size - 1u);
 
-        sharemind::TdbHdf5Module * m = static_cast<sharemind::TdbHdf5Module *>(c->moduleHandle);
+        auto & m = GETMODULEHANDLE;
 
-        TdbHdf5Connection * const conn = m->getConnection(c, dsName);
+        TdbHdf5Connection * const conn = m.getConnection(c, dsName);
         if (!conn)
             return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
@@ -373,9 +377,9 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_col_count) {
                                        &TdbHdf5Connection::tblColCount,
                                        std::cref(tblName),
                                        std::ref(count));
-        const SharemindTdbError ecode = m->executeTransaction(transaction, c);
+        const SharemindTdbError ecode = m.executeTransaction(transaction, c);
 
-        if (!m->setErrorCode(c, dsName, ecode))
+        if (!m.setErrorCode(c, dsName, ecode))
             return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
         if (refs) {
@@ -416,9 +420,9 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_col_names) {
         const std::string dsName(static_cast<const char *>(crefs[0u].pData), crefs[0u].size - 1u);
         const std::string tblName(static_cast<const char *>(crefs[1u].pData), crefs[1u].size - 1u);
 
-        sharemind::TdbHdf5Module * m = static_cast<sharemind::TdbHdf5Module *>(c->moduleHandle);
+        auto & m = GETMODULEHANDLE;
 
-        TdbHdf5Connection * const conn = m->getConnection(c, dsName);
+        TdbHdf5Connection * const conn = m.getConnection(c, dsName);
         if (!conn)
             return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
@@ -428,9 +432,9 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_col_names) {
                                        &TdbHdf5Connection::tblColNames,
                                        std::cref(tblName),
                                        std::ref(namesVec));
-        const SharemindTdbError ecode = m->executeTransaction(transaction, c);
+        const SharemindTdbError ecode = m.executeTransaction(transaction, c);
 
-        if (!m->setErrorCode(c, dsName, ecode))
+        if (!m.setErrorCode(c, dsName, ecode))
             return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
         if (refs) {
@@ -457,14 +461,14 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_col_names) {
 
         // Get the result map
         uint64_t vmapId = 0;
-        SharemindTdbVectorMap * const rmap = m->newVectorMap(c, vmapId);
+        SharemindTdbVectorMap * const rmap = m.newVectorMap(c, vmapId);
         if (!rmap)
             return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
         // Register cleanup for the result vector map
-        BOOST_SCOPE_EXIT_ALL(&cleanup, m, c, vmapId) {
-            if (cleanup && !m->deleteVectorMap(c, vmapId))
-                m->logger().fullDebug() << "Error while cleaning up result vector map.";
+        BOOST_SCOPE_EXIT_ALL(&cleanup, &m, c, vmapId) {
+            if (cleanup && !m.deleteVectorMap(c, vmapId))
+                m.logger().fullDebug() << "Error while cleaning up result vector map.";
         };
 
         // Make a copy of the string pointers
@@ -473,7 +477,7 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_col_names) {
 
         // Set the result "names"
         if (rmap->set_string_vector(rmap, "names", names, namesVec.size()) != TDB_VECTOR_MAP_OK) {
-            m->logger().error() << "Failed to set \"names\" string vector result.";
+            m.logger().error() << "Failed to set \"names\" string vector result.";
             delete[] names;
             return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
         }
@@ -508,9 +512,9 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_col_types) {
         const std::string dsName(static_cast<const char *>(crefs[0u].pData), crefs[0u].size - 1u);
         const std::string tblName(static_cast<const char *>(crefs[1u].pData), crefs[1u].size - 1u);
 
-        sharemind::TdbHdf5Module * m = static_cast<sharemind::TdbHdf5Module *>(c->moduleHandle);
+        auto & m = GETMODULEHANDLE;
 
-        TdbHdf5Connection * const conn = m->getConnection(c, dsName);
+        TdbHdf5Connection * const conn = m.getConnection(c, dsName);
         if (!conn)
             return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
@@ -520,9 +524,9 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_col_types) {
                                        &TdbHdf5Connection::tblColTypes,
                                        std::cref(tblName),
                                        std::ref(typesVec));
-        const SharemindTdbError ecode = m->executeTransaction(transaction, c);
+        const SharemindTdbError ecode = m.executeTransaction(transaction, c);
 
-        if (!m->setErrorCode(c, dsName, ecode))
+        if (!m.setErrorCode(c, dsName, ecode))
             return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
         if (refs) {
@@ -549,14 +553,14 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_col_types) {
 
         // Get the result map
         uint64_t vmapId = 0;
-        SharemindTdbVectorMap * const rmap = m->newVectorMap(c, vmapId);
+        SharemindTdbVectorMap * const rmap = m.newVectorMap(c, vmapId);
         if (!rmap)
             return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
         // Register cleanup for the result vector map
-        BOOST_SCOPE_EXIT_ALL(&cleanup, m, c, vmapId) {
-            if (cleanup && !m->deleteVectorMap(c, vmapId))
-                m->logger().fullDebug() << "Error while cleaning up result vector map.";
+        BOOST_SCOPE_EXIT_ALL(&cleanup, &m, c, vmapId) {
+            if (cleanup && !m.deleteVectorMap(c, vmapId))
+                m.logger().fullDebug() << "Error while cleaning up result vector map.";
         };
 
         // Make a copy of the type pointers
@@ -565,7 +569,7 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_col_types) {
 
         // Set the result "names"
         if (rmap->set_type_vector(rmap, "types", types, typesVec.size()) != TDB_VECTOR_MAP_OK) {
-            m->logger().error() << "Failed to set \"types\" types vector result.";
+            m.logger().error() << "Failed to set \"types\" types vector result.";
             delete[] types;
             return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
         }
@@ -600,9 +604,9 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_row_count) {
         const std::string dsName(static_cast<const char *>(crefs[0u].pData), crefs[0u].size - 1u);
         const std::string tblName(static_cast<const char *>(crefs[1u].pData), crefs[1u].size - 1u);
 
-        sharemind::TdbHdf5Module * m = static_cast<sharemind::TdbHdf5Module *>(c->moduleHandle);
+        auto & m = GETMODULEHANDLE;
 
-        TdbHdf5Connection * const conn = m->getConnection(c, dsName);
+        TdbHdf5Connection * const conn = m.getConnection(c, dsName);
         if (!conn)
             return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
@@ -612,9 +616,9 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_row_count) {
                                        &TdbHdf5Connection::tblRowCount,
                                        std::cref(tblName),
                                        std::ref(count));
-        const SharemindTdbError ecode = m->executeTransaction(transaction, c);
+        const SharemindTdbError ecode = m.executeTransaction(transaction, c);
 
-        if (!m->setErrorCode(c, dsName, ecode))
+        if (!m.setErrorCode(c, dsName, ecode))
             return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
         if (refs) {
@@ -677,10 +681,10 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_insert_row) {
             bufSize = crefs[4u].size - 1;
         }
 
-        sharemind::TdbHdf5Module * m = static_cast<sharemind::TdbHdf5Module *>(c->moduleHandle);
+        auto & m = GETMODULEHANDLE;
 
         // Get the connection
-        TdbHdf5Connection * const conn = m->getConnection(c, dsName);
+        TdbHdf5Connection * const conn = m.getConnection(c, dsName);
         if (!conn)
             return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
@@ -711,9 +715,9 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_insert_row) {
                                        std::cref(tblName),
                                        std::cref(valuesBatch),
                                        std::cref(valueAsColumnBatch));
-        const SharemindTdbError ecode = m->executeTransaction(transaction, c);
+        const SharemindTdbError ecode = m.executeTransaction(transaction, c);
 
-        if (!m->setErrorCode(c, dsName, ecode))
+        if (!m.setErrorCode(c, dsName, ecode))
             return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
         if (refs) {
@@ -752,10 +756,10 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_read_col) {
         const std::string dsName(static_cast<const char *>(crefs[0u].pData), crefs[0u].size - 1u);
         const std::string tblName(static_cast<const char *>(crefs[1u].pData), crefs[1u].size - 1u);
 
-        sharemind::TdbHdf5Module * m = static_cast<sharemind::TdbHdf5Module *>(c->moduleHandle);
+        auto & m = GETMODULEHANDLE;
 
         // Get the connection
-        TdbHdf5Connection * const conn = m->getConnection(c, dsName);
+        TdbHdf5Connection * const conn = m.getConnection(c, dsName);
         if (!conn)
             return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
@@ -787,7 +791,7 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_read_col) {
                                            std::cref(tblName),
                                            std::cref(colIdBatch),
                                            std::ref(valuesBatch));
-            ecode = m->executeTransaction(transaction, c);
+            ecode = m.executeTransaction(transaction, c);
         } else {
             assert((SyscallArgs<0u, true, 0u, 3u>::check(args,
                                                          num_args,
@@ -816,10 +820,10 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_read_col) {
                                            std::cref(tblName),
                                            std::cref(colIdBatch),
                                            std::ref(valuesBatch));
-            ecode = m->executeTransaction(transaction, c);
+            ecode = m.executeTransaction(transaction, c);
         }
 
-        if (!m->setErrorCode(c, dsName, ecode))
+        if (!m.setErrorCode(c, dsName, ecode))
             return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
         if (refs) {
@@ -849,14 +853,14 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_read_col) {
 
         // Get the result map
         uint64_t vmapId = 0;
-        SharemindTdbVectorMap * const rmap = m->newVectorMap(c, vmapId);
+        SharemindTdbVectorMap * const rmap = m.newVectorMap(c, vmapId);
         if (!rmap)
             return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
         // Register cleanup for the result vector map
-        BOOST_SCOPE_EXIT_ALL(&cleanup, m, c, vmapId) {
-            if (cleanup && !m->deleteVectorMap(c, vmapId))
-                m->logger().fullDebug() << "Error while cleaning up result vector map.";
+        BOOST_SCOPE_EXIT_ALL(&cleanup, &m, c, vmapId) {
+            if (cleanup && !m.deleteVectorMap(c, vmapId))
+                m.logger().fullDebug() << "Error while cleaning up result vector map.";
         };
 
         for (auto it = valuesBatch.begin(); it != valuesBatch.end(); ++it) {
@@ -868,14 +872,14 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_read_col) {
 
             // Add batch (the first batch already exists)
             if (it != valuesBatch.begin() && rmap->add_batch(rmap) != TDB_VECTOR_MAP_OK) {
-                m->logger().error() << "Failed to add batch to result vector map.";
+                m.logger().error() << "Failed to add batch to result vector map.";
                 delete[] values;
                 return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
             }
 
             // Set the result "values"
             if (rmap->set_value_vector(rmap, "values", values, valuesVec.size()) != TDB_VECTOR_MAP_OK) {
-                m->logger().error() << "Failed to set \"values\" value vector result.";
+                m.logger().error() << "Failed to set \"values\" value vector result.";
                 delete[] values;
                 return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
             }
@@ -921,10 +925,10 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_stmt_exec) {
         const std::string tblName(static_cast<const char *>(crefs[1u].pData), crefs[1u].size - 1u);
         const std::string stmtType(static_cast<const char *>(crefs[2u].pData), crefs[2u].size - 1u);
 
-        sharemind::TdbHdf5Module * m = static_cast<sharemind::TdbHdf5Module *>(c->moduleHandle);
+        auto & m = GETMODULEHANDLE;
 
         // Get the parameter map
-        SharemindTdbVectorMap * const pmap = m->getVectorMap(c, vmapId);
+        SharemindTdbVectorMap * const pmap = m.getVectorMap(c, vmapId);
         if (!pmap)
             return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
@@ -936,7 +940,7 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_stmt_exec) {
             // Parse the "names" parameter
             SharemindTdbString ** names;
             if (pmap->get_string_vector(pmap, "names", &names, &size) != TDB_VECTOR_MAP_OK) {
-                m->logger().error() << "Failed to execute \"" << stmtType
+                m.logger().error() << "Failed to execute \"" << stmtType
                     << "\" statement: Failed to get \"names\" string vector parameter.";
                 return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
             }
@@ -946,7 +950,7 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_stmt_exec) {
             // Parse the "types" parameter
             SharemindTdbType ** types;
             if (pmap->get_type_vector(pmap, "types", &types, &size) != TDB_VECTOR_MAP_OK) {
-                m->logger().error() << "Failed to execute \"" << stmtType <<
+                m.logger().error() << "Failed to execute \"" << stmtType <<
                     "\" statement: Failed to get \"types\" type vector parameter.";
                 return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
             }
@@ -954,7 +958,7 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_stmt_exec) {
             const std::vector<SharemindTdbType *> typesVec(types, types + size);
 
             // Get the connection
-            TdbHdf5Connection * const conn = m->getConnection(c, dsName);
+            TdbHdf5Connection * const conn = m.getConnection(c, dsName);
             if (!conn)
                 return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
@@ -964,9 +968,9 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_stmt_exec) {
                                            std::cref(tblName),
                                            std::cref(namesVec),
                                            std::cref(typesVec));
-            const SharemindTdbError ecode = m->executeTransaction(transaction, c);
+            const SharemindTdbError ecode = m.executeTransaction(transaction, c);
 
-            if (!m->setErrorCode(c, dsName, ecode))
+            if (!m.setErrorCode(c, dsName, ecode))
                 return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
             if (refs) {
@@ -981,7 +985,7 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_stmt_exec) {
         } else if (stmtType.compare("insert_row") == 0) {
             size_t batchCount = 0;
             if (pmap->batch_count(pmap, &batchCount) != TDB_VECTOR_MAP_OK) {
-                m->logger().error() << "Failed to execute \"" << stmtType
+                m.logger().error() << "Failed to execute \"" << stmtType
                     << "\" statement: Failed to get parameter vector map batch count.";
                 return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
             }
@@ -995,7 +999,7 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_stmt_exec) {
             // Process each parameter batch
             for (size_t i = 0; i < batchCount; ++i) {
                 if (pmap->set_batch(pmap, i) != TDB_VECTOR_MAP_OK) {
-                    m->logger().error() << "Failed to execute \"" << stmtType
+                    m.logger().error() << "Failed to execute \"" << stmtType
                         << "\" statement: Failed to iterate parameter vector map batches.";
                     return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
                 }
@@ -1004,7 +1008,7 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_stmt_exec) {
                 size_t size = 0;
                 SharemindTdbValue ** values;
                 if (pmap->get_value_vector(pmap, "values", &values, &size) != TDB_VECTOR_MAP_OK) {
-                    m->logger().error() << "Failed to execute \"" << stmtType
+                    m.logger().error() << "Failed to execute \"" << stmtType
                         << "\" statement: Failed to get \"values\" value vector parameter.";
                     return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
                 }
@@ -1019,13 +1023,13 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_stmt_exec) {
                     // Parse the "valueAsColumn" parameter
                     SharemindTdbIndex ** valueAsColumn;
                     if (pmap->get_index_vector(pmap, "valueAsColumn", &valueAsColumn, &size) != TDB_VECTOR_MAP_OK) {
-                        m->logger().error() << "Failed to execute \"" << stmtType
+                        m.logger().error() << "Failed to execute \"" << stmtType
                             << "\" statement: Failed to get \"valueAsColumn\" index vector parameter.";
                         return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
                     }
 
                     if (size < 1) {
-                        m->logger().error() << "Failed to execute \"" << stmtType
+                        m.logger().error() << "Failed to execute \"" << stmtType
                             << "\" statement: Empty \"valueAsColumn\" index vector parameter.";
                         return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
                     }
@@ -1038,7 +1042,7 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_stmt_exec) {
             }
 
             // Get the connection
-            TdbHdf5Connection * const conn = m->getConnection(c, dsName);
+            TdbHdf5Connection * const conn = m.getConnection(c, dsName);
             if (!conn)
                 return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
@@ -1048,9 +1052,9 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_stmt_exec) {
                                            std::cref(tblName),
                                            std::cref(valuesBatch),
                                            std::cref(valueAsColumnBatch));
-            const SharemindTdbError ecode = m->executeTransaction(transaction, c);
+            const SharemindTdbError ecode = m.executeTransaction(transaction, c);
 
-            if (!m->setErrorCode(c, dsName, ecode))
+            if (!m.setErrorCode(c, dsName, ecode))
                 return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
             if (refs) {
@@ -1063,7 +1067,7 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_stmt_exec) {
                     return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
             }
         } else {
-            m->logger().error() << "Failed to execute \"" << stmtType
+            m.logger().error() << "Failed to execute \"" << stmtType
                 << "\": Unknown statement type.";
             return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
         }
@@ -1093,9 +1097,9 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_table_names) {
 
     try {
         const std::string dsName(static_cast<const char *>(crefs[0u].pData), crefs[0u].size - 1u);
-        sharemind::TdbHdf5Module * m = static_cast<sharemind::TdbHdf5Module *>(c->moduleHandle);
+        auto & m = GETMODULEHANDLE;
 
-        TdbHdf5Connection * const conn = m->getConnection(c, dsName);
+        TdbHdf5Connection * const conn = m.getConnection(c, dsName);
         if (!conn)
             return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
@@ -1103,9 +1107,9 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_table_names) {
         TdbHdf5Transaction transaction(*conn,
                                        &TdbHdf5Connection::tblNames,
                                        std::ref(namesVec));
-        const SharemindTdbError ecode = m->executeTransaction(transaction, c);
+        const SharemindTdbError ecode = m.executeTransaction(transaction, c);
 
-        if (!m->setErrorCode(c, dsName, ecode))
+        if (!m.setErrorCode(c, dsName, ecode))
             return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
         if (refs) {
@@ -1132,14 +1136,14 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_table_names) {
 
         // Get the result map
         uint64_t vmapId = 0;
-        SharemindTdbVectorMap * const rmap = m->newVectorMap(c, vmapId);
+        SharemindTdbVectorMap * const rmap = m.newVectorMap(c, vmapId);
         if (!rmap)
             return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
 
         // Register cleanup for the result vector map
-        BOOST_SCOPE_EXIT_ALL(&cleanup, m, c, vmapId) {
-            if (cleanup && !m->deleteVectorMap(c, vmapId))
-                m->logger().fullDebug() << "Error while cleaning up result vector map.";
+        BOOST_SCOPE_EXIT_ALL(&cleanup, &m, c, vmapId) {
+            if (cleanup && !m.deleteVectorMap(c, vmapId))
+                m.logger().fullDebug() << "Error while cleaning up result vector map.";
         };
 
         // Make a copy of the string pointers
@@ -1148,7 +1152,7 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_table_names) {
 
         // Set the result "names"
         if (rmap->set_string_vector(rmap, "names", names, namesVec.size()) != TDB_VECTOR_MAP_OK) {
-            m->logger().error() << "Failed to set \"names\" string vector result.";
+            m.logger().error() << "Failed to set \"names\" string vector result.";
             delete[] names;
             return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
         }
