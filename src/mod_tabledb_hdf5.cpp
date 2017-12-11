@@ -866,10 +866,7 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_read_col) {
 
 MOD_TABLEDB_HDF5_SYSCALL(tdb_stmt_exec) {
     assert(c);
-    if (!CHECKARGS(1u, false, 0u, 3u)
-        && !CHECKARGS(1u, false, 1u, 3u)
-        && !CHECKARGS(1u, true, 0u, 3u)
-        && !CHECKARGS(1u, true, 1u, 3u))
+    if (!CHECKARGS(1u, false, 0u, 3u) && !CHECKARGS(1u, false, 1u, 3u))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
     if (refs && refs[0u].size != sizeof(int64_t))
