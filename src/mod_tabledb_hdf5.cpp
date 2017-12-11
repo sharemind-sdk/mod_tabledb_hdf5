@@ -934,12 +934,8 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_stmt_exec) {
 
             if (refs) {
                 *static_cast<int64_t *>(refs[0u].pData) = ecode;
-
-                if (ecode != SHAREMIND_TDB_OK)
-                    return SHAREMIND_MODULE_API_0x1_OK;
-            } else {
-                if (ecode != SHAREMIND_TDB_OK)
-                    return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
+            } else if (ecode != SHAREMIND_TDB_OK) {
+                return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
             }
         } else if (stmtType.compare("insert_row") == 0) {
             size_t batchCount = 0;
@@ -1018,19 +1014,14 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_stmt_exec) {
 
             if (refs) {
                 *static_cast<int64_t *>(refs[0u].pData) = ecode;
-
-                if (ecode != SHAREMIND_TDB_OK)
-                    return SHAREMIND_MODULE_API_0x1_OK;
-            } else {
-                if (ecode != SHAREMIND_TDB_OK)
-                    return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
+            } else if (ecode != SHAREMIND_TDB_OK) {
+                return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
             }
         } else {
             m.logger().error() << "Failed to execute \"" << stmtType
                 << "\": Unknown statement type.";
             return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
         }
-
         return SHAREMIND_MODULE_API_0x1_OK;
     } catch (const std::bad_alloc &) {
         return SHAREMIND_MODULE_API_0x1_OUT_OF_MEMORY;
