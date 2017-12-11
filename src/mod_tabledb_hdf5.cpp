@@ -23,6 +23,7 @@
 #include <string>
 #include <boost/scope_exit.hpp>
 #include <sharemind/AssertReturn.h>
+#include <sharemind/compiler-support/GccIsNothrowDestructible.h>
 #include <sharemind/datastoreapi.h>
 #include <sharemind/dbcommon/datasourceapi.h>
 #include <sharemind/mod_tabledb/tdbvectormapapi.h>
@@ -1180,19 +1181,9 @@ SHAREMIND_MODULE_API_0x1_DEINITIALIZER(c)
 SHAREMIND_MODULE_API_0x1_DEINITIALIZER(c) {
     assert(c);
     assert(c->moduleHandle);
-
-    try {
-        delete static_cast<sharemind::TdbHdf5Module *>(c->moduleHandle);
-    } catch (...) {
-        auto const * flog = c->getModuleFacility(c, "Logger");
-        if (flog && flog->facility) {
-            auto const & logger =
-                    *static_cast<const LogHard::Logger *>(flog->facility);
-            logger.warning() << "Exception was caught during "
-                                "\"mod_tabledb_hdf5\" module deinitialization";
-        }
-    }
-
+    using namespace sharemind;
+    static_assert(is_nothrow_destructible<TdbHdf5Module>::value, "");
+    delete static_cast<TdbHdf5Module *>(c->moduleHandle);
     c->moduleHandle = nullptr;
 }
 
