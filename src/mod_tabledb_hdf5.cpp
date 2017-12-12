@@ -1064,42 +1064,6 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_read_col) {
     }
 }
 
-MOD_TABLEDB_HDF5_SYSCALL(tdb_stmt_exec) {
-    assert(c);
-    if (!CHECKARGS(1u, false, 0u, 3u) && !CHECKARGS(1u, false, 1u, 3u))
-        return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
-
-    if (refs && refs[0u].size != sizeof(int64_t))
-        return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
-
-    if (!haveNtcsRefs(crefs, 3u))
-        return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
-
-    try {
-        auto const stmtType(refToString(crefs[2u]));
-        SharemindModuleApi0x1Syscall syscall;
-        if (stmtType.compare("tbl_create") == 0) {
-            syscall = &tdb_tbl_create2;
-        } else if (stmtType.compare("insert_row") == 0) {
-            syscall = &tdb_insert_row2;
-        } else {
-            auto const & m = GETMODULEHANDLE;
-            m.logger().error() << "Failed to execute \"" << stmtType
-                << "\": Unknown statement type.";
-            return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
-        }
-        SharemindModuleApi0x1CReference const newCRefs[] =
-                { crefs[0u],
-                  crefs[1u],
-                  SharemindModuleApi0x1CReference{nullptr, nullptr, 0u} };
-        return (*syscall)(args, num_args, refs, newCRefs, returnValue, c);
-    } catch (const std::bad_alloc &) {
-        return SHAREMIND_MODULE_API_0x1_OUT_OF_MEMORY;
-    } catch (...) {
-        return SHAREMIND_MODULE_API_0x1_MODULE_ERROR;
-    }
-}
-
 MOD_TABLEDB_HDF5_SYSCALL(tdb_table_names) {
     assert(c);
     if (!CHECKARGS(0u, true, 0u, 1u) && !CHECKARGS(0u, true, 1u, 1u))
@@ -1275,9 +1239,6 @@ SHAREMIND_MODULE_API_0x1_SYSCALL_DEFINITIONS(
     , { "tdb_insert_row",       &tdb_insert_row }
     , { "tdb_insert_row2",      &tdb_insert_row2 }
     , { "tdb_read_col",         &tdb_read_col }
-
-    /* Table database statement API */
-    , { "tdb_stmt_exec",        &tdb_stmt_exec }
 
 );
 
