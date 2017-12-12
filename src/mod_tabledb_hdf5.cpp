@@ -247,7 +247,7 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_create2) {
     if (refs && refs[0u].size != sizeof(int64_t))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
-    if (!haveNtcsRefs(crefs, 3u))
+    if (!haveNtcsRefs(crefs, 2u))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
     try {
@@ -791,7 +791,7 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_insert_row2) {
     if (refs && refs[0u].size != sizeof(int64_t))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
-    if (!haveNtcsRefs(crefs, 3u))
+    if (!haveNtcsRefs(crefs, 2u))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
     try {
