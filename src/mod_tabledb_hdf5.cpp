@@ -239,6 +239,85 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_create) {
     }
 }
 
+MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_create2) {
+    assert(c);
+    if (!CHECKARGS(1u, false, 0u, 2u) && !CHECKARGS(1u, false, 1u, 2u))
+        return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
+
+    if (refs && refs[0u].size != sizeof(int64_t))
+        return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
+
+    if (!haveNtcsRefs(crefs, 3u))
+        return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
+
+    try {
+        const uint64_t vmapId = args[0].uint64[0];
+
+        auto const dsName(refToString(crefs[0u]));
+        auto const tblName(refToString(crefs[1u]));
+
+        auto & m = GETMODULEHANDLE;
+
+        // Get the parameter map
+        SharemindTdbVectorMap * const pmap = m.getVectorMap(c, vmapId);
+        if (!pmap)
+            return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
+
+        size_t size = 0;
+
+        // Parse the "names" parameter
+        SharemindTdbString ** names;
+        if (pmap->get_string_vector(pmap, "names", &names, &size)
+            != TDB_VECTOR_MAP_OK)
+        {
+            m.logger().error() << "Failed to get \"names\" string vector "
+                                  "parameter.";
+            return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
+        }
+
+        const std::vector<SharemindTdbString *> namesVec(names, names + size);
+
+        // Parse the "types" parameter
+        SharemindTdbType ** types;
+        if (pmap->get_type_vector(pmap, "types", &types, &size)
+            != TDB_VECTOR_MAP_OK)
+        {
+            m.logger().error() << "Failed to get \"types\" type vector "
+                                  "parameter.";
+            return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
+        }
+
+        const std::vector<SharemindTdbType *> typesVec(types, types + size);
+
+        // Get the connection
+        TdbHdf5Connection * const conn = m.getConnection(c, dsName);
+        if (!conn)
+            return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
+
+        // Execute transaction
+        TdbHdf5Transaction transaction(*conn,
+                                       &TdbHdf5Connection::tblCreate,
+                                       std::cref(tblName),
+                                       std::cref(namesVec),
+                                       std::cref(typesVec));
+        const SharemindTdbError ecode = m.executeTransaction(transaction, c);
+
+        if (!m.setErrorCode(c, dsName, ecode))
+            return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
+
+        if (refs) {
+            *static_cast<int64_t *>(refs[0u].pData) = ecode;
+        } else if (ecode != SHAREMIND_TDB_OK) {
+            return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
+        }
+        return SHAREMIND_MODULE_API_0x1_OK;
+    } catch (const std::bad_alloc &) {
+        return SHAREMIND_MODULE_API_0x1_OUT_OF_MEMORY;
+    } catch (...) {
+        return SHAREMIND_MODULE_API_0x1_MODULE_ERROR;
+    }
+}
+
 MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_delete) {
     assert(c);
     if (!CHECKARGS(0u, false, 0u, 2u) && !CHECKARGS(0u, false, 1u, 2u))
@@ -704,6 +783,127 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_insert_row) {
     }
 }
 
+MOD_TABLEDB_HDF5_SYSCALL(tdb_insert_row2) {
+    assert(c);
+    if (!CHECKARGS(1u, false, 0u, 2u) && !CHECKARGS(1u, false, 1u, 2u))
+        return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
+
+    if (refs && refs[0u].size != sizeof(int64_t))
+        return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
+
+    if (!haveNtcsRefs(crefs, 3u))
+        return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
+
+    try {
+        const uint64_t vmapId = args[0].uint64[0];
+
+        auto const dsName(refToString(crefs[0u]));
+        auto const tblName(refToString(crefs[1u]));
+
+        auto & m = GETMODULEHANDLE;
+
+        // Get the parameter map
+        SharemindTdbVectorMap * const pmap = m.getVectorMap(c, vmapId);
+        if (!pmap)
+            return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
+
+        size_t batchCount = 0;
+        if (pmap->batch_count(pmap, &batchCount) != TDB_VECTOR_MAP_OK) {
+            m.logger().error() << "Failed to get parameter vector map batch "
+                                  "count.";
+            return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
+        }
+
+        // Aggregate the parameters
+        using ValuesBatchVector =
+                std::vector<std::vector<SharemindTdbValue *> >;
+        ValuesBatchVector valuesBatch(batchCount);
+        std::vector<bool> valueAsColumnBatch;
+        valueAsColumnBatch.reserve(batchCount);
+
+        // Process each parameter batch
+        for (size_t i = 0; i < batchCount; ++i) {
+            if (pmap->set_batch(pmap, i) != TDB_VECTOR_MAP_OK) {
+                m.logger().error() << "Failed to iterate parameter vector map "
+                                      "batches.";
+                return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
+            }
+
+            // Parse the "values" parameter
+            size_t size = 0;
+            SharemindTdbValue ** values;
+            if (pmap->get_value_vector(pmap, "values", &values, &size)
+                != TDB_VECTOR_MAP_OK)
+            {
+                m.logger().error() << "Failed to get \"values\" value vector "
+                                      "parameter.";
+                return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
+            }
+
+            std::vector<SharemindTdbValue *> & valuesVec = valuesBatch[i];
+            valuesVec.reserve(size);
+            valuesVec.insert(valuesVec.begin(), values, values + size);
+
+            // Check if the optional parameter "valueAsColumn" is set
+            bool rv = false;
+            if ((pmap->is_index_vector(pmap, "valueAsColumn", &rv)
+                 == TDB_VECTOR_MAP_OK)
+                && rv)
+            {
+                // Parse the "valueAsColumn" parameter
+                SharemindTdbIndex ** valueAsColumn;
+                if (pmap->get_index_vector(pmap,
+                                           "valueAsColumn",
+                                           &valueAsColumn,
+                                           &size) != TDB_VECTOR_MAP_OK)
+                {
+                    m.logger().error() << "Failed to get \"valueAsColumn\" "
+                                          "index vector parameter.";
+                    return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
+                }
+
+                if (size < 1) {
+                    m.logger().error() << "Empty \"valueAsColumn\" index "
+                                          "vector parameter!";
+                    return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
+                }
+
+                valueAsColumnBatch.push_back((*valueAsColumn)->idx);
+            } else {
+                // Set the default value
+                valueAsColumnBatch.push_back(false);
+            }
+        }
+
+        // Get the connection
+        TdbHdf5Connection * const conn = m.getConnection(c, dsName);
+        if (!conn)
+            return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
+
+        // Execute transaction
+        TdbHdf5Transaction transaction(*conn,
+                                       &TdbHdf5Connection::insertRow,
+                                       std::cref(tblName),
+                                       std::cref(valuesBatch),
+                                       std::cref(valueAsColumnBatch));
+        const SharemindTdbError ecode = m.executeTransaction(transaction, c);
+
+        if (!m.setErrorCode(c, dsName, ecode))
+            return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
+
+        if (refs) {
+            *static_cast<int64_t *>(refs[0u].pData) = ecode;
+        } else if (ecode != SHAREMIND_TDB_OK) {
+            return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
+        }
+        return SHAREMIND_MODULE_API_0x1_OK;
+    } catch (const std::bad_alloc &) {
+        return SHAREMIND_MODULE_API_0x1_OUT_OF_MEMORY;
+    } catch (...) {
+        return SHAREMIND_MODULE_API_0x1_MODULE_ERROR;
+    }
+}
+
 MOD_TABLEDB_HDF5_SYSCALL(tdb_read_col) {
     assert(c);
     if (!CHECKARGS(1u, true, 0u, 2u)
@@ -876,151 +1076,23 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_stmt_exec) {
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
     try {
-        const uint64_t vmapId = args[0].uint64[0];
-
-        auto const dsName(refToString(crefs[0u]));
-        auto const tblName(refToString(crefs[1u]));
         auto const stmtType(refToString(crefs[2u]));
-
-        auto & m = GETMODULEHANDLE;
-
-        // Get the parameter map
-        SharemindTdbVectorMap * const pmap = m.getVectorMap(c, vmapId);
-        if (!pmap)
-            return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
-
-        // Parse the parameters depending on the statement type
-        // TODO can we do this more efficiently?
+        SharemindModuleApi0x1Syscall syscall;
         if (stmtType.compare("tbl_create") == 0) {
-            size_t size = 0;
-
-            // Parse the "names" parameter
-            SharemindTdbString ** names;
-            if (pmap->get_string_vector(pmap, "names", &names, &size) != TDB_VECTOR_MAP_OK) {
-                m.logger().error() << "Failed to execute \"" << stmtType
-                    << "\" statement: Failed to get \"names\" string vector parameter.";
-                return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
-            }
-
-            const std::vector<SharemindTdbString *> namesVec(names, names + size);
-
-            // Parse the "types" parameter
-            SharemindTdbType ** types;
-            if (pmap->get_type_vector(pmap, "types", &types, &size) != TDB_VECTOR_MAP_OK) {
-                m.logger().error() << "Failed to execute \"" << stmtType <<
-                    "\" statement: Failed to get \"types\" type vector parameter.";
-                return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
-            }
-
-            const std::vector<SharemindTdbType *> typesVec(types, types + size);
-
-            // Get the connection
-            TdbHdf5Connection * const conn = m.getConnection(c, dsName);
-            if (!conn)
-                return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
-
-            // Execute transaction
-            TdbHdf5Transaction transaction(*conn,
-                                           &TdbHdf5Connection::tblCreate,
-                                           std::cref(tblName),
-                                           std::cref(namesVec),
-                                           std::cref(typesVec));
-            const SharemindTdbError ecode = m.executeTransaction(transaction, c);
-
-            if (!m.setErrorCode(c, dsName, ecode))
-                return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
-
-            if (refs) {
-                *static_cast<int64_t *>(refs[0u].pData) = ecode;
-            } else if (ecode != SHAREMIND_TDB_OK) {
-                return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
-            }
+            syscall = &tdb_tbl_create2;
         } else if (stmtType.compare("insert_row") == 0) {
-            size_t batchCount = 0;
-            if (pmap->batch_count(pmap, &batchCount) != TDB_VECTOR_MAP_OK) {
-                m.logger().error() << "Failed to execute \"" << stmtType
-                    << "\" statement: Failed to get parameter vector map batch count.";
-                return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
-            }
-
-            // Aggregate the parameters
-            typedef std::vector<std::vector<SharemindTdbValue *> > ValuesBatchVector;
-            ValuesBatchVector valuesBatch(batchCount);
-            std::vector<bool> valueAsColumnBatch;
-            valueAsColumnBatch.reserve(batchCount);
-
-            // Process each parameter batch
-            for (size_t i = 0; i < batchCount; ++i) {
-                if (pmap->set_batch(pmap, i) != TDB_VECTOR_MAP_OK) {
-                    m.logger().error() << "Failed to execute \"" << stmtType
-                        << "\" statement: Failed to iterate parameter vector map batches.";
-                    return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
-                }
-
-                // Parse the "values" parameter
-                size_t size = 0;
-                SharemindTdbValue ** values;
-                if (pmap->get_value_vector(pmap, "values", &values, &size) != TDB_VECTOR_MAP_OK) {
-                    m.logger().error() << "Failed to execute \"" << stmtType
-                        << "\" statement: Failed to get \"values\" value vector parameter.";
-                    return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
-                }
-
-                std::vector<SharemindTdbValue *> & valuesVec = valuesBatch[i];
-                valuesVec.reserve(size);
-                valuesVec.insert(valuesVec.begin(), values, values + size);
-
-                // Check if the optional parameter "valueAsColumn" is set
-                bool rv = false;
-                if (pmap->is_index_vector(pmap, "valueAsColumn", &rv) == TDB_VECTOR_MAP_OK && rv) {
-                    // Parse the "valueAsColumn" parameter
-                    SharemindTdbIndex ** valueAsColumn;
-                    if (pmap->get_index_vector(pmap, "valueAsColumn", &valueAsColumn, &size) != TDB_VECTOR_MAP_OK) {
-                        m.logger().error() << "Failed to execute \"" << stmtType
-                            << "\" statement: Failed to get \"valueAsColumn\" index vector parameter.";
-                        return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
-                    }
-
-                    if (size < 1) {
-                        m.logger().error() << "Failed to execute \"" << stmtType
-                            << "\" statement: Empty \"valueAsColumn\" index vector parameter.";
-                        return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
-                    }
-
-                    valueAsColumnBatch.push_back((*valueAsColumn)->idx);
-                } else {
-                    // Set the default value
-                    valueAsColumnBatch.push_back(false);
-                }
-            }
-
-            // Get the connection
-            TdbHdf5Connection * const conn = m.getConnection(c, dsName);
-            if (!conn)
-                return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
-
-            // Execute transaction
-            TdbHdf5Transaction transaction(*conn,
-                                           &TdbHdf5Connection::insertRow,
-                                           std::cref(tblName),
-                                           std::cref(valuesBatch),
-                                           std::cref(valueAsColumnBatch));
-            const SharemindTdbError ecode = m.executeTransaction(transaction, c);
-
-            if (!m.setErrorCode(c, dsName, ecode))
-                return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
-
-            if (refs) {
-                *static_cast<int64_t *>(refs[0u].pData) = ecode;
-            } else if (ecode != SHAREMIND_TDB_OK) {
-                return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
-            }
+            syscall = &tdb_insert_row2;
         } else {
+            auto const & m = GETMODULEHANDLE;
             m.logger().error() << "Failed to execute \"" << stmtType
                 << "\": Unknown statement type.";
             return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
         }
-        return SHAREMIND_MODULE_API_0x1_OK;
+        SharemindModuleApi0x1CReference const newCRefs[] =
+                { crefs[0u],
+                  crefs[1u],
+                  SharemindModuleApi0x1CReference{nullptr, nullptr, 0u} };
+        return (*syscall)(args, num_args, refs, newCRefs, returnValue, c);
     } catch (const std::bad_alloc &) {
         return SHAREMIND_MODULE_API_0x1_OUT_OF_MEMORY;
     } catch (...) {
@@ -1193,6 +1265,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL_DEFINITIONS(
 
     /* Table database API */
     , { "tdb_tbl_create",       &tdb_tbl_create }
+    , { "tdb_tbl_create2",      &tdb_tbl_create2 }
     , { "tdb_tbl_delete",       &tdb_tbl_delete }
     , { "tdb_tbl_exists",       &tdb_tbl_exists }
     , { "tdb_tbl_col_count",    &tdb_tbl_col_count }
@@ -1200,6 +1273,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL_DEFINITIONS(
     , { "tdb_tbl_col_types",    &tdb_tbl_col_types }
     , { "tdb_tbl_row_count",    &tdb_tbl_row_count }
     , { "tdb_insert_row",       &tdb_insert_row }
+    , { "tdb_insert_row2",      &tdb_insert_row2 }
     , { "tdb_read_col",         &tdb_read_col }
 
     /* Table database statement API */
