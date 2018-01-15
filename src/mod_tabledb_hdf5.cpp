@@ -99,6 +99,7 @@ std::string refToString(T const & ref)
 
 MOD_TABLEDB_HDF5_SYSCALL(tdb_open) {
     assert(c);
+    (void) args;
     if (!CHECKARGS(0u, false, 0u, 1u))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
@@ -124,6 +125,7 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_open) {
 
 MOD_TABLEDB_HDF5_SYSCALL(tdb_close) {
     assert(c);
+    (void) args;
     if (!CHECKARGS(0u, false, 0u, 1u))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
@@ -320,6 +322,7 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_create2) {
 
 MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_delete) {
     assert(c);
+    (void) args;
     if (!CHECKARGS(0u, false, 0u, 2u) && !CHECKARGS(0u, false, 1u, 2u))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
@@ -365,6 +368,7 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_delete) {
 
 MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_exists) {
     assert(c);
+    (void) args;
     if (!CHECKARGS(0u, true, 0u, 2u) && !CHECKARGS(0u, true, 1u, 2u))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
@@ -417,6 +421,7 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_exists) {
 
 MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_col_count) {
     assert(c);
+    (void) args;
     if (!CHECKARGS(0u, true, 0u, 2u) && !CHECKARGS(0u, true, 1u, 2u))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
@@ -469,6 +474,7 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_col_count) {
 
 MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_col_names) {
     assert(c);
+    (void) args;
     if (!CHECKARGS(0u, true, 0u, 2u) && !CHECKARGS(0u, true, 1u, 2u))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
@@ -558,6 +564,7 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_col_names) {
 
 MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_col_types) {
     assert(c);
+    (void) args;
     if (!CHECKARGS(0u, true, 0u, 2u) && !CHECKARGS(0u, true, 1u, 2u))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
@@ -647,6 +654,7 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_col_types) {
 
 MOD_TABLEDB_HDF5_SYSCALL(tdb_tbl_row_count) {
     assert(c);
+    (void) args;
     if (!CHECKARGS(0u, true, 0u, 2u) && !CHECKARGS(0u, true, 1u, 2u))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
@@ -1066,6 +1074,7 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_read_col) {
 
 MOD_TABLEDB_HDF5_SYSCALL(tdb_table_names) {
     assert(c);
+    (void) args;
     if (!CHECKARGS(0u, true, 0u, 1u) && !CHECKARGS(0u, true, 1u, 1u))
         return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
 
