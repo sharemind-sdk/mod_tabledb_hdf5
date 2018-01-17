@@ -182,6 +182,18 @@ bool cleanupType(hid_t const aId, SharemindTdbType & type) {
 
 namespace sharemind {
 
+SHAREMIND_DEFINE_EXCEPTION_NOINLINE(std::exception,
+                                    TdbHdf5Connection::,
+                                    Exception);
+SHAREMIND_DEFINE_EXCEPTION_NOINLINE(Exception,
+                                    TdbHdf5Connection::,
+                                    InitializationException);
+SHAREMIND_DEFINE_EXCEPTION_CONST_MSG_NOINLINE(
+        InitializationException,
+        TdbHdf5Connection::,
+        FailedToSetHdf5LoggingHandlerException,
+        "Failed to set HDF5 logging handler.");
+
 BOOST_STATIC_ASSERT(sizeof(TdbHdf5Connection::size_type) == sizeof(hsize_t));
 
 TdbHdf5Connection::TdbHdf5Connection(const LogHard::Logger & logger,

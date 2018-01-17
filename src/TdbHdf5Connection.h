@@ -40,11 +40,11 @@ class __attribute__ ((visibility("internal"))) TdbHdf5Connection {
 
 public: /* Types: */
 
-    SHAREMIND_DEFINE_EXCEPTION(std::exception, Exception);
-    SHAREMIND_DEFINE_EXCEPTION(Exception, InitializationException);
-    SHAREMIND_DEFINE_EXCEPTION_CONST_MSG(InitializationException,
-                                         FailedToSetHdf5LoggingHandlerException,
-                                         "Failed to set HDF5 logging handler.");
+    SHAREMIND_DECLARE_EXCEPTION_NOINLINE(std::exception, Exception);
+    SHAREMIND_DECLARE_EXCEPTION_NOINLINE(Exception, InitializationException);
+    SHAREMIND_DECLARE_EXCEPTION_CONST_MSG_NOINLINE(
+                InitializationException,
+                FailedToSetHdf5LoggingHandlerException);
 
     typedef uint64_t size_type;
 
