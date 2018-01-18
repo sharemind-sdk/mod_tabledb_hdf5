@@ -40,7 +40,7 @@ class __attribute__ ((visibility("internal"))) TdbHdf5Connection {
 
 public: /* Types: */
 
-    SHAREMIND_DECLARE_EXCEPTION_NOINLINE(std::exception, Exception);
+    SHAREMIND_DECLARE_EXCEPTION_NOINLINE(sharemind::Exception, Exception);
     SHAREMIND_DECLARE_EXCEPTION_NOINLINE(Exception, InitializationException);
     SHAREMIND_DECLARE_EXCEPTION_CONST_MSG_NOINLINE(
                 InitializationException,
