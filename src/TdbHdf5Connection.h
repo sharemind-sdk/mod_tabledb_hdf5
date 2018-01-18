@@ -27,6 +27,7 @@
 #include <LogHard/Logger.h>
 #include <map>
 #include <sharemind/Exception.h>
+#include <sharemind/ExceptionMacros.h>
 #include <sharemind/mod_tabledb/tdberror.h>
 #include <sharemind/mod_tabledb/tdbtypes.h>
 #include <string>
