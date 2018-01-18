@@ -182,7 +182,7 @@ bool cleanupType(hid_t const aId, SharemindTdbType & type) {
 
 namespace sharemind {
 
-SHAREMIND_DEFINE_EXCEPTION_NOINLINE(std::exception,
+SHAREMIND_DEFINE_EXCEPTION_NOINLINE(sharemind::Exception,
                                     TdbHdf5Connection::,
                                     Exception);
 SHAREMIND_DEFINE_EXCEPTION_NOINLINE(Exception,
