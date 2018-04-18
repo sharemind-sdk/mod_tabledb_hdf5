@@ -361,10 +361,12 @@ SharemindTdbError TdbHdf5Module::executeTransaction(
         const SharemindModuleApi0x1SyscallContext * c)
 {
     assert(c);
-    assert(c->process_internal);
     if (m_consensusService) {
-        typedef SharemindProcessFacility CPF;
-        const CPF & pf = *static_cast<const CPF *>(c->process_internal);
+        auto * const f = c->processFacility(c, "ProcessFacility");
+        if (!f)
+            return SHAREMIND_TDB_MISSING_FACILITY;
+        using CPF = SharemindProcessFacility;
+        CPF const & pf = *static_cast<CPF *>(f);
 
         // Local transactions will always succeed:
         auto const guidData = pf.globalId(&pf);
