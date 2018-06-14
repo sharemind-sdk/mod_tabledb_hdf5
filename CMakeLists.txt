@@ -81,7 +81,10 @@ SharemindAddSharedLibrary("sharemind_mod_tabledb_hdf5"
 
 # Packaging:
 SharemindSetupPackaging()
-SET(BV "${Boost_MAJOR_VERSION}.${Boost_MINOR_VERSION}.0")
+SET(BV
+    "${Boost_MAJOR_VERSION}.${Boost_MINOR_VERSION}.${Boost_SUBMINOR_VERSION}"
+)
+
 SharemindAddComponentPackage("lib"
     NAME "libsharemind-mod-tabledb-hdf5"
     DESCRIPTION "Sharemind TableDB HDF5 module"
