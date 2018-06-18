@@ -105,6 +105,6 @@ SharemindAddComponentPackage("debug"
     DESCRIPTION "Sharemind TableDB HDF5 module debug symbols"
     DEB_SECTION "debug"
     DEB_DEPENDS
-        "libsharemind-mod-tabledb-hdf5 (= ${SharemindModTableDbHdf5_VERSION})"
+        "libsharemind-mod-tabledb-hdf5 (= ${SharemindModTableDbHdf5_DEB_lib_PACKAGE_VERSION})"
 )
 SharemindPackagingFinalize()
