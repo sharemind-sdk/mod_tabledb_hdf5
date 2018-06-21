@@ -22,7 +22,7 @@ SharemindSetProjectVersion()
 SET(Boost_USE_STATIC_RUNTIME OFF)
 FIND_PACKAGE(Boost COMPONENTS filesystem system REQUIRED)
 FIND_PACKAGE(HDF5 COMPONENTS C REQUIRED)
-FIND_PACKAGE(LogHard REQUIRED)
+FIND_PACKAGE(LogHard 0.3.0 REQUIRED)
 FIND_PACKAGE(SharemindCxxHeaders 0.4.0 REQUIRED)
 FIND_PACKAGE(SharemindLibConfiguration REQUIRED)
 FIND_PACKAGE(SharemindLibConsensusService REQUIRED)
@@ -95,7 +95,7 @@ SharemindAddComponentPackage("lib"
         "libc6 (>= 2.19)"
         "libhdf5-8"
         "| libhdf5-100"
-        "libloghard (>= 0.1.0)"
+        "libloghard (>= 0.3.0)"
         "libsharemind-mod-tabledb (>= 0.1.0)"
         "libsharemind-configuration (>= 0.1.0)"
         "libstdc++6 (>= 4.8.0)"
