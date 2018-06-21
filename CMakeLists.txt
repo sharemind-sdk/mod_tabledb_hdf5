@@ -28,7 +28,7 @@ FIND_PACKAGE(SharemindLibConfiguration REQUIRED)
 FIND_PACKAGE(SharemindLibConsensusService REQUIRED)
 FIND_PACKAGE(SharemindLibDataStoreManager REQUIRED)
 FIND_PACKAGE(SharemindLibDbCommon REQUIRED)
-FIND_PACKAGE(SharemindLibProcessFacility REQUIRED)
+FIND_PACKAGE(SharemindLibProcessFacility 0.1.0 REQUIRED)
 FIND_PACKAGE(SharemindModTableDb REQUIRED)
 FIND_PACKAGE(SharemindModuleApis 1.0.0 REQUIRED)
 
