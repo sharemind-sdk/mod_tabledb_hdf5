@@ -29,7 +29,7 @@ FIND_PACKAGE(SharemindLibConsensusService 0.1.0 REQUIRED)
 FIND_PACKAGE(SharemindLibDataStoreManager 0.1.0 REQUIRED)
 FIND_PACKAGE(SharemindLibDbCommon 0.1.1 REQUIRED)
 FIND_PACKAGE(SharemindLibProcessFacility 0.1.0 REQUIRED)
-FIND_PACKAGE(SharemindModTableDb REQUIRED)
+FIND_PACKAGE(SharemindModTableDb 0.2.1 REQUIRED)
 FIND_PACKAGE(SharemindModuleApis 1.0.0 REQUIRED)
 
 
