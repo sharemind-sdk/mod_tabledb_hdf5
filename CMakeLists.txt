@@ -54,6 +54,8 @@ SharemindAddSharedLibrary("sharemind_mod_tabledb_hdf5"
         ${SharemindLibProcessFacility_INCLUDE_DIRS}
         ${SharemindModTableDb_INCLUDE_DIRS}
         ${SharemindModuleApis_INCLUDE_DIRS}
+    COMPILE_DEFINITIONS
+        "H5_USE_18_API"
     LEGACY_DEFINITIONS
         ${LogHard_DEFINITIONS}
         ${SharemindCxxHeaders_DEFINITIONS}
