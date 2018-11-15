@@ -20,7 +20,6 @@
 #include "TdbHdf5Module.h"
 
 #include <cstring>
-#include <sharemind/MakeUnique.h>
 #include "TdbHdf5ConnectionConf.h"
 #include "TdbHdf5Manager.h"
 
@@ -225,7 +224,7 @@ bool TdbHdf5Module::openConnection(const SharemindModuleApi0x1SyscallContext * c
 
             std::unique_ptr<TdbHdf5ConnectionConf> configuration;
             try {
-                configuration = makeUnique<TdbHdf5ConnectionConf>(
+                configuration = std::make_unique<TdbHdf5ConnectionConf>(
                                     src->conf(src));
             } catch (...) {
                 auto const loggerLock(m_logger.retrieveBackendLock());

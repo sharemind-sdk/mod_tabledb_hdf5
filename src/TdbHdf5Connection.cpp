@@ -32,7 +32,7 @@
 #include <H5Ppublic.h>
 #include <H5Spublic.h>
 #include <H5Tpublic.h>
-#include <sharemind/MakeUnique.h>
+#include <memory>
 #include <sharemind/mod_tabledb/TdbTypesUtil.h>
 #include <type_traits>
 
@@ -753,7 +753,7 @@ SharemindTdbError TdbHdf5Connection::tblCreate(const std::string & tbl,
         // Write column index data
         if (size > 0) {
             // Serialize the column index data
-            auto const colIdx(makeUnique<ColumnIndex[]>(size));
+            auto const colIdx(std::make_unique<ColumnIndex[]>(size));
 
             auto nameIt(names.cbegin());
             auto mIt(colInfoVector.cbegin());
@@ -1007,7 +1007,7 @@ SharemindTdbError TdbHdf5Connection::tblColNames(const std::string & tbl, std::v
     };
 
     // Allocate a buffer for reading
-    auto const buffer(makeUnique<PartialColumnIndex[]>(colCount));
+    auto const buffer(std::make_unique<PartialColumnIndex[]>(colCount));
 
     // Read column meta info from the dataset
     if (H5Dread(dId, tId, mSId, H5S_ALL, H5P_DEFAULT, buffer.get()) < 0) {
@@ -1126,7 +1126,7 @@ SharemindTdbError TdbHdf5Connection::tblColTypes(const std::string & tbl, std::v
     };
 
     // Allocate a buffer for reading
-    auto const indices(makeUnique<PartialColumnIndex[]>(colCount));
+    auto const indices(std::make_unique<PartialColumnIndex[]>(colCount));
 
     // Read column meta info from the dataset
     if (H5Dread(dId, tId, H5S_ALL, H5S_ALL, H5P_DEFAULT, indices.get()) < 0) {
@@ -1202,7 +1202,7 @@ SharemindTdbError TdbHdf5Connection::tblColTypes(const std::string & tbl, std::v
             };
 
             // Read the type attribute
-            auto const type(makeUnique<SharemindTdbType>());
+            auto const type(std::make_unique<SharemindTdbType>());
             if (H5Aread(aId, aTId, type.get()) < 0) {
                 m_logger.error() << "Failed to read dataset type attribute.";
                 return SHAREMIND_TDB_IO_ERROR;
@@ -1427,7 +1427,7 @@ SharemindTdbError TdbHdf5Connection::insertRow(const std::string & tbl,
         };
 
         // Read dataset references from the column meta info dataset
-        auto const dsetRefs(makeUnique<hobj_ref_t[]>(colCount));
+        auto const dsetRefs(std::make_unique<hobj_ref_t[]>(colCount));
         if (H5Dread(dId, tId, H5S_ALL, H5S_ALL, H5P_DEFAULT, dsetRefs.get()) < 0) {
             m_logger.fullDebug() << "Failed to read column meta info dataset.";
             return SHAREMIND_TDB_IO_ERROR;
@@ -1441,7 +1441,7 @@ SharemindTdbError TdbHdf5Connection::insertRow(const std::string & tbl,
                 hid_t aId = H5I_INVALID_HID;
 
                 // Read the type attribute
-                auto type(makeUnique<SharemindTdbType>());
+                auto type(std::make_unique<SharemindTdbType>());
                 const SharemindTdbError ecode = objRefToType(fileId, dsetRefs[i], aId, *type);
                 if (ecode != SHAREMIND_TDB_OK) {
                     m_logger.error() << "Failed to get type info from dataset reference.";
@@ -2330,7 +2330,7 @@ SharemindTdbError TdbHdf5Connection::readDatasetColumn(const hid_t fileId, const
     };
 
     // Read the type attribute
-    auto const type(makeUnique<SharemindTdbType>());
+    auto const type(std::make_unique<SharemindTdbType>());
     if (H5Aread(aId, aTId, type.get()) < 0) {
         m_logger.error() << "Failed to read dataset type attribute.";
         return SHAREMIND_TDB_IO_ERROR;
@@ -2414,7 +2414,7 @@ SharemindTdbError TdbHdf5Connection::readDatasetColumn(const hid_t fileId, const
                     hvl_t * const hvlBuffer = static_cast<hvl_t *>(buffer);
 
                     for (hsize_t i = 0; i < dims[0]; ++i) {
-                        auto val(makeUnique<SharemindTdbValue>());
+                        auto val(std::make_unique<SharemindTdbValue>());
                         val->type = SharemindTdbType_new(type->domain,
                                                          type->name,
                                                          type->size);
@@ -2444,7 +2444,7 @@ SharemindTdbError TdbHdf5Connection::readDatasetColumn(const hid_t fileId, const
                     // Free the variable length type array
                     ::operator delete(buffer);
                 } else {
-                    auto val(makeUnique<SharemindTdbValue>());
+                    auto val(std::make_unique<SharemindTdbValue>());
                     val->type = SharemindTdbType_new(type->domain,
                                                      type->name,
                                                      type->size);
