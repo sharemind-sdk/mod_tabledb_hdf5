@@ -23,7 +23,6 @@
 #include <string>
 #include <boost/scope_exit.hpp>
 #include <sharemind/AssertReturn.h>
-#include <sharemind/compiler-support/GccIsNothrowDestructible.h>
 #include <sharemind/datastoreapi.h>
 #include <sharemind/dbcommon/datasourceapi.h>
 #include <sharemind/mod_tabledb/tdbvectormapapi.h>
@@ -1224,7 +1223,7 @@ SHAREMIND_MODULE_API_0x1_DEINITIALIZER(c) {
     assert(c);
     assert(c->moduleHandle);
     using namespace sharemind;
-    static_assert(is_nothrow_destructible<TdbHdf5Module>::value, "");
+    static_assert(std::is_nothrow_destructible<TdbHdf5Module>::value, "");
     delete static_cast<TdbHdf5Module *>(c->moduleHandle);
     c->moduleHandle = nullptr;
 }
