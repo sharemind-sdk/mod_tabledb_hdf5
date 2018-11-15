@@ -32,7 +32,7 @@ FIND_PACKAGE(SharemindModuleApis 1.0.0 REQUIRED)
 
 
 # The module:
-SharemindSetCxx11CompileOptions()
+SharemindSetCxx14CompileOptions()
 FILE(GLOB_RECURSE SharemindModTableDbHdf5_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 FILE(GLOB_RECURSE SharemindModTableDbHdf5_HEADERS
