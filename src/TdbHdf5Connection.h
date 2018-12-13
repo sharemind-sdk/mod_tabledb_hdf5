@@ -20,17 +20,18 @@
 #ifndef SHAREMIND_MOD_TABLEDB_HDF5_TDBHDF5CONNECTION_H
 #define SHAREMIND_MOD_TABLEDB_HDF5_TDBHDF5CONNECTION_H
 
-#include <boost/filesystem/path.hpp>
-#include <H5Rpublic.h>
 #include <H5Ipublic.h>
-#include <exception>
+#include <H5Rpublic.h>
 #include <LogHard/Logger.h>
+#include <boost/filesystem/path.hpp>
+#include <exception>
 #include <map>
 #include <sharemind/Exception.h>
 #include <sharemind/ExceptionMacros.h>
 #include <sharemind/mod_tabledb/tdberror.h>
 #include <sharemind/mod_tabledb/tdbtypes.h>
 #include <string>
+#include <utility>
 #include <vector>
 #include "TdbHdf5ConnectionConf.h"
 
@@ -101,6 +102,10 @@ public: /* Methods: */
     SharemindTdbError readColumn(const std::string & tbl,
             const std::vector<SharemindTdbIndex *> & colIdBatch,
             std::vector<std::vector<SharemindTdbValue *> > & valuesBatch);
+
+    SharemindTdbError setAttributes(
+        const std::string & tbl,
+        const std::vector<std::pair<SharemindTdbString *, SharemindTdbString *>> & attributes);
 
 private: /* Methods: */
 

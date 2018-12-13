@@ -48,6 +48,7 @@ namespace fs = boost::filesystem;
 #define ERR_MSG_SIZE_MAX       (64u)
 #define FILE_EXT               ".h5"
 #define META_GROUP             "/meta"
+#define USR_ATTR_GROUP         "/user_attributes"
 #define ROW_COUNT_ATTR         "row_count"
 #define TBL_NAME_SIZE_MAX      (64u)
 
@@ -475,6 +476,13 @@ SharemindTdbError TdbHdf5Connection::tblCreate(const std::string & tbl,
             m_logger.error() << "Failed to write row count attribute.";
             return SHAREMIND_TDB_GENERAL_ERROR;
         }
+    }
+
+    // Create user attributes group
+    const hid_t gId = H5Gcreate(fileId, USR_ATTR_GROUP, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    if (gId < 0) {
+        m_logger.error() << "Failed to create user attributes group.";
+        return SHAREMIND_TDB_GENERAL_ERROR;
     }
 
     // Create a dataset for each unique column type
@@ -1991,6 +1999,106 @@ SharemindTdbError TdbHdf5Connection::readColumn(const std::string & tbl,
         const SharemindTdbError ecode = readColumn(fileId, colIdBatch, valuesBatch);
         if (ecode != SHAREMIND_TDB_OK)
             return ecode;
+    }
+
+    success = true;
+
+    return SHAREMIND_TDB_OK;
+}
+
+SharemindTdbError TdbHdf5Connection::setAttributes(
+    const std::string & tbl,
+    const std::vector<std::pair<SharemindTdbString *, SharemindTdbString *>> & attributes)
+{
+    H5Eset_auto(H5E_DEFAULT, err_handler, &const_cast<LogHard::Logger &>(m_logger));
+
+    // Set the cleanup flag
+    bool success = false;
+
+    BOOST_SCOPE_EXIT_ALL(&success, this, &tbl) {
+        if (!success)
+            m_logger.error() << "Failed to set attribute(s) in table \"" << tbl << "\".";
+    };
+
+    // Check if table exists
+    {
+        bool exists = false;
+        const SharemindTdbError ecode = tblExists(tbl, exists);
+        if (ecode != SHAREMIND_TDB_OK)
+            return ecode;
+
+        if (!exists) {
+            m_logger.error() << "Table \"" << tbl << "\" does not exist.";
+            return SHAREMIND_TDB_TABLE_NOT_FOUND;
+        }
+    }
+
+    // Open the table file
+    const hid_t fileId = openTableFile(tbl);
+    if (fileId < 0) {
+        m_logger.error() << "Failed to open table file.";
+        return SHAREMIND_TDB_IO_ERROR;
+    }
+
+    hid_t gId = H5Gopen(fileId, USR_ATTR_GROUP, H5P_DEFAULT);
+    if (gId < 0) {
+        m_logger.error() << "Failed to open group " << USR_ATTR_GROUP;
+        return SHAREMIND_TDB_GENERAL_ERROR;
+    }
+
+    BOOST_SCOPE_EXIT_ALL(this, gId) {
+        if (H5Gclose(gId) < 0)
+            m_logger.error() << "Error while cleaning up attribute group.";
+    };
+
+    // Attribute data space
+    const hsize_t aDims = 1;
+    const hid_t aSId = H5Screate_simple(1, &aDims, nullptr);
+    if (aSId < 0) {
+        m_logger.error() << "Error creating data space";
+        return SHAREMIND_TDB_GENERAL_ERROR;
+    }
+
+    BOOST_SCOPE_EXIT_ALL(this, aSId) {
+        if (H5Sclose(aSId) < 0)
+            m_logger.error() << "Error while cleaning up attribute data space.";
+    };
+
+    // Create var length string type for attribute
+    const hid_t aTId = H5Tcopy(H5T_C_S1);
+    if (aTId < 0 || H5Tset_size(aTId, H5T_VARIABLE) < 0) {
+        m_logger.error() << "Failed to create string type for attribute type.";
+        if (aTId >= 0 && H5Tclose(aTId) < 0)
+            m_logger.error() << "Error while cleaning attribute type.";
+        return SHAREMIND_TDB_GENERAL_ERROR;
+    }
+
+    for (auto & pair : attributes) {
+        hid_t aId;
+        const char * key = pair.first->str;
+        const char * value = pair.second->str;
+
+        // Test if attribute exists already
+        if (H5Aexists(gId, key) > 0) {
+            aId = H5Aopen(gId, key, H5P_DEFAULT);
+        } else {
+            // Add attribute to the attribute group
+            aId = H5Acreate(gId, key, aTId, aSId, H5P_DEFAULT, H5P_DEFAULT);
+            if (aId < 0) {
+                m_logger.error() << "Failed to create attribute \"" << key << "\".";
+                return SHAREMIND_TDB_GENERAL_ERROR;
+            }
+        }
+
+        if (H5Awrite(aId, aTId, &value) < 0) {
+            m_logger.error() << "Failed to write attribute \"" << key << "\".";
+            return SHAREMIND_TDB_GENERAL_ERROR;
+        }
+
+        if (H5Aclose(aId) < 0) {
+            m_logger.error() << "Error while cleaning up user attribute.";
+            return SHAREMIND_TDB_GENERAL_ERROR;
+        }
     }
 
     success = true;

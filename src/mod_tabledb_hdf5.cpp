@@ -1158,6 +1158,77 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_table_names) {
     }
 }
 
+MOD_TABLEDB_HDF5_SYSCALL(tdb_set_attributes) {
+    assert(c);
+    if (!CHECKARGS(1u, false, 0u, 2u))
+        return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
+
+    try {
+        auto const dsName(refToString(crefs[0u]));
+        auto const tblName(refToString(crefs[1u]));
+        const uint64_t vmapId = args[0u].uint64[0u];
+
+        auto & m = GETMODULEHANDLE;
+
+        // Get the connection
+        TdbHdf5Connection * const conn = m.getConnection(c, dsName);
+        if (!conn)
+            return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
+
+        // Get vector map
+        SharemindTdbVectorMap * const vmap = m.getVectorMap(c, vmapId);
+        if (!vmap)
+            return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
+
+        // Parse keys and values
+        size_t size = 0;
+        size_t valuesSize = 0;
+        SharemindTdbString ** keys;
+        SharemindTdbString ** values;
+
+        if (vmap->get_string_vector(vmap, "keys", &keys, &size) != TDB_VECTOR_MAP_OK) {
+            m.logger().error() << "Failed to get \"keys\" string vector parameter.";
+            return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
+        }
+
+        if (vmap->get_string_vector(vmap, "values", &values, &valuesSize) != TDB_VECTOR_MAP_OK) {
+            m.logger().error() << "Failed to get \"values\" string vector parameter.";
+            return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
+        }
+
+        if (valuesSize != size) {
+            m.logger().error() << "The lengths of \"keys\" and \"values\" vectors do not match.";
+            return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
+        }
+
+        std::vector<std::pair<SharemindTdbString *, SharemindTdbString *>> attributes(size);
+
+        for (unsigned i = 0; i < size; ++i) {
+            attributes[i] = std::make_pair(keys[i], values[i]);
+        }
+
+        // Execute the transaction
+        TdbHdf5Transaction transaction(*conn,
+                                       &TdbHdf5Connection::setAttributes,
+                                       std::cref(tblName),
+                                       std::ref(attributes));
+
+        const SharemindTdbError ecode = m.executeTransaction(transaction, c);
+
+        if (!m.setErrorCode(c, dsName, ecode))
+            return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
+
+        if (ecode != SHAREMIND_TDB_OK)
+            return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
+
+        return SHAREMIND_MODULE_API_0x1_OK;
+    } catch (const std::bad_alloc &) {
+        return SHAREMIND_MODULE_API_0x1_OUT_OF_MEMORY;
+    } catch (...) {
+        return SHAREMIND_MODULE_API_0x1_MODULE_ERROR;
+    }
+}
+
 } /* namespace { */
 
 extern "C" {
@@ -1247,6 +1318,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL_DEFINITIONS(
     , { "tdb_insert_row",       &tdb_insert_row }
     , { "tdb_insert_row2",      &tdb_insert_row2 }
     , { "tdb_read_col",         &tdb_read_col }
+    , { "tdb_set_attributes",   &tdb_set_attributes }
 
 );
 
