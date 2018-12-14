@@ -1158,6 +1158,93 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_table_names) {
     }
 }
 
+MOD_TABLEDB_HDF5_SYSCALL(tdb_get_attributes) {
+    (void) args;
+    assert(c);
+    if (!CHECKARGS(0u, true, 0u, 2u))
+        return SHAREMIND_MODULE_API_0x1_INVALID_CALL;
+
+    try {
+        auto const dsName(refToString(crefs[0u]));
+        auto const tblName(refToString(crefs[1u]));
+        auto & m = GETMODULEHANDLE;
+
+        TdbHdf5Connection * const conn = m.getConnection(c, dsName);
+        if (!conn)
+            return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
+
+        std::vector<std::pair<SharemindTdbString *, SharemindTdbString *>> attributes;
+        TdbHdf5Transaction transaction(*conn,
+                                       &TdbHdf5Connection::getAttributes,
+                                       std::ref(tblName),
+                                       std::ref(attributes));
+        const SharemindTdbError ecode = m.executeTransaction(transaction, c);
+
+        if (!m.setErrorCode(c, dsName, ecode))
+            return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
+
+        if (ecode != SHAREMIND_TDB_OK)
+            return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
+
+        bool cleanup = true;
+
+        BOOST_SCOPE_EXIT_ALL(&cleanup, &attributes) {
+            if (cleanup) {
+                for (auto & pair : attributes) {
+                    SharemindTdbString_delete(pair.first);
+                    SharemindTdbString_delete(pair.second);
+                }
+                attributes.clear();
+            }
+        };
+
+        // Get the result map
+        uint64_t vmapId = 0;
+        SharemindTdbVectorMap * const rmap = m.newVectorMap(c, vmapId);
+        if (!rmap)
+            return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
+
+        // Register cleanup for the result vector map
+        BOOST_SCOPE_EXIT_ALL(&cleanup, &m, c, vmapId) {
+            if (cleanup && !m.deleteVectorMap(c, vmapId))
+                m.logger().fullDebug() << "Error while cleaning up result vector map.";
+        };
+
+        // Make a copy of the string pointers
+        SharemindTdbString ** keys = new SharemindTdbString * [attributes.size()];
+        SharemindTdbString ** values = new SharemindTdbString * [attributes.size()];
+
+        for (unsigned i = 0; i < attributes.size(); ++i) {
+            keys[i] = attributes[i].first;
+            values[i] = attributes[i].second;
+        }
+
+        // Set the result "keys"
+        if (rmap->set_string_vector(rmap, "keys", keys, attributes.size()) != TDB_VECTOR_MAP_OK) {
+            m.logger().error() << "Failed to set \"keys\" string vector result.";
+            delete[] keys;
+            return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
+        }
+
+        // Set the result "values"
+        if (rmap->set_string_vector(rmap, "values", values, attributes.size()) != TDB_VECTOR_MAP_OK) {
+            m.logger().error() << "Failed to set \"values\" string vector result.";
+            delete[] values;
+            return SHAREMIND_MODULE_API_0x1_GENERAL_ERROR;
+        }
+
+        cleanup = false;
+
+        returnValue->uint64[0] = vmapId;
+
+        return SHAREMIND_MODULE_API_0x1_OK;
+    } catch (const std::bad_alloc &) {
+        return SHAREMIND_MODULE_API_0x1_OUT_OF_MEMORY;
+    } catch (...) {
+        return SHAREMIND_MODULE_API_0x1_MODULE_ERROR;
+    }
+}
+
 MOD_TABLEDB_HDF5_SYSCALL(tdb_set_attributes) {
     assert(c);
     if (!CHECKARGS(1u, false, 0u, 2u))
@@ -1318,6 +1405,7 @@ SHAREMIND_MODULE_API_0x1_SYSCALL_DEFINITIONS(
     , { "tdb_insert_row",       &tdb_insert_row }
     , { "tdb_insert_row2",      &tdb_insert_row2 }
     , { "tdb_read_col",         &tdb_read_col }
+    , { "tdb_get_attributes",   &tdb_get_attributes }
     , { "tdb_set_attributes",   &tdb_set_attributes }
 
 );

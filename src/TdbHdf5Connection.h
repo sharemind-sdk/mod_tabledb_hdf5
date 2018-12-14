@@ -106,6 +106,9 @@ public: /* Methods: */
     SharemindTdbError setAttributes(
         const std::string & tbl,
         const std::vector<std::pair<SharemindTdbString *, SharemindTdbString *>> & attributes);
+    SharemindTdbError getAttributes(
+        const std::string & tbl,
+        std::vector<std::pair<SharemindTdbString *, SharemindTdbString *>> & attributes);
 
 private: /* Methods: */
 

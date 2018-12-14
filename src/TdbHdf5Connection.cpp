@@ -2106,6 +2106,129 @@ SharemindTdbError TdbHdf5Connection::setAttributes(
     return SHAREMIND_TDB_OK;
 }
 
+namespace {
+
+struct IterData {
+    const LogHard::Logger & logger;
+    std::vector<std::pair<SharemindTdbString *, SharemindTdbString *>> & attributes;
+    hid_t gId;
+};
+
+herr_t getAttr(hid_t location_id,
+               const char * attr_name,
+               const H5A_info_t * ainfo,
+               void * op_data)
+{
+    (void) ainfo;
+    (void) location_id;
+
+    IterData * iterData = static_cast<IterData *>(op_data);
+    const auto & logger = iterData->logger;
+    hid_t gId = iterData->gId;
+    auto & attributes = iterData->attributes;
+
+    hid_t aId = H5Aopen(gId, attr_name, H5P_DEFAULT);
+
+    BOOST_SCOPE_EXIT_ALL(aId, logger) {
+        if (H5Aclose(aId) < 0)
+            logger.error() << "Error closing attribute.";
+    };
+
+    if (aId < 0) {
+        logger.error() << "Error while opening user attribute \"" << attr_name << "\".";
+        return -1;
+    }
+
+    hid_t aTId = H5Aget_type(aId);
+
+    BOOST_SCOPE_EXIT_ALL(aTId, logger) {
+        if (H5Tclose(aTId) < 0)
+            logger.error() << "Error closing type.";
+    };
+
+    if (aTId < 0) {
+        logger.error() << "Error while getting type of user attribute \"" << attr_name << "\".";
+        return -1;
+    }
+
+    char* val;
+
+    if (H5Aread(aId, aTId, &val) < 0) {
+        logger.error() << "Error while reading value of user attribute \"" << attr_name << "\".";
+        return -1;
+    }
+
+    BOOST_SCOPE_EXIT_ALL(val) {
+        H5free_memory(val);
+    };
+
+    attributes.push_back(
+        std::make_pair(SharemindTdbString_new(attr_name), SharemindTdbString_new(val)));
+
+    return 0;
+}
+
+} /* namespace { */
+
+SharemindTdbError TdbHdf5Connection::getAttributes(
+    const std::string & tbl,
+    std::vector<std::pair<SharemindTdbString *, SharemindTdbString *>> & attributes)
+{
+    H5Eset_auto(H5E_DEFAULT, err_handler, &const_cast<LogHard::Logger &>(m_logger));
+
+    // Set the cleanup flag
+    bool success = false;
+
+    BOOST_SCOPE_EXIT_ALL(&success, this, &tbl) {
+        if (!success)
+            m_logger.error() << "Failed to get attribute(s) from table \"" << tbl << "\".";
+    };
+
+    // Check if table exists
+    {
+        bool exists = false;
+        const SharemindTdbError ecode = tblExists(tbl, exists);
+        if (ecode != SHAREMIND_TDB_OK)
+            return ecode;
+
+        if (!exists) {
+            m_logger.error() << "Table \"" << tbl << "\" does not exist.";
+            return SHAREMIND_TDB_TABLE_NOT_FOUND;
+        }
+    }
+
+    // Open the table file
+    const hid_t fileId = openTableFile(tbl);
+    if (fileId < 0) {
+        m_logger.error() << "Failed to open table file.";
+        return SHAREMIND_TDB_IO_ERROR;
+    }
+
+    hid_t gId = H5Gopen(fileId, USR_ATTR_GROUP, H5P_DEFAULT);
+    if (gId < 0) {
+        m_logger.error() << "Failed to open group " << USR_ATTR_GROUP;
+        return SHAREMIND_TDB_GENERAL_ERROR;
+    }
+
+    BOOST_SCOPE_EXIT_ALL(this, gId) {
+        if (H5Gclose(gId) < 0)
+            m_logger.error() << "Error while cleaning up attribute group.";
+    };
+
+    attributes.clear();
+    IterData iterData {m_logger, attributes, gId};
+    hsize_t idx = 0;
+
+    if (H5Aiterate(gId, H5_INDEX_NAME, H5_ITER_INC, &idx, getAttr, &iterData) < 0) {
+        m_logger.error() << "Failed reading user attributes from table \"" << tbl << "\".";
+        return SHAREMIND_TDB_GENERAL_ERROR;
+    }
+
+    success = true;
+
+    return SHAREMIND_TDB_OK;
+}
+
 bool TdbHdf5Connection::pathExists(const fs::path & path, bool & status) {
     try {
         status = exists(path);
