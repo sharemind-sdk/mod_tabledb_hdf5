@@ -20,6 +20,7 @@
 #include "TdbHdf5Manager.h"
 
 #include "TdbHdf5Connection.h"
+#include "TdbHdf5ConnectionConf.h"
 
 #include <boost/filesystem.hpp>
 #include <boost/system/error_code.hpp>
