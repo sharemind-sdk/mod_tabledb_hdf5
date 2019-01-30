@@ -34,12 +34,12 @@
 #include <sharemind/module-apis/api_0x1.h>
 #include <string>
 #include "TdbHdf5ConnectionConf.h"
+#include "TdbHdf5Manager.h"
 
 
 namespace sharemind  {
 
 class TdbHdf5Connection;
-class TdbHdf5Manager;
 
 class TdbHdf5Transaction {
 
@@ -112,7 +112,7 @@ private: /* Fields: */
     SharemindTdbVectorMapUtil & m_mapUtil;
     SharemindConsensusFacility * m_consensusService;
 
-    std::shared_ptr<TdbHdf5Manager> m_dbManager;
+    TdbHdf5Manager m_dbManager;
 
     std::mutex m_dsConfMutex;
     std::map<std::string, std::unique_ptr<TdbHdf5ConnectionConf> > m_dsConf;

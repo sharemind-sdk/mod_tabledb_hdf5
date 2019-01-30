@@ -159,7 +159,7 @@ TdbHdf5Module::TdbHdf5Module(const LogHard::Logger & logger,
     , m_dataSourceManager(dataSourceManager)
     , m_mapUtil(mapUtil)
     , m_consensusService(consensusService)
-    , m_dbManager(new TdbHdf5Manager(logger))
+    , m_dbManager(logger)
 {
     if (m_consensusService)
         m_consensusService->add_operation_type(m_consensusService, &databaseOperation);
@@ -244,7 +244,7 @@ bool TdbHdf5Module::openConnection(const SharemindModuleApi0x1SyscallContext * c
     }
 
     // Open the connection
-    std::shared_ptr<TdbHdf5Connection> conn = m_dbManager->openConnection(*cfg);
+    std::shared_ptr<TdbHdf5Connection> conn = m_dbManager.openConnection(*cfg);
     if (!conn.get())
         return false;
 
