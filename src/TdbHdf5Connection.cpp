@@ -812,6 +812,9 @@ SharemindTdbError TdbHdf5Connection::tblDelete(const std::string & tbl) {
     if (!validateTableName(tbl))
         return SHAREMIND_TDB_INVALID_ARGUMENT;
 
+    // Close the table, if open:
+    closeTableFile(tbl);
+
     // Get table path
     const fs::path tblPath = nameToPath(tbl);
 
