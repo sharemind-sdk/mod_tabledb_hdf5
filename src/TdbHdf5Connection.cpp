@@ -815,7 +815,7 @@ SharemindTdbError TdbHdf5Connection::tblDelete(const std::string & tbl) {
 
     // Delete the table file
     try {
-        if (!remove(tblPath)) {
+        if (!fs::remove(tblPath)) {
             m_logger.error() << "Table \"" << tbl << "\" does not exist.";
             return SHAREMIND_TDB_TABLE_NOT_FOUND;
         }
@@ -2231,7 +2231,7 @@ SharemindTdbError TdbHdf5Connection::getAttributes(
 
 bool TdbHdf5Connection::pathExists(const fs::path & path, bool & status) {
     try {
-        status = exists(path);
+        status = fs::exists(path);
     } catch (const fs::filesystem_error & e) {
         m_logger.error() << "Error while checking if file " << path.string()
                          << " exists: " << e.what();
