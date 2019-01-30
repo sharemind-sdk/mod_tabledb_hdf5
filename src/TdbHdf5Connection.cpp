@@ -484,7 +484,7 @@ SharemindTdbError TdbHdf5Connection::tblCreate(const std::string & tbl,
             m_logger.error() << "Failed to create user attributes group.";
             return SHAREMIND_TDB_GENERAL_ERROR;
         }
-        if (H5Gclose(gID) < 0)
+        if (H5Gclose(gId) < 0)
             m_logger.fullDebug() << "Error while closing user attributes group.";
     }
 
