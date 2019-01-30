@@ -1988,7 +1988,7 @@ SharemindTdbError TdbHdf5Connection::readColumn(const std::string & tbl,
 
     // Check if column numbers are valid
     {
-        std::set<uint64_t> uniqueColumns;
+        std::set<std::uint64_t> uniqueColumns;
         for (SharemindTdbIndex const * const colId : colIdBatch) {
             assert(colId);
 

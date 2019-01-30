@@ -48,7 +48,7 @@ public: /* Types: */
                 InitializationException,
                 FailedToSetHdf5LoggingHandlerException);
 
-    typedef uint64_t size_type;
+    using size_type = std::uint64_t;
 
 private: /* Types: */
 
