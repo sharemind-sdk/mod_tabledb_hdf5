@@ -478,10 +478,12 @@ SharemindTdbError TdbHdf5Connection::tblCreate(const std::string & tbl,
     }
 
     // Create user attributes group
-    const hid_t gId = H5Gcreate(fileId, USR_ATTR_GROUP, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-    if (gId < 0) {
-        m_logger.error() << "Failed to create user attributes group.";
-        return SHAREMIND_TDB_GENERAL_ERROR;
+    {
+        const hid_t gId = H5Gcreate(fileId, USR_ATTR_GROUP, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+        if (gId < 0) {
+            m_logger.error() << "Failed to create user attributes group.";
+            return SHAREMIND_TDB_GENERAL_ERROR;
+        }
     }
 
     // Create a dataset for each unique column type
