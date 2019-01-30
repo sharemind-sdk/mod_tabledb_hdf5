@@ -70,15 +70,10 @@ std::shared_ptr<TdbHdf5Connection> TdbHdf5Manager::openConnection(const TdbHdf5C
     }
 
     // Return the connection object from the cache or construct a new one
-    return get(canonicalPath);
-}
-
-TdbHdf5Connection * TdbHdf5Manager::alloc(const boost::filesystem::path & key) const {
-    try {
-        return new TdbHdf5Connection(m_previousLogger, key);
-    } catch (...) {
-        return nullptr;
-    }
+    return m_connectionCache.get(
+                canonicalPath,
+                [this](boost::filesystem::path const & key)
+                { return new TdbHdf5Connection(m_previousLogger, key); });
 }
 
 } /* namespace sharemind { */

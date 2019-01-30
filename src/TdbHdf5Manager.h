@@ -35,8 +35,7 @@ namespace sharemind {
 class TdbHdf5Connection;
 class TdbHdf5ConnectionConf;
 
-class __attribute__ ((visibility("internal"))) TdbHdf5Manager
-    : public KeyValueCache<boost::filesystem::path, TdbHdf5Connection> {
+class __attribute__ ((visibility("internal"))) TdbHdf5Manager {
 public: /* Methods: */
 
     TdbHdf5Manager(const LogHard::Logger & logger)
@@ -46,15 +45,11 @@ public: /* Methods: */
 
     std::shared_ptr<TdbHdf5Connection> openConnection(const TdbHdf5ConnectionConf & config);
 
-private: /* Methods: */
-
-    TdbHdf5Connection * alloc(boost::filesystem::path const & key)
-            const override;
-
 private: /* Fields: */
 
     const LogHard::Logger m_logger;
     const LogHard::Logger m_previousLogger;
+    KeyValueCache<boost::filesystem::path, TdbHdf5Connection> m_connectionCache;
 
 }; /* class TdbHdf5Manager { */
 

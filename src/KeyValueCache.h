@@ -20,102 +20,131 @@
 #ifndef SHAREMINDCOMMON_KEYVALUECACHE_H
 #define SHAREMINDCOMMON_KEYVALUECACHE_H
 
+#include <cassert>
+#include <cstddef>
 #include <map>
 #include <memory>
 #include <mutex>
+#include <sharemind/DebugOnly.h>
+#include <utility>
 
 
 namespace sharemind {
 
 template<typename K, typename V>
-class KeyValueCache : public std::enable_shared_from_this<KeyValueCache<K, V> > {
+class KeyValueCache {
+
 private: /* Types: */
 
-    struct DeleteActor {
-        DeleteActor(std::weak_ptr<KeyValueCache<K, V> > cache)
-            : m_cache(cache)
-        { }
+    class Inner {
 
-        void operator() (V * const ptr) {
-            std::shared_ptr<KeyValueCache<K, V> > cache = m_cache.lock();
-            if (cache.get())
-                cache->removePtr(ptr);
+    private: /* Types: */
 
-            delete ptr;
+        class DeleteActor {
+
+        public: /* Methods: */
+
+            DeleteActor(DeleteActor &&) noexcept = default;
+            DeleteActor(DeleteActor const &) noexcept = default;
+
+            DeleteActor(std::weak_ptr<Inner> cache) noexcept
+                : m_cache(std::move(cache))
+            {}
+
+            DeleteActor & operator=(DeleteActor &&) noexcept = default;
+            DeleteActor & operator=(DeleteActor const &) noexcept = default;
+
+            void operator()(V * const ptr) noexcept {
+                if (std::shared_ptr<Inner> cache = m_cache.lock())
+                    cache->removePtr(ptr);
+                delete ptr;
+            }
+
+        private: /* Fields: */
+
+            std::weak_ptr<Inner> m_cache;
+
+        };
+
+        using ValuePtr = std::pair<V *, std::weak_ptr<V> >;
+        using ValueMap = std::map<K, ValuePtr>;
+        using DeleterMap = std::map<V *, typename ValueMap::iterator>;
+
+    public: /* Methods: */
+
+        template <typename ValueFactory>
+        std::shared_ptr<V> get(K const & key,
+                               std::shared_ptr<Inner> const & self,
+                               ValueFactory valueFactory)
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+
+            // Check if we already have the value in cache
+            {
+                auto const it(m_valueMap.find(key));
+                if (it != m_valueMap.end()) {
+                    // Check if the value is valid
+                    ValuePtr & valPtr = it->second;
+                    if (auto ptr = valPtr.second.lock())
+                        return ptr;
+
+                    SHAREMIND_DEBUG_ONLY(auto const c =)
+                            m_deleterMap.erase(valPtr.first);
+                    assert(c > 0u);
+                    m_valueMap.erase(it);
+                }
+            }
+
+            // Create a new value
+            std::shared_ptr<V> ptr(valueFactory(key), DeleteActor(self));
+            auto const it(
+                        m_valueMap.insert(
+                            typename ValueMap::value_type(
+                                key,
+                                ValuePtr(ptr.get(), ptr))).first);
+            SHAREMIND_DEBUG_ONLY(auto const r =)
+                    m_deleterMap.insert(
+                        typename DeleterMap::value_type(ptr.get(), it))
+                    SHAREMIND_DEBUG_ONLY(.second);
+            assert(r);
+            return ptr;
         }
 
-        std::weak_ptr<KeyValueCache<K, V> > m_cache;
+    private: /* Methods: */
+
+        void removePtr(V * const ptr) {
+            std::lock_guard<std::mutex> lock(m_mutex);
+
+            auto const it(m_deleterMap.find(ptr));
+            if (it == m_deleterMap.end())
+                return;
+
+            m_valueMap.erase(it->second);
+            m_deleterMap.erase(it);
+        }
+
+    private: /* Fields: */
+
+        std::mutex m_mutex;
+
+        ValueMap m_valueMap;
+        DeleterMap m_deleterMap;
+
     };
 
-    typedef std::pair<V *, std::weak_ptr<V> > ValuePtr;
-    typedef std::map<K, ValuePtr> ValueMap;
-    typedef std::map<V *, typename ValueMap::iterator> DeleterMap;
+public: /* Methods: */
 
-protected: /* Methods: */
-
-    virtual ~KeyValueCache() noexcept {}
-
-    std::shared_ptr<V> get(const K & key) {
-        std::lock_guard<std::mutex> lock(m_mutex);
-
-        // Check if we already have the value in cache
-        typename ValueMap::iterator it = m_valueMap.find(key);
-        if (it != m_valueMap.end()) {
-            // Check if the value is valid
-            ValuePtr & valPtr = it->second;
-            std::shared_ptr<V> ptr = valPtr.second.lock();
-            if (ptr.get())
-                return ptr;
-
-            #ifndef NDEBUG
-            const size_t c =
-            #endif
-                    m_deleterMap.erase(valPtr.first);
-            assert(c > 0u);
-            m_valueMap.erase(it);
-        }
-
-        // Create a new value
-        V * const val = alloc(key);
-        if (!val)
-            return std::shared_ptr<V>();
-
-        std::shared_ptr<V> ptr(val, DeleteActor(this->shared_from_this()));
-        it = m_valueMap.insert(typename ValueMap::value_type(key, ValuePtr(ptr.get(), ptr))).first;
-        #ifndef NDEBUG
-        const bool r =
-        #endif
-                m_deleterMap.insert(typename DeleterMap::value_type(ptr.get(), it))
-                #ifndef NDEBUG
-                    .second
-                #endif
-                ;
-        assert(r);
-
-        return ptr;
-    }
-
-    virtual V * alloc(const K & key) const = 0;
-
-private: /* Methods: */
-
-    void removePtr(V * const ptr) {
-        std::lock_guard<std::mutex> lock(m_mutex);
-
-        typename DeleterMap::iterator it = m_deleterMap.find(ptr);
-        if (it == m_deleterMap.end())
-            return;
-
-        m_valueMap.erase(it->second);
-        m_deleterMap.erase(it);
+    template <typename ValueFactory>
+    std::shared_ptr<V> get(K const & key, ValueFactory && valueFactory) {
+        assert(m_inner);
+        return m_inner->get(key,
+                            m_inner,
+                            std::forward<ValueFactory>(valueFactory));
     }
 
 private: /* Fields: */
 
-    mutable std::mutex m_mutex;
-
-    ValueMap m_valueMap;
-    DeleterMap m_deleterMap;
+    std::shared_ptr<Inner> m_inner{std::make_shared<Inner>()};
 
 };
 
