@@ -52,12 +52,6 @@ public: /* Types: */
 
 private: /* Types: */
 
-    struct ColumnIndex {
-        const char *    name;
-        hobj_ref_t      dataset_ref;
-        hsize_t         dataset_column;
-    };
-
     typedef std::map<std::string, hid_t> TableFileMap;
 
 public: /* Methods: */

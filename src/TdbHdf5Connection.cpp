@@ -90,6 +90,12 @@ static herr_t err_handler(hid_t, void * client_data) {
 
 namespace {
 
+struct ColumnIndex {
+    const char *    name;
+    hobj_ref_t      dataset_ref;
+    hsize_t         dataset_column;
+};
+
 inline std::string tagFromType(SharemindTdbType const & type)
 { return sharemind::concat(type.domain, "::", type.name, "::", type.size); }
 
