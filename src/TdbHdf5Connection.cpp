@@ -20,6 +20,7 @@
 #include "TdbHdf5Connection.h"
 
 #include <algorithm>
+#include <cstring>
 #include <set>
 #include <boost/filesystem.hpp>
 #include <boost/scope_exit.hpp>
