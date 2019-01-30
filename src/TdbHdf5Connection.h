@@ -34,7 +34,6 @@
 #include <string>
 #include <utility>
 #include <vector>
-#include "TdbHdf5ConnectionConf.h"
 
 
 namespace sharemind {
