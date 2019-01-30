@@ -2268,15 +2268,47 @@ bool TdbHdf5Connection::validateColumnNames(const std::vector<SharemindTdbString
 }
 
 bool TdbHdf5Connection::validateTableName(const std::string & tbl) const {
-    if (tbl.empty()) {
-        m_logger.error() << "Table name must be a non-empty string.";
+    static auto const testValidChar =
+            [this](char const c) noexcept {
+                switch (c) {
+                case '\0':
+                    m_logger.error() << "Table name contains NULL characters!";
+                    return false;
+                case '/':
+                    m_logger.error() << "Table name contains '/' characters!";
+                    return false;
+                default:
+                    return true;
+                }
+            };
+    switch (tbl.size()) {
+    case 0u:
+        m_logger.error() << "Table name must be a non-empty string!";
         return false;
+    case 1u: {
+        auto const c(tbl.front());
+        if (c == '.') {
+            m_logger.error() << "Table name can not be \".\"!";
+            return false;
+        }
+        return testValidChar(c);
     }
-
-    // Check the table name for some special symbols e.g. '/'
-    // TODO check if table name is valid with some static regular expressions?
-
-    return true;
+    case 2u: {
+        auto const * const s = tbl.c_str();
+        auto const c1(s[0u]);
+        auto const c2(s[1u]);
+        if (c1 == '.' && c2 == '.') {
+            m_logger.error() << "Table name can not be \"..\"!";
+            return false;
+        }
+        return testValidChar(c1) && testValidChar(c2);
+    }
+    default:
+        for (auto const c : tbl)
+            if (!testValidChar(c))
+                return false;
+        return true;
+    }
 }
 
 bool TdbHdf5Connection::validateValues(const std::vector<SharemindTdbValue *> & values) const {
