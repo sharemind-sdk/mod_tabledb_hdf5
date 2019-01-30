@@ -317,13 +317,15 @@ SharemindTdbError TdbHdf5Connection::tblCreate(const std::string & tbl,
     fs::path tblPath = nameToPath(tbl);
 
     // Check if table file exists
-    bool exists = false;
-    if (!pathExists(tblPath, exists))
-        return SHAREMIND_TDB_GENERAL_ERROR;
+    {
+        bool exists = false;
+        if (!pathExists(tblPath, exists))
+            return SHAREMIND_TDB_GENERAL_ERROR;
 
-    if (exists) {
-        m_logger.error() << "Table already exists.";
-        return SHAREMIND_TDB_TABLE_ALREADY_EXISTS;
+        if (exists) {
+            m_logger.error() << "Table already exists.";
+            return SHAREMIND_TDB_TABLE_ALREADY_EXISTS;
+        }
     }
 
     // Remove dangling file handler, if any (file was unlinked while the handler
