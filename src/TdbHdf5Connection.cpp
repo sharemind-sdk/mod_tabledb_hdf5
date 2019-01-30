@@ -1748,7 +1748,7 @@ SharemindTdbError TdbHdf5Connection::insertRow(const std::string & tbl,
 
                         for (SharemindTdbValue const * const val : values) {
                             const bool asColumn = *vacIt++;
-                            memcpy(static_cast<char *>(buffer) + offset, val->buffer, val->size);
+                            std::memcpy(static_cast<char *>(buffer) + offset, val->buffer, val->size);
 
                             // Check if we are at the beginning of a transposed
                             // block
@@ -1776,7 +1776,7 @@ SharemindTdbError TdbHdf5Connection::insertRow(const std::string & tbl,
                         size_t offset = 0u;
 
                         for (SharemindTdbValue const * const val : values) {
-                            memcpy(static_cast<char *>(buffer) + offset, val->buffer, val->size);
+                            std::memcpy(static_cast<char *>(buffer) + offset, val->buffer, val->size);
                             offset += val->size;
                         }
                     }
@@ -2661,7 +2661,7 @@ SharemindTdbError TdbHdf5Connection::readDatasetColumn(const hid_t fileId, const
                             bufferSize = hvlBuffer[i].len;
                             val->buffer = ::operator new(bufferSize);
                             try {
-                                memcpy(val->buffer, hvlBuffer[i].p, bufferSize);
+                                std::memcpy(val->buffer, hvlBuffer[i].p, bufferSize);
                                 val->size = bufferSize;
 
                                 param.second->push_back(val.get());
