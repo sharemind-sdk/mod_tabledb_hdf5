@@ -21,7 +21,6 @@
 
 #include <algorithm>
 #include <set>
-#include <sstream>
 #include <boost/filesystem.hpp>
 #include <boost/scope_exit.hpp>
 #include <H5Apublic.h>
@@ -33,6 +32,7 @@
 #include <H5Spublic.h>
 #include <H5Tpublic.h>
 #include <memory>
+#include <sharemind/Concat.h>
 #include <sharemind/mod_tabledb/TdbTypesUtil.h>
 #include <type_traits>
 
@@ -89,6 +89,9 @@ static herr_t err_handler(hid_t, void * client_data) {
 } /* extern "C" { */
 
 namespace {
+
+inline std::string tagFromType(SharemindTdbType const & type)
+{ return sharemind::concat(type.domain, "::", type.name, "::", type.size); }
 
 /*
  * http://en.wikipedia.org/wiki/In-place_matrix_transposition
@@ -368,9 +371,7 @@ SharemindTdbError TdbHdf5Connection::tblCreate(const std::string & tbl,
         if (!rv.second)
             ++rv.first->second;
 
-        std::ostringstream oss; // TODO figure out something better than this
-        oss << type->domain << "::" << type->name << "::" << type->size;
-        colInfoVector.emplace_back(oss.str(), rv.first->second - 1);
+        colInfoVector.emplace_back(tagFromType(*type), rv.first->second - 1);
     }
 
     const size_t ntypes = typeMap.size();
@@ -412,10 +413,7 @@ SharemindTdbError TdbHdf5Connection::tblCreate(const std::string & tbl,
                 }
 
                 // Set a type tag
-                std::ostringstream oss; // TODO figure out something better than this
-                oss << type->domain << "::" << type->name << "::" << type->size;
-                const std::string tag(oss.str());
-
+                auto const tag(tagFromType(*type));
                 if (H5Tset_tag(tId, tag.c_str()) < 0) {
                     m_logger.error() << "Failed to set dataset type tag.";
 
@@ -573,9 +571,7 @@ SharemindTdbError TdbHdf5Connection::tblCreate(const std::string & tbl,
 
             const size_t size = isVariableLengthType(type) ? sizeof(hvl_t) : type->size;
 
-            std::ostringstream oss; // TODO figure out something better than this
-            oss << type->domain << "::" << type->name << "::" << type->size;
-            const std::string tag(oss.str());
+            auto const tag(tagFromType(*type));
 
             // TODO take CHUNK_SIZE from configuration?
             // TODO what about the chunk shape?
