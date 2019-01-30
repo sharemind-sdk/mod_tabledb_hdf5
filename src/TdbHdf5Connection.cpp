@@ -20,10 +20,9 @@
 #include "TdbHdf5Connection.h"
 
 #include <algorithm>
-#include <cstring>
-#include <set>
 #include <boost/filesystem.hpp>
 #include <boost/scope_exit.hpp>
+#include <cstring>
 #include <H5Apublic.h>
 #include <H5Epublic.h>
 #include <H5Fpublic.h>
@@ -33,6 +32,7 @@
 #include <H5Spublic.h>
 #include <H5Tpublic.h>
 #include <memory>
+#include <set>
 #include <sharemind/Concat.h>
 #include <sharemind/mod_tabledb/TdbTypesUtil.h>
 #include <type_traits>

@@ -20,11 +20,11 @@
 #ifndef SHAREMIND_MOD_TABLEDB_HDF5_TDBHDF5CONNECTION_H
 #define SHAREMIND_MOD_TABLEDB_HDF5_TDBHDF5CONNECTION_H
 
+#include <boost/filesystem/path.hpp>
+#include <exception>
 #include <H5Ipublic.h>
 #include <H5Rpublic.h>
 #include <LogHard/Logger.h>
-#include <boost/filesystem/path.hpp>
-#include <exception>
 #include <map>
 #include <sharemind/Exception.h>
 #include <sharemind/ExceptionMacros.h>
