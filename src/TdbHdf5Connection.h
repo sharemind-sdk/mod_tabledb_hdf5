@@ -21,6 +21,7 @@
 #define SHAREMIND_MOD_TABLEDB_HDF5_TDBHDF5CONNECTION_H
 
 #include <boost/filesystem/path.hpp>
+#include <cstdint>
 #include <exception>
 #include <H5Ipublic.h>
 #include <H5Rpublic.h>
