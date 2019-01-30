@@ -319,8 +319,11 @@ SharemindTdbError TdbHdf5Connection::tblCreate(const std::string & tbl,
 
     fs::path tblPath = nameToPath(tbl);
 
-    // Check if table file exists
-    {
+    // Check if table exists
+    if (m_tableFiles.find(tbl) != m_tableFiles.end()) {
+        m_logger.error() << "Table already exists.";
+        return SHAREMIND_TDB_TABLE_ALREADY_EXISTS;
+    } else {
         bool exists = false;
         if (!pathExists(tblPath, exists))
             return SHAREMIND_TDB_GENERAL_ERROR;
@@ -330,10 +333,6 @@ SharemindTdbError TdbHdf5Connection::tblCreate(const std::string & tbl,
             return SHAREMIND_TDB_TABLE_ALREADY_EXISTS;
         }
     }
-
-    // Remove dangling file handler, if any (file was unlinked while the handler
-    // was open).
-    closeTableFile(tbl);
 
     // Create a new file handle
     // H5F_ACC_EXCL - Fail if file already exists.
