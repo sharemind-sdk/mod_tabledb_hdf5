@@ -21,12 +21,8 @@
 #define SHAREMIND_MOD_TABLEDB_HDF5_TDBHDF5MANAGER_H
 
 #include <boost/filesystem/path.hpp>
-#include <boost/property_tree/ptree.hpp>
 #include <LogHard/Logger.h>
-#include <map>
 #include <memory>
-#include <set>
-#include <string>
 #include "KeyValueCache.h"
 
 
@@ -36,19 +32,26 @@ class TdbHdf5Connection;
 class TdbHdf5ConnectionConf;
 
 class __attribute__ ((visibility("internal"))) TdbHdf5Manager {
+
 public: /* Methods: */
 
-    TdbHdf5Manager(const LogHard::Logger & logger)
-        : m_logger(logger, "[TdbHdf5Manager]")
-        , m_previousLogger(logger)
-    {}
+    TdbHdf5Manager(LogHard::Logger logger);
 
-    std::shared_ptr<TdbHdf5Connection> openConnection(const TdbHdf5ConnectionConf & config);
+    TdbHdf5Manager(TdbHdf5Manager &&) noexcept;
+    TdbHdf5Manager(TdbHdf5Manager const &) = delete;
+
+    ~TdbHdf5Manager() noexcept;
+
+    TdbHdf5Manager & operator=(TdbHdf5Manager &&) noexcept = delete;
+    TdbHdf5Manager & operator=(TdbHdf5Manager const &) = delete;
+
+    std::shared_ptr<TdbHdf5Connection> openConnection(
+                TdbHdf5ConnectionConf const & config);
 
 private: /* Fields: */
 
-    const LogHard::Logger m_logger;
-    const LogHard::Logger m_previousLogger;
+    LogHard::Logger const m_previousLogger;
+    LogHard::Logger const m_logger;
     KeyValueCache<boost::filesystem::path, TdbHdf5Connection> m_connectionCache;
 
 }; /* class TdbHdf5Manager { */
