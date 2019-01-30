@@ -25,7 +25,21 @@
 namespace sharemind {
 
 TdbHdf5ConnectionConf::TdbHdf5ConnectionConf(std::string const & filename)
-    : m_path(Configuration(filename).get<std::string>("DatabasePath"))
+    : m_databasePath(Configuration(filename).get<std::string>("DatabasePath"))
 {}
+
+TdbHdf5ConnectionConf::TdbHdf5ConnectionConf(TdbHdf5ConnectionConf &&) noexcept
+    = default;
+
+TdbHdf5ConnectionConf::TdbHdf5ConnectionConf(TdbHdf5ConnectionConf const &)
+    = default;
+
+TdbHdf5ConnectionConf::~TdbHdf5ConnectionConf() noexcept = default;
+
+TdbHdf5ConnectionConf & TdbHdf5ConnectionConf::operator=(
+        TdbHdf5ConnectionConf &&) noexcept = default;
+
+TdbHdf5ConnectionConf & TdbHdf5ConnectionConf::operator=(
+        TdbHdf5ConnectionConf const &) = default;
 
 } /* namespace sharemind { */

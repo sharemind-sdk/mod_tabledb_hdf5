@@ -26,16 +26,24 @@
 namespace sharemind {
 
 class __attribute__ ((visibility("internal"))) TdbHdf5ConnectionConf {
+
 public: /* Methods: */
 
     TdbHdf5ConnectionConf(std::string const & filename);
 
-    inline std::string & getPath() { return m_path; }
-    inline const std::string & getPath() const { return m_path; }
+    TdbHdf5ConnectionConf(TdbHdf5ConnectionConf &&) noexcept;
+    TdbHdf5ConnectionConf(TdbHdf5ConnectionConf const &);
+
+    ~TdbHdf5ConnectionConf() noexcept;
+
+    TdbHdf5ConnectionConf & operator=(TdbHdf5ConnectionConf &&) noexcept;
+    TdbHdf5ConnectionConf & operator=(TdbHdf5ConnectionConf const &);
+
+    std::string const & databasePath() const noexcept { return m_databasePath; }
 
 private: /* Fields: */
 
-    std::string m_path;
+    std::string m_databasePath;
 
 }; /* class TdbHdf5ConnectionConf { */
 

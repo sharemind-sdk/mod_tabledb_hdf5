@@ -36,12 +36,12 @@ std::shared_ptr<TdbHdf5Connection> TdbHdf5Manager::openConnection(const TdbHdf5C
     // TODO workaround for older boost filesystem versions?
     fs::path canonicalPath;
     try {
-        const fs::path dbPath(config.getPath());
+        const fs::path dbPath(config.databasePath());
 
         // Check if path exists
         if (fs::exists(dbPath)) {
             // Get the canonical path for the database (e.g. with no dots or symlinks)
-            canonicalPath = fs::canonical(fs::path(config.getPath()));
+            canonicalPath = fs::canonical(fs::path(config.databasePath()));
 
             // Check if the given path is a directory
             if (!fs::is_directory(canonicalPath)) {
@@ -61,7 +61,7 @@ std::shared_ptr<TdbHdf5Connection> TdbHdf5Manager::openConnection(const TdbHdf5C
             }
 
             // Get the canonical path for the database (e.g. with no dots or symlinks)
-            canonicalPath = fs::canonical(fs::path(config.getPath()));
+            canonicalPath = fs::canonical(fs::path(config.databasePath()));
         }
     } catch (const fs::filesystem_error & e) {
         m_logger.error() << "Error while while performing file system"
