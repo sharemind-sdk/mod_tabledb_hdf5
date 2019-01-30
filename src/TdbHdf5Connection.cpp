@@ -816,10 +816,7 @@ SharemindTdbError TdbHdf5Connection::tblDelete(const std::string & tbl) {
 
     // Delete the table file
     try {
-        if (!fs::remove(tblPath)) {
-            m_logger.error() << "Table \"" << tbl << "\" does not exist.";
-            return SHAREMIND_TDB_TABLE_NOT_FOUND;
-        }
+        fs::remove(tblPath);
     } catch (const fs::filesystem_error & e) {
         m_logger.error() << "Error while deleting table \"" << tbl << "\" file "
                          << tblPath.string() << ": " << e.what() << ".";
