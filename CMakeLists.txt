@@ -78,6 +78,11 @@ SharemindAddSharedLibrary("sharemind_mod_tabledb_hdf5"
         ${SharemindModTableDb_LIBRARIES}
 )
 
+# Configuration files:
+INSTALL(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/packaging/configs/sharemind/"
+        DESTINATION "/etc/sharemind/"
+        COMPONENT "lib"
+        EXCLUDE_FROM_ALL)
 
 # Packaging:
 SharemindSetupPackaging()
