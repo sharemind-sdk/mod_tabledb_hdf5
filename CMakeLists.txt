@@ -24,7 +24,7 @@ FIND_PACKAGE(LogHard 0.3.0 REQUIRED)
 FIND_PACKAGE(SharemindCxxHeaders 0.5.0 REQUIRED)
 FIND_PACKAGE(SharemindLibConfiguration 0.2.0 REQUIRED)
 FIND_PACKAGE(SharemindLibConsensusService 0.1.0 REQUIRED)
-FIND_PACKAGE(SharemindLibDataStoreManager 0.1.0 REQUIRED)
+FIND_PACKAGE(SharemindDataStoreApi 0.1.0 REQUIRED)
 FIND_PACKAGE(SharemindLibDbCommon 0.1.1 REQUIRED)
 FIND_PACKAGE(SharemindLibProcessFacility 0.1.0 REQUIRED)
 FIND_PACKAGE(SharemindModTableDb 0.3.0 REQUIRED)
@@ -37,8 +37,9 @@ FILE(GLOB_RECURSE SharemindModTableDbHdf5_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 FILE(GLOB_RECURSE SharemindModTableDbHdf5_HEADERS
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.h")
-SharemindAddSharedLibrary("sharemind_mod_tabledb_hdf5"
+SharemindAddSharedLibrary(ModTableDbHdf5
     MODULE
+    OUTPUT_NAME "sharemind_mod_tabledb_hdf5"
     SOURCES
         ${SharemindModTableDbHdf5_SOURCES}
         ${SharemindModTableDbHdf5_HEADERS}
@@ -49,7 +50,6 @@ SharemindAddSharedLibrary("sharemind_mod_tabledb_hdf5"
         ${SharemindCxxHeaders_INCLUDE_DIRS}
         ${SharemindLibConfiguration_INCLUDE_DIRS}
         ${SharemindLibConsensusService_INCLUDE_DIRS}
-        ${SharemindLibDataStoreManager_INCLUDE_DIRS}
         ${SharemindLibDbCommon_INCLUDE_DIRS}
         ${SharemindLibProcessFacility_INCLUDE_DIRS}
         ${SharemindModTableDb_INCLUDE_DIRS}
@@ -61,7 +61,6 @@ SharemindAddSharedLibrary("sharemind_mod_tabledb_hdf5"
         ${SharemindCxxHeaders_DEFINITIONS}
         ${SharemindLibConfiguration_DEFINITIONS}
         ${SharemindLibConsensusService_DEFINITIONS}
-        ${SharemindLibDataStoreManager_DEFINITIONS}
         ${SharemindLibDbCommon_DEFINITIONS}
         ${SharemindLibProcessFacility_DEFINITIONS}
         ${SharemindModTableDb_DEFINITIONS}
@@ -72,11 +71,11 @@ SharemindAddSharedLibrary("sharemind_mod_tabledb_hdf5"
         ${SharemindCxxHeaders_LIBRARIES}
         ${SharemindLibConfiguration_LIBRARIES}
         ${SharemindLibConsensusService_LIBRARIES}
-        ${SharemindLibDataStoreManager_LIBRARIES}
         ${SharemindLibDbCommon_LIBRARIES}
         ${SharemindLibProcessFacility_LIBRARIES}
         ${SharemindModTableDb_LIBRARIES}
 )
+TARGET_LINK_LIBRARIES(ModTableDbHdf5 PRIVATE Sharemind::DataStoreApi)
 
 # Configuration files:
 INSTALL(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/packaging/configs/sharemind/"
