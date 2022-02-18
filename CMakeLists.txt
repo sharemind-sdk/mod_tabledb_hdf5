@@ -84,7 +84,7 @@ SharemindAddComponentPackage("lib"
         "| libhdf5-100"
         "| libhdf5-103"
         "libloghard (>= 0.5.0)"
-        "libsharemind-mod-tabledb (>= 0.4.0)"
+        "libsharemind-mod-tabledb (>= 0.5.0)"
         "libsharemind-configuration (>= 0.5.0)"
         "libstdc++6 (>= 4.8.0)"
   DEB_EXTRA_CONTROL_FILES
