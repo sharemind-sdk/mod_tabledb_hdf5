@@ -725,16 +725,7 @@ MOD_TABLEDB_HDF5_SYSCALL(tdb_insert_row) {
         const uint64_t typeSize = args[0u].uint64[0u];
         const bool valueAsColumn = num_args == 2u ? args[1u].uint64[0u] : false;
 
-        uint64_t bufSize = 0;
-        // If the buffer size equal the type size, we assume it is a scalar
-        // value and the workaround does not apply to it.
-        if (crefs[4u].size == typeSize) {
-            bufSize = crefs[4u].size;
-        } else {
-            // TODO: the following is a workaround! We are always allocating one
-            // byte too much as VM does not allow us to allocate 0 sized memory block.
-            bufSize = crefs[4u].size - 1;
-        }
+        uint64_t bufSize = crefs[4u].size;
 
         auto & m = GETMODULEHANDLE;
 
