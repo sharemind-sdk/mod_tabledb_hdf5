@@ -7,7 +7,7 @@
 # code is subject to the appropriate license agreement.
 #
 
-CMAKE_MINIMUM_REQUIRED(VERSION 3.0)
+CMAKE_MINIMUM_REQUIRED(VERSION 3.18)
 # The C language is only required for FIND_PACKAGE(HDF5 COMPONENTS C):
 PROJECT(SharemindModTableDbHdf5 VERSION 0.5.0 LANGUAGES C CXX)
 
