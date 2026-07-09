@@ -16,7 +16,7 @@ INCLUDE("${CMAKE_CURRENT_BINARY_DIR}/config.local" OPTIONAL)
 
 FIND_PACKAGE(SharemindCMakeHelpers 1.6 REQUIRED)
 
-FIND_PACKAGE(Boost 1.62 COMPONENTS filesystem system REQUIRED)
+FIND_PACKAGE(Boost 1.62 COMPONENTS filesystem REQUIRED)
 FIND_PACKAGE(HDF5 COMPONENTS C REQUIRED)
 FIND_PACKAGE(LogHard 0.6.0 REQUIRED)
 FIND_PACKAGE(SharemindCxxHeaders 0.10.1 REQUIRED)
@@ -47,7 +47,6 @@ TARGET_LINK_LIBRARIES(ModTableDbHdf5
     PRIVATE
         Boost::boost
         Boost::filesystem
-        Boost::system
         ${HDF5_LIBRARIES}
         LogHard::LogHard
         Sharemind::CxxHeaders
@@ -78,7 +77,6 @@ SharemindAddComponentPackage("lib"
     DEB_SECTION "libs"
     DEB_DEPENDS
         "libboost-filesystem${BV}"
-        "libboost-system${BV}"
         "libc6 (>= 2.19)"
         "libhdf5-10"
         "| libhdf5-103"
