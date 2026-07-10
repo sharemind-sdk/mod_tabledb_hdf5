@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <boost/filesystem.hpp>
 #include <boost/scope_exit.hpp>
+#include <boost/static_assert.hpp>
 #include <cstring>
 #include <H5Apublic.h>
 #include <H5Epublic.h>
