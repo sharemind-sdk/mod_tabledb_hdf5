@@ -20,6 +20,7 @@
 #include "TdbHdf5Manager.h"
 
 #include <boost/filesystem/operations.hpp>
+#include <boost/filesystem/exception.hpp>
 #include "TdbHdf5Connection.h"
 #include "TdbHdf5ConnectionConf.h"
 
