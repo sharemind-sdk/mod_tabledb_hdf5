@@ -9,23 +9,23 @@
 
 CMAKE_MINIMUM_REQUIRED(VERSION 3.18)
 # The C language is only required for FIND_PACKAGE(HDF5 COMPONENTS C):
-PROJECT(SharemindModTableDbHdf5 VERSION 0.5.0 LANGUAGES C CXX)
+PROJECT(SharemindModTableDbHdf5 VERSION 0.6.0 LANGUAGES C CXX)
 
 INCLUDE("${CMAKE_CURRENT_SOURCE_DIR}/config.local" OPTIONAL)
 INCLUDE("${CMAKE_CURRENT_BINARY_DIR}/config.local" OPTIONAL)
 
-FIND_PACKAGE(SharemindCMakeHelpers 1.6 REQUIRED)
+FIND_PACKAGE(SharemindCMakeHelpers 1.8 REQUIRED)
 
 FIND_PACKAGE(Boost 1.62 COMPONENTS filesystem CONFIG REQUIRED)
 FIND_PACKAGE(HDF5 COMPONENTS C REQUIRED)
 FIND_PACKAGE(LogHard 0.6.0 REQUIRED)
-FIND_PACKAGE(SharemindCxxHeaders 0.10.1 REQUIRED)
+FIND_PACKAGE(SharemindCxxHeaders 0.11.0 REQUIRED)
 FIND_PACKAGE(SharemindLibConfiguration 0.6.0 REQUIRED)
 FIND_PACKAGE(SharemindLibConsensusService 0.2.0 REQUIRED)
 FIND_PACKAGE(SharemindDataStoreApi 0.1.0 REQUIRED)
 FIND_PACKAGE(SharemindLibDbCommon 0.2.0 REQUIRED)
 FIND_PACKAGE(SharemindLibProcessFacility 0.2.0 REQUIRED)
-FIND_PACKAGE(SharemindModTableDb 0.5.0 REQUIRED)
+FIND_PACKAGE(SharemindModTableDb 0.6.0 REQUIRED)
 FIND_PACKAGE(SharemindModuleApis 1.1.0 REQUIRED)
 
 
@@ -83,7 +83,7 @@ SharemindAddComponentPackage("lib"
         "| libhdf5-103-1t64"
         "| libhdf5-310"
         "libloghard (>= 0.5.0)"
-        "libsharemind-mod-tabledb (>= 0.5.0)"
+        "libsharemind-mod-tabledb (>= 0.6.0)"
         "libsharemind-configuration (>= 0.5.0)"
         "libstdc++6 (>= 4.8.0)"
   DEB_EXTRA_CONTROL_FILES
